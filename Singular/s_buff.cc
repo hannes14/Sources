@@ -61,7 +61,7 @@ int s_getc(s_buff F)
     }
     else
     {
-      F->end=r;
+      F->end=r-1;
       F->bp=0;
       return F->buff[0];
     }

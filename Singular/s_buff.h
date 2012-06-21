@@ -5,7 +5,7 @@ struct s_buff_s
 {
     char * buff; // buffer
     int fd;      // file descrr.
-    int bp;      // current pos. in buff
+    int bp;      // current pos. in buff (of the last read char)
     int end;     // last position in buff
     int is_eof;
 };
