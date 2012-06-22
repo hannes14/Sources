@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include <kernel/si_gmp.h>
 
@@ -21,11 +22,17 @@
 
 #define S_BUFF_LEN 128
 
+sigset_t ssi_sigmask; // set in ssiLink.cc
+sigset_t ssi_oldmask; // set in ssiLink.cc
+
+#define SSI_BLOCK_CHLD sigprocmask(SIG_SETMASK, &ssi_sigmask, &ssi_oldmask)
+#define SSI_UNBLOCK_CHLD sigprocmask(SIG_SETMASK, &ssi_oldmask, NULL)
+
 s_buff s_open(int fd)
 {
   s_buff F=(s_buff)omAlloc0(sizeof(*F));
   F->fd=fd;
-  F->buff=(char*)omAlloc0(S_BUFF_LEN+2); /*debug*/
+  F->buff=(char*)omAlloc(S_BUFF_LEN);
   return F;
 }
 
@@ -34,6 +41,7 @@ s_buff s_open_by_name(const char *n)
   int fd=open(n,O_RDONLY);
   return s_open(fd);
 }
+
 int    s_close(s_buff &F)
 {
   if (F!=NULL)
@@ -49,11 +57,12 @@ int    s_close(s_buff &F)
 
 int s_getc(s_buff F)
 {
-  if (F==NULL) printf("s_getc\n"); /*debug*/
   if (F->bp>=F->end)
   {
     memset(F->buff,0,S_BUFF_LEN); /*debug*/
+    SSI_BLOCK_CHLD;
     int r=read(F->fd,F->buff,S_BUFF_LEN);
+    SSI_UNBLOCK_CHLD;
     if (r<=0)
     {
       F->is_eof=1;
@@ -72,18 +81,15 @@ int s_getc(s_buff F)
 }
 int s_isready(s_buff F)
 {
-  if (F==NULL) printf("s_isready\n"); /*debug*/
   if (F->bp>=F->end) return 0;
   int p=F->bp+1;
   while((p<F->end)&&(F->buff[p]<=' ')) p++;
   if (p>=F->end) return 0;
-  printf("next char:%c(%d)\n",F->buff[p],F->buff[p]); /*debug*/
   return 1;
 }
 
 int s_ungetc(int c, s_buff F)
 {
-  if (F==NULL) printf("s_ungetc\n"); /*debug*/
   if (F->bp>=0)
   {
     F->buff[F->bp]=c;
@@ -96,7 +102,7 @@ int s_readint(s_buff F)
   char c;
   int neg=1;
   int r=0;
-  int digit=0;
+  //int digit=0;
   do
   {
     c=s_getc(F);
@@ -104,13 +110,13 @@ int s_readint(s_buff F)
   if (c=='-') { neg=-1; c=s_getc(F); }
   while(isdigit(c))
   {
-    digit++;
+    //digit++;
     r=r*10+(c-'0');
     c=s_getc(F);
   }
   s_ungetc(c,F);
-  if (digit==0) { printf("unknown char %c(%d)\n",c,c); /*debug*/
-                  printf("buffer:%s\np=%d,e=%d\n",F->buff,F->bp,F->end);fflush(stdout); } /*debug*/
+  //if (digit==0) { printf("unknown char %c(%d)\n",c,c); /*debug*/
+  //                printf("buffer:%s\np=%d,e=%d\n",F->buff,F->bp,F->end);fflush(stdout); } /*debug*/
   return r*neg;
 }
 
@@ -162,12 +168,12 @@ void s_readmpz_base(s_buff F, mpz_ptr a, int base)
       mpz_mul_ui(a,a,base);
       mpz_add_ui(a,a,(c-'0'));
     }
-    else if ((c>='a') && (c<'z'))
+    else if ((c>='a') && (c<='z'))
     {
       mpz_mul_ui(a,a,base);
       mpz_add_ui(a,a,(c-'a'+10));
     }
-    else if ((c>='A') && (c<'Z'))
+    else if ((c>='A') && (c<='Z'))
     {
       mpz_mul_ui(a,a,base);
       mpz_add_ui(a,a,(c-'A'+10));
