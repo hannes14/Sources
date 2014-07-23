@@ -1,4 +1,6 @@
 #include "kernel/mod2.h" // general settings/macros
+
+#ifdef SINGULAR_4_1
 #include"reporter/reporter.h"  // for Print, WerrorS
 #include"Singular/ipid.h" // for SModulFunctions, leftv
 #include"coeffs/numbers.h" // nRegister, coeffs.h
@@ -14,12 +16,9 @@ char *crString(coeffs c)
 {
   if (c==NULL)
   {
-    StringSetS("oo");
-    return StringEndS();
+    return omStrDup("oo");
   }
-  SPrintStart();
-  c->cfCoeffWrite(c,0);
-  return SPrintEnd();
+  return omStrDup(c->cfCoeffName(c));
 }
 void crPrint(coeffs c)
 {
@@ -326,3 +325,4 @@ BOOLEAN jjR2_CR(leftv res, leftv a)              // ring ->cring
   return FALSE;
 }
 
+#endif
