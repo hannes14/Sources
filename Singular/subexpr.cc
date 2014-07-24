@@ -112,6 +112,9 @@ void sleftv::Print(leftv store, int spaces)
         case CRING_CMD:
           crPrint((coeffs)d);
           break;
+        case CNUMBER_CMD:
+          n2Print((number2)d);
+          break;
 #endif
         case UNKNOWN:
         case DEF_CMD:
@@ -124,12 +127,6 @@ void sleftv::Print(leftv store, int spaces)
           break;
         case NONE:
           return;
-        case CRING_CMD:
-          crPrint((coeffs)d);
-          break;
-        case CNUMBER_CMD:
-          n2Print((number2)d);
-          break;
         case INTVEC_CMD:
         case INTMAT_CMD:
           ((intvec *)d)->show(t,spaces);
