@@ -1,6 +1,7 @@
 #ifndef NUMBER2_H
 #define NUMBER2_H
 
+#ifdef SINGULAR_4_1
 #include<libpolys/coeffs/coeffs.h>
 struct snumber2;
 typedef struct snumber2 *   number2;
@@ -39,4 +40,5 @@ char *n2String(number2 d, BOOLEAN typed);
 void n2Print(number2 d);
 
 BOOLEAN jjCMATRIX_3(leftv, leftv, leftv,leftv);
+#endif
 #endif

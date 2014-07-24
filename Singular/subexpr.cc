@@ -108,6 +108,14 @@ void sleftv::Print(leftv store, int spaces)
 
     switch (t /*=Typ()*/)
       {
+#ifdef SINGULAR_4_1
+        case CRING_CMD:
+          crPrint((coeffs)d);
+          break;
+        case CNUMBER_CMD:
+          n2Print((number2)d);
+          break;
+#endif
         case UNKNOWN:
         case DEF_CMD:
           PrintNSpaces(spaces);
@@ -119,12 +127,6 @@ void sleftv::Print(leftv store, int spaces)
           break;
         case NONE:
           return;
-        case CRING_CMD:
-          crPrint((coeffs)d);
-          break;
-        case CNUMBER_CMD:
-          n2Print((number2)d);
-          break;
         case INTVEC_CMD:
         case INTMAT_CMD:
           ((intvec *)d)->show(t,spaces);
@@ -392,6 +394,7 @@ static inline void * s_internalCopy(const int t,  void *d)
 {
   switch (t)
   {
+#ifdef SINGULAR_4_1
     case CRING_CMD:
       {
         coeffs cf=(coeffs)d;
@@ -400,6 +403,7 @@ static inline void * s_internalCopy(const int t,  void *d)
       }
     case CNUMBER_CMD:
       return (void*)n2Copy((number2)d);
+#endif
     case INTVEC_CMD:
     case INTMAT_CMD:
       return (void *)ivCopy((intvec *)d);
@@ -470,6 +474,7 @@ void s_internalDelete(const int t,  void *d, const ring r)
   assume(d!=NULL);
   switch (t)
   {
+#ifdef SINGULAR_4_1
     case CRING_CMD:
       nKillChar((coeffs)d);
       break;
@@ -479,6 +484,7 @@ void s_internalDelete(const int t,  void *d, const ring r)
         n2Delete(n);
         break;
       }
+#endif
     case INTVEC_CMD:
     case INTMAT_CMD:
     {
