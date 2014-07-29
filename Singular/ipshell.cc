@@ -428,9 +428,9 @@ void list_cmd(int typ, const char* what, const char *prefix,BOOLEAN iterate, BOO
         {
           h=IDRING(h)->idroot;
         }
-        else if((IDTYP(h)==PACKAGE_CMD) || (IDTYP(h)==POINTER_CMD))
+        else if(IDTYP(h)==PACKAGE_CMD)
         {
-          //Print("list_cmd:package or pointer\n");
+          //Print("list_cmd:package\n");
           all=TRUE;typ=PROC_CMD;fullname=TRUE;really_all=TRUE;
           h=IDPACKAGE(h)->idroot;
         }
@@ -5577,7 +5577,7 @@ void rKill(ring r)
     {
       if (iiLocalRing[j]==r)
       {
-        if (j<myynest) Warn("killing the basering for level %d",j);
+        if (j+1==myynest) Warn("killing the basering for level %d",j);
         iiLocalRing[j]=NULL;
       }
     }
@@ -5642,12 +5642,6 @@ void rKill(idhdl h)
     else
     {
       currRingHdl=rFindHdl(r,currRingHdl);
-      if ((currRingHdl==NULL)&&(currRing->idroot==NULL))
-      {
-        for (int i=myynest;i>=0;i--)
-          if (iiLocalRing[i]==currRing) return;
-        currRing=NULL;
-      }
     }
   }
 }
