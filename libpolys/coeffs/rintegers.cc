@@ -22,6 +22,7 @@
 #include <coeffs/rintegers.h>
 #include <coeffs/rmodulon.h>
 #include "si_gmp.h"
+#include "factory/factory.h"
 
 /// Our Type!
 static const n_coeffType ID = n_Z;
@@ -1555,10 +1556,6 @@ static char* nrzCoeffString(const coeffs)
 {
   return omStrDup("integer");
 }
-
-#include "factory/canonicalform.h"
-#include <factory/cf_gmp.h>
-#include "factory/singext.h"
 
 static CanonicalForm nrzConvSingNFactoryN( number n, BOOLEAN setChar, const coeffs /*r*/ )
 {
