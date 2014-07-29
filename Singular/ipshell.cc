@@ -73,6 +73,10 @@
 #include <kernel/maps/fast_maps.h>
 #endif
 
+#ifdef SINGULAR_4_1
+#include <Singular/number2.h>
+#include <libpolys/coeffs/bigintmat.h>
+#endif
 leftv iiCurrArgs=NULL;
 idhdl iiCurrProc=NULL;
 const char *lastreserved=NULL;
@@ -220,6 +224,20 @@ static void list1(const char* s, idhdl h,BOOLEAN c, BOOLEAN fullname)
                      Print(" <%lx>",(long)(IDRING(h)));
 #endif
                    break;
+#ifdef SINGULAR_4_1
+    case CNUMBER_CMD: 
+                   {  number2 n=(number2)IDDATA(h);
+		      Print(" (%s)",n->cf->cfCoeffName(n->cf));
+		      break;
+		   }
+    case CMATRIX_CMD:
+                   {  bigintmat *b=(bigintmat*)IDDATA(h);
+		      Print(" %d x %d (%s)",
+		        b->rows(),b->cols(),
+		        b->basecoeffs()->cfCoeffName(b->basecoeffs()));
+		      break;
+		   }
+#endif
     /*default:     break;*/
   }
   PrintLn();

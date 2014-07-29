@@ -57,6 +57,9 @@
 #include "blackbox.h"
 #include "Singular/number2.h"
 
+#ifdef SINGULAR_4_1
+#include <Singular/number2.h>
+#endif
 
 
 /*=================== proc =================*/
@@ -403,6 +406,7 @@ static BOOLEAN jiA_NUMBER(leftv res, leftv a, Subexpr)
   jiAssignAttr(res,a);
   return FALSE;
 }
+#ifdef SINGULAR_4_1
 static BOOLEAN jiA_NUMBER2(leftv res, leftv a, Subexpr e)
 {
   number2 n=(number2)a->CopyD(CNUMBER_CMD);
@@ -446,13 +450,14 @@ static BOOLEAN jiA_NUMBER2(leftv res, leftv a, Subexpr e)
       else
       {
         WerrorS("different base");
-	return TRUE;
+        return TRUE;
       }
     }
   }
   jiAssignAttr(res,a);
   return FALSE;
 }
+#endif
 static BOOLEAN jiA_BIGINT(leftv res, leftv a, Subexpr e)
 {
   number p=(number)a->CopyD(BIGINT_CMD);

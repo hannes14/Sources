@@ -38,6 +38,9 @@
 #include <Singular/blackbox.h>
 #include <Singular/number2.h>
 
+#ifdef SINGULAR_4_1
+#include <Singular/number2.h>
+#endif
 #ifdef HAVE_DYNAMIC_LOADING
 #include <polys/mod_raw.h>
 #endif /* HAVE_DYNAMIC_LOADING */
@@ -133,6 +136,13 @@ void *idrecDataInit(int t)
   switch (t)
   {
     //the type with init routines:
+#ifdef SINGULAR_4_1
+    case CNUMBER_CMD:
+      return (void*)n2Init(0,NULL);
+    case CMATRIX_CMD:
+#endif
+    case BIGINTMAT_CMD:
+      return (void *)new bigintmat();
     case INTVEC_CMD:
     case INTMAT_CMD:
       return (void *)new intvec();
