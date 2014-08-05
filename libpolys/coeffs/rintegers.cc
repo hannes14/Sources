@@ -22,7 +22,6 @@
 #include <coeffs/rintegers.h>
 #include <coeffs/rmodulon.h>
 #include "si_gmp.h"
-#include "factory/factory.h"
 
 #include <factory/factory.h>
 
