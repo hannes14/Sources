@@ -148,7 +148,6 @@ BOOLEAN nr2mInitChar (coeffs r, void* p)
   r->cfIsUnit      = nr2mIsUnit;
   r->cfGetUnit     = nr2mGetUnit;
   r->cfExtGcd      = nr2mExtGcd;
-  r->cfName        = ndName;
   r->cfCoeffWrite  = nr2mCoeffWrite;
   r->cfQuot1       = nr2mQuot1;
 #ifdef LDEBUG

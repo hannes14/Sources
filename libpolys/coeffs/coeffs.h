@@ -1,5 +1,6 @@
-/*!
- \file coeffs/coeffs.h Coeff. Rings and Fields (interface)
+/*! \file coeffs/coeffs.h Coefficient rings, fields and other domains suitable for Singular polynomials
+    
+  The main interface for Singular coefficients: \ref coeffs is the main handler for Singular numbers
 */
 /****************************************
 *  Computer Algebra System SINGULAR     *
@@ -56,6 +57,12 @@ struct ip_sring;
 typedef struct ip_sring *         ring;
 typedef struct ip_sring const *   const_ring;
 
+/// @class coeffs coeffs.h coeffs/coeffs.h
+///
+/// The main handler for Singular numbers which are suitable for Singular polynomials.
+/// 
+/// With it one may implement a ring, a field, a domain etc.
+/// 
 struct n_Procs_s;
 typedef struct  n_Procs_s  *coeffs;
 typedef struct  n_Procs_s  const * const_coeffs;
@@ -265,9 +272,6 @@ struct n_Procs_s
 
    /// random: generate random values
    number (*cfRandom)(number a, number b, const coeffs r);
-
-   /// For extensions (writes into global string buffer)
-   char *  (*cfName)(number n, const coeffs r);
 
    /// Inplace: a *= b
    void    (*cfInpMult)(number &a, number b, const coeffs r);
@@ -489,6 +493,8 @@ static inline BOOLEAN n_IsMOne(number n, const coeffs r)
 /// !!!                 and raise errors instead, in these cases
 /// !!! Do not follow this recommendation: while writing polys,
 /// !!! between 2 monomials will be an additional + iff !n_GreaterZero(next coeff)
+///     Then change definition to include n_GreaterZero => printing does NOT
+///     start with -
 ///
 static inline BOOLEAN n_GreaterZero(number n, const coeffs r)
 {

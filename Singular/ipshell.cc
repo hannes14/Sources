@@ -225,18 +225,18 @@ static void list1(const char* s, idhdl h,BOOLEAN c, BOOLEAN fullname)
 #endif
                    break;
 #ifdef SINGULAR_4_1
-    case CNUMBER_CMD: 
+    case CNUMBER_CMD:
                    {  number2 n=(number2)IDDATA(h);
-		      Print(" (%s)",n->cf->cfCoeffName(n->cf));
-		      break;
-		   }
+                      Print(" (%s)",n->cf->cfCoeffName(n->cf));
+                      break;
+                   }
     case CMATRIX_CMD:
                    {  bigintmat *b=(bigintmat*)IDDATA(h);
-		      Print(" %d x %d (%s)",
-		        b->rows(),b->cols(),
-		        b->basecoeffs()->cfCoeffName(b->basecoeffs()));
-		      break;
-		   }
+                      Print(" %d x %d (%s)",
+                        b->rows(),b->cols(),
+                        b->basecoeffs()->cfCoeffName(b->basecoeffs()));
+                      break;
+                   }
 #endif
     /*default:     break;*/
   }
@@ -1173,7 +1173,7 @@ BOOLEAN iiParameter(leftv p)
     return TRUE;
   }
   leftv h=iiCurrArgs;
-  leftv rest=h->next; /*iiCurrArgs is not NULLi here*/
+  leftv rest=h->next; /*iiCurrArgs is not NULL here*/
   BOOLEAN is_default_list=FALSE;
   if (strcmp(p->name,"#")==0)
   {
@@ -2146,6 +2146,14 @@ ring rCompose(const lists  L, const BOOLEAN check_comp)
 
   // ------------------------------------------------------------------
   // 0: char:
+#ifdef SINGULAR_4_1
+  if (L->m[0].Typ()==CRING_CMD)
+  {
+    R->cf=(coeffs)L->m[0].Data();
+    R->cf->ref++;
+  }
+  else
+#endif
   if (L->m[0].Typ()==INT_CMD)
   {
     int ch = (int)(long)L->m[0].Data();
