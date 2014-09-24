@@ -710,15 +710,14 @@ static inline nMapFunc n_SetMap(const coeffs src, const coeffs dst)
 #ifdef LDEBUG
 static inline BOOLEAN n_DBTest(number n, const char *filename, const int linenumber, const coeffs r)
 #else
-static inline BOOLEAN n_DBTest(number, const char*, const int, const coeffs)
+static inline BOOLEAN n_DBTest(number, const char*, const int, const coeffs) // is it really necessary to define this function in any case?
 #endif
 {
-  assume(r != NULL);
-#ifdef LDEBUG
-  assume(r->cfDBTest != NULL);
-  return r->cfDBTest(n, filename, linenumber, r);
-#else
+#ifndef LDEBUG
   return TRUE;
+#else
+  assume(r != NULL); assume(r->cfDBTest != NULL);
+  return r->cfDBTest(n, filename, linenumber, r);
 #endif
 }
 
@@ -920,13 +919,6 @@ static inline BOOLEAN nCoeff_is_transExt(const coeffs r)
 /// BOOLEAN n_Test(number a, const coeffs r)
 #define n_Test(a,r)  n_DBTest(a, __FILE__, __LINE__, r)
 
-// Missing wrappers for: (TODO: review this?)
-// cfIntMod, cfRead, cfName, cfInit_bigint
-
-// HAVE_RINGS: cfDivComp, cfIsUnit, cfGetUnit, cfDivBy
-// BUT NOT cfExtGcd...!
-
-
 /// Computes the content and (inplace) divides it out on a collection
 /// of numbers
 /// number @em c is the content (i.e. the GCD of all the coeffs, which
@@ -977,6 +969,4 @@ static inline void n_ClearDenominators(ICoeffsEnumerator& numberCollectionEnumer
 void   n_Print(number& a,  const coeffs r);
 
 #endif
-
-
 

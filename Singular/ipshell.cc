@@ -40,7 +40,7 @@
 #include <Singular/attrib.h>
 #include <Singular/ipconv.h>
 #include <Singular/links/silink.h>
-#include <kernel/GBEngine/stairc.h>
+#include <kernel/combinatorics/stairc.h>
 #include <polys/weight.h>
 #include <kernel/spectrum/semic.h>
 #include <kernel/spectrum/splist.h>
@@ -2098,19 +2098,26 @@ void rComposeRing(lists L, ring R)
 static void rRenameVars(ring R)
 {
   int i,j;
-  for(i=0;i<R->N-1;i++)
+  BOOLEAN ch;
+  do
   {
-    for(j=i+1;j<R->N;j++)
+    ch=0;
+    for(i=0;i<R->N-1;i++)
     {
-      if (strcmp(R->names[i],R->names[j])==0)
+      for(j=i+1;j<R->N;j++)
       {
-        Warn("name conflict var(%d) and var(%d): `%s`, rename to `@(%d)`",i+1,j+1,R->names[i],j+1);
-        omFree(R->names[j]);
-        R->names[j]=(char *)omAlloc(10);
-        sprintf(R->names[j],"@(%d)",j+1);
+        if (strcmp(R->names[i],R->names[j])==0)
+        {
+          ch=TRUE;
+          Warn("name conflict var(%d) and var(%d): `%s`, rename to `@%s`",i+1,j+1,R->names[i],R->names[i]);
+          omFree(R->names[j]);
+          R->names[j]=(char *)omAlloc(2+strlen(R->names[i]));
+          sprintf(R->names[j],"@%s",R->names[i]);
+        }
       }
     }
   }
+  while (ch);
   for(i=0;i<rPar(R); i++)
   {
     for(j=0;j<R->N;j++)
