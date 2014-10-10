@@ -8,7 +8,6 @@
 #  i- requires singular.hlp
 #  h- requires html dir
 #  D- requires the enviroment variable DISPLAY
-#  C- requires Windows-help: Manual.chm
 #  E:executable:- requires the named exectable
 #  O:`uname -m`-`uname -s`:- requires the named uname
 #  (ubuntu has an open completely different from open on OsX)
@@ -24,8 +23,6 @@
 #----------------------------------------------------
 # the default help browsers builtin, dummy and emacs are always 
 #   available and should NOT be mentioned here
-# ix86_Win: has additional default browsers: htmlhelp, html and winhlp
-#   also not mentioned here
 #----------------------------------------------------
 htmlview!xDhE:htmlview:!htmlview %h &
 mac!xhE:open:O:x86_64-Darwin:!open %f &
@@ -35,6 +32,8 @@ firefox!xDhE:firefox:!firefox %h &
 konqueror!xDhE:konqueror:!konqueror %h &
 galeon!xDhE:galeon:!galeon -n %h &
 netscape!xDhE:netscape:!(netscape -remote "openURL(%h)")||(netscape %h) &
+cygwin!xhE:cygstart:!cygstart "%h" &
+cygwin-www!E:cygstart:!cygstart "%H" &
 safari!xhE:/Applications/Safari.app:!open /Applications/Safari.app %h
 tkinfo!xDiE:tkinfo:!tkinfo '(%i)%n' &
 xinfo!xDiE:xterm:E:info:!xterm -e info -f %i --node='%n' &
