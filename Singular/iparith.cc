@@ -6245,23 +6245,6 @@ static BOOLEAN jjPREIMAGE(leftv res, leftv u, leftv v, leftv w)
   if (kernel_cmd) idDelete(&image);
   return (res->data==NULL/* is of type ideal, should not be NULL*/);
 }
-static BOOLEAN jjRANDOM_CR(leftv res, leftv u, leftv v, leftv w)
-{
-  coeffs cf=(coeffs)w->Data();
-  if ((cf==NULL) ||(cf->cfRandom==NULL))
-  {
-    Werror("no random function defined for coeff %d",cf->type);
-    return TRUE;
-  }
-  else
-  {
-    number2 n=(number2)omAlloc(sizeof(*n));
-    n->n=cf->cfRandom((number)u->Data(),(number)v->Data(),cf);
-    n->cf=cf; cf->ref++;
-    res->data=(void*)n;
-    return FALSE;
-  }
-}
 static BOOLEAN jjRANDOM_Im(leftv res, leftv u, leftv v, leftv w)
 {
   int di, k;
@@ -6291,11 +6274,16 @@ static BOOLEAN jjRANDOM_Im(leftv res, leftv u, leftv v, leftv w)
 static BOOLEAN jjRANDOM_CF(leftv res, leftv u, leftv v, leftv w)
 // <coeff>, par1, par2 -> number2
 {
-  coeffs cf=(coeffs)u->Data();
-  if ((cf!=NULL) && (cf->cfRandom!=NULL))
+  coeffs cf=(coeffs)w->Data();
+  if ((cf==NULL) ||(cf->cfRandom==NULL))
   {
-    number n=cf->cfRandom(siRandom(),v->Data(),w->Data(),cf);
-    number2 nn=(number2)omAlloc(sizeof(*r));
+    Werror("no random function defined for coeff %d",cf->type);
+    return TRUE;
+  }
+  else
+  {
+    number n=cf->cfRandom(siRand,(number)u->Data(),(number)v->Data(),cf);
+    number2 nn=(number2)omAlloc(sizeof(*nn));
     nn->cf=cf;
     nn->n=n;
     res->data=nn;

@@ -830,9 +830,9 @@ static char* nfCoeffString(const coeffs r)
   return s;
 }
 
-static number nfRandom(number ,number, const coeffs cf)
+static number nfRandom(siRandProc p,number ,number, const coeffs cf)
 {
-  return (number)(long)(siRand() %(cf->m_nfCharQ+1));
+  return (number)(long)(p() %(cf->m_nfCharQ+1));
 }
 
 BOOLEAN nfInitChar(coeffs r,  void * parameter)
@@ -888,6 +888,7 @@ BOOLEAN nfInitChar(coeffs r,  void * parameter)
   r->cfParDeg = nfParDeg;
 
   r->cfRandom = nfRandom;
+
 #ifdef LDEBUG
   r->cfDBTest=nfDBTest;
 #endif

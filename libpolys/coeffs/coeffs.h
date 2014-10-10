@@ -10,6 +10,7 @@
 #define COEFFS_H
 
 #include <misc/auxiliary.h>
+#include <misc/sirandom.h>
 /* for assume: */
 #include <reporter/reporter.h>
 #include <reporter/s_buff.h>
@@ -270,9 +271,6 @@ struct n_Procs_s
    void    (*cfWriteFd)(number a, FILE *f, const coeffs r);
    number  (*cfReadFd)( s_buff f, const coeffs r);
 
-   /// random: generate random values
-   number (*cfRandom)(number a, number b, const coeffs r);
-
    /// Inplace: a *= b
    void    (*cfInpMult)(number &a, number b, const coeffs r);
 
@@ -299,7 +297,7 @@ struct n_Procs_s
    number  (*cfParameter)(const int i, const coeffs r);
 
    /// a function returning random elements
-   number (*cfRandom)(int r, void *p1, void *p2, const coeffs cf);
+   number (*cfRandom)(siRandProc p, number p1, number p2, const coeffs cf);
 
    /// function pointer behind n_ClearContent
    nCoeffsEnumeratorFunc cfClearContent;
