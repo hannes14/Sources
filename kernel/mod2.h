@@ -19,6 +19,8 @@
 #define SINGULAR_4_1
 
 #ifdef SINGULAR_4_1
+#undef VERSION
+#define VERSION "4.1.0"
 #define SINGULAR_MINOR_VERSION 1
 #define SINGULAR_SUB_VERSION 0
 #else

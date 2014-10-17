@@ -545,7 +545,7 @@ static proc splitPrimary(list l,ideal ser,int @wr,list sact)
   list keepresult,act,keepprime;
   poly @f;
   int sl=size(l);
-  for(i=1;i<=sl div 2;i++)
+  for(i=sl div 2;i>=1;i--)
   {
     if(sact[2][i]>1)
     {
@@ -5309,7 +5309,7 @@ static proc reconvList(list l)
 {
    int i;
    list re;
-   for(i=1;i<=size(l);i++)
+   for(i=size(l);i>0;i--)
    {
       re[2*i-1]=l[i][1];
       re[2*i]=l[i][2];
@@ -6774,7 +6774,6 @@ EXAMPLE: example testPrimary; shows an example
 {
    ASSUME(0, hasFieldCoefficient(basering) );
    ASSUME(0, not isQuotientRing(basering) ) ;
-   ASSUME(0, hasGlobalOrdering(basering) ) ;
 
    int i;
    pr=reconvList(pr);
@@ -8664,6 +8663,7 @@ EXAMPLE: example newZero_decomp; shows an example
       {
         helpprim=@lh[2];
         lres0[1]=primary[2*@k-1];
+        attrib(lres0[1],"isSB",1);
         ser1=psi(helpprim);
         lres0[2]=psi1(ser1);
         if(size(reduce(lres0[2],lres0[1],1))==0)
