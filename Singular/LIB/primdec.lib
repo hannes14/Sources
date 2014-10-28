@@ -3185,14 +3185,7 @@ EXAMPLE: example decomp; shows an example
       execute("map phi=gnir,"+@va+";");
       op=option(get);
       option(redSB);
-      if(homo==1)
-      {
-        ideal @j=std(phi(@j),@hilb,@w);
-      }
-      else
-      {
-        ideal @j=groebner(phi(@j));
-      }
+      ideal @j=groebner(phi(@j));
       ideal ser=phi(ser);
 
       option(set,op);
@@ -3200,6 +3193,7 @@ EXAMPLE: example decomp; shows an example
     if((deg(@j[1])==0)||(dim(@j)<jdim))
     {
       setring gnir;
+      kill gnir1;
       break;
     }
     for (lauf=1;lauf<=size(@j);lauf++)

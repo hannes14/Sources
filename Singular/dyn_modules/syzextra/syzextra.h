@@ -62,17 +62,15 @@ struct SchreyerSyzygyComputationFlags
 
     SchreyerSyzygyComputationFlags(const SchreyerSyzygyComputationFlags& attr):
         __DEBUG__(attr.__DEBUG__),
-  //      __SYZCHECK__(attr.__SYZCHECK__),
         __LEAD2SYZ__(attr.__LEAD2SYZ__),  __TAILREDSYZ__(attr.__TAILREDSYZ__),
         __HYBRIDNF__(attr.__HYBRIDNF__), __IGNORETAILS__(attr.__IGNORETAILS__),
         __SYZNUMBER__(attr.__SYZNUMBER__), __TREEOUTPUT__(attr.__TREEOUTPUT__),
+        __SYZCHECK__(attr.__SYZCHECK__),
         m_rBaseRing(attr.m_rBaseRing)
     {}
 
   /// output all the intermediate states
   const int __DEBUG__; // DebugOutput;
-
-  //  const bool __SYZCHECK__; // CheckSyzygyProperty: never tested here...
 
   /// ?
   const int __LEAD2SYZ__; // TwoLeadingSyzygyTerms;
@@ -99,6 +97,9 @@ struct SchreyerSyzygyComputationFlags
   /// output lifting tree
   const int __TREEOUTPUT__;
 
+  /// CheckSyzygyProperty: TODO
+  const int __SYZCHECK__; 
+
   /// global base ring
   const ring m_rBaseRing;
 };
@@ -123,19 +124,35 @@ class CLeadingTerm
 {
   public:
     CLeadingTerm(unsigned int label,  const poly lt, const ring);
+    ~CLeadingTerm();
 
-  public:
+  private:
 
     const unsigned long m_sev; ///< not short exp. vector
-        // NOTE/TODO: either of the following should be enough:
+    
+    // NOTE/TODO: either of the following should be enough:
     const unsigned int  m_label; ///< index in the main L[] + 1
+
     const poly          m_lt; ///< the leading term itself L[label-1]
 
+#ifndef SING_NDEBUG
+    const ring _R;  const poly          m_lt_copy; ///< original copy of lt (only for debug!!!)
+#endif
+    
+
   public:
+    
     bool DivisibilityCheck(const poly product, const unsigned long not_sev, const ring r) const;
     bool DivisibilityCheck(const poly multiplier, const poly t, const unsigned long not_sev, const ring r) const;
 
+    bool CheckLT( const ideal & L ) const;
+
+    poly lt() const;    
+    unsigned long sev() const;
+    unsigned int label() const;
+
   private:
+
     // disable the following:
     CLeadingTerm();
     CLeadingTerm(const CLeadingTerm&);
@@ -179,6 +196,7 @@ class CReducerFinder: public SchreyerSyzygyComputationFlags
 
 #ifndef SING_NDEBUG
     void DebugPrint() const;
+    void Verify() const;
 #endif
 
   private:

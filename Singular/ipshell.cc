@@ -1973,7 +1973,12 @@ void rComposeC(lists L, ring R)
   && (r2=SHORT_REAL_LENGTH))
     R->cf = nInitChar(n_R, NULL);
   else
+  {
+    LongComplexInfo* p = (LongComplexInfo *)omAlloc0(sizeof(LongComplexInfo));
+    p->float_len=r1;
+    p->float_len2=r2;
     R->cf = nInitChar(n_long_R, NULL);
+  }
 
   if ((r1<=SHORT_REAL_LENGTH)   // should go into nInitChar
   && (r2=SHORT_REAL_LENGTH))
@@ -5988,3 +5993,53 @@ BOOLEAN iiAssignCR(leftv r, leftv arg)
   return TRUE;// not handled -> error for now
 }
 
+static void iiReportTypes(int nr,int t,const short *T)
+{
+  char *buf=(char*)omAlloc(250);
+  buf[0]='\0';
+  if (nr==0)
+    sprintf(buf,"wrong length of parameters(%d), expected ",t);
+  else
+    sprintf(buf,"par. %d is of type `%s`, expected ",nr,Tok2Cmdname(t));
+  for(int i=1;i<=T[0];i++)
+  {
+    strcat(buf,"`");
+    strcat(buf,Tok2Cmdname(T[i]));
+    strcat(buf,"`");
+    if (i<T[0]) strcat(buf,",");
+  }
+  WerrorS(buf);
+}
+
+BOOLEAN iiCheckTypes(leftv args, const short *type_list, int report)
+{
+  if (args==NULL)
+  {
+    if (type_list[0]==0) return TRUE;
+    else
+    {
+      if (report) WerrorS("no arguments expected");
+      return FALSE;
+    }
+  }
+  int l=args->listLength();
+  if (l!=(int)type_list[0])
+  {
+    if (report) iiReportTypes(0,l,type_list);
+    return FALSE;
+  }
+  for(int i=1;i<=l;i++,args=args->next)
+  {
+    short t=type_list[i];
+    if (t!=ANY_TYPE)
+    {
+      if (((t==IDHDL)&&(args->rtyp!=IDHDL)) 
+      || (t!=args->Typ()))
+      {
+        if (report) iiReportTypes(i,args->Typ(),type_list);
+        return FALSE;
+      }
+    }
+  }
+  return TRUE;
+}
