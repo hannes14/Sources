@@ -57,11 +57,6 @@
 #include "blackbox.h"
 #include "Singular/number2.h"
 
-#ifdef SINGULAR_4_1
-#include <Singular/number2.h>
-#endif
-
-
 /*=================== proc =================*/
 static BOOLEAN jjECHO(leftv, leftv a)
 {
