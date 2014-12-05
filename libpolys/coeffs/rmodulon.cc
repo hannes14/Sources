@@ -163,7 +163,7 @@ BOOLEAN nrnInitChar (coeffs r, void* p)
   r->cfRead        = nrnRead;
   r->cfPower       = nrnPower;
   r->cfSetMap      = nrnSetMap;
-  r->cfNormalize   = ndNormalize;
+  //r->cfNormalize   = ndNormalize;
   r->cfLcm         = nrnLcm;
   r->cfGcd         = nrnGcd;
   r->cfIsUnit      = nrnIsUnit;
@@ -284,7 +284,7 @@ number nrnLcm(number a, number b, const coeffs r)
   number erg = nrnGcd(NULL, a, r);
   number tmp = nrnGcd(NULL, b, r);
   mpz_lcm((int_number)erg, (int_number)erg, (int_number)tmp);
-  nrnDelete(&tmp, NULL);
+  nrnDelete(&tmp, r);
   return (number)erg;
 }
 

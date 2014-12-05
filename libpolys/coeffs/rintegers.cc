@@ -242,6 +242,7 @@ number nrzIntMod (number a,number b, const coeffs)
   mpz_init(r);
   mpz_tdiv_qr(erg, r, (int_number) a, (int_number) b);
   mpz_clear(erg);
+  omFreeBin(erg, gmp_nrz_bin);
   return (number) r;
 }
 
@@ -437,9 +438,9 @@ BOOLEAN nrzInitChar(coeffs r,  void *)
   r->is_domain=TRUE;
   r->rep=n_rep_gmp;
 
-  r->nCoeffIsEqual = ndCoeffIsEqual;
+  //r->nCoeffIsEqual = ndCoeffIsEqual;
   r->cfCoeffString = nrzCoeffString;
-  r->cfKillChar = ndKillChar;
+  //r->cfKillChar = ndKillChar;
   r->cfMult  = nrzMult;
   r->cfSub   = nrzSub;
   r->cfAdd   = nrzAdd;
@@ -1664,9 +1665,9 @@ BOOLEAN nrzInitChar(coeffs r,  void *)
   r->is_domain=TRUE;
   r->rep=n_rep_gap_gmp;
 
-  r->nCoeffIsEqual = ndCoeffIsEqual;
+  //r->nCoeffIsEqual = ndCoeffIsEqual;
   r->cfCoeffString = nrzCoeffString;
-  r->cfKillChar = ndKillChar;
+  //r->cfKillChar = ndKillChar;
   r->cfMult  = nrzMult;
   r->cfSub   = nrzSub;
   r->cfAdd   = nrzAdd;

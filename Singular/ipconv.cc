@@ -58,7 +58,7 @@ static void * iiBI2P(void *data)
   nMapFunc nMap=n_SetMap(coeffs_BIGINT,currRing->cf);
   if (nMap==NULL)
   {
-    Werror("no conversion from bigint to %s",currRing->cf->cfCoeffString(currRing->cf));
+    Werror("no conversion from bigint to %s", nCoeffString(currRing->cf));
     return NULL;
   }
   number n=nMap((number)data,coeffs_BIGINT,currRing->cf);
@@ -79,7 +79,7 @@ static void * iiBI2V(void *data)
   nMapFunc nMap=n_SetMap(coeffs_BIGINT,currRing->cf);
   if (nMap==NULL)
   {
-    Werror("no conversion from bigint to %s",currRing->cf->cfCoeffString(currRing->cf));
+    Werror("no conversion from bigint to %s", nCoeffString(currRing->cf));
     return NULL;
   }
   number n=nMap((number)data,coeffs_BIGINT,currRing->cf);
@@ -102,7 +102,7 @@ static void * iiBI2Id(void *data)
   nMapFunc nMap=n_SetMap(coeffs_BIGINT,currRing->cf);
   if (nMap==NULL)
   {
-    Werror("no conversion from bigint to %s",currRing->cf->cfCoeffString(currRing->cf));
+    Werror("no conversion from bigint to %s", nCoeffString(currRing->cf));
     return NULL;
   }
   number n=nMap((number)data,coeffs_BIGINT,currRing->cf);
@@ -200,7 +200,7 @@ static void * iiBI2N(void *data)
   nMapFunc nMap=n_SetMap(coeffs_BIGINT,currRing->cf);
   if (nMap==NULL)
   {
-    Werror("no conversion from bigint to %s",currRing->cf->cfCoeffString(currRing->cf));
+    Werror("no conversion from bigint to %s", nCoeffString(currRing->cf));
     return NULL;
   }
   number n=nMap((number)data,coeffs_BIGINT,currRing->cf);
