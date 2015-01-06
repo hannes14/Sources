@@ -45,10 +45,10 @@ int convFlintISingI (fmpz_t f);
 void convSingIFlintI(fmpz_t f, int p);
 void convFlintNSingN (mpz_t z, fmpz_t f);
 void convSingNFlintN(fmpz_t f, mpz_t z);
-bigintmat*  singflint_LLL(bigintmat* A);
-intvec* singflint_LLL(intvec* A);
+bigintmat*  singflint_LLL(bigintmat* A, bigintmat* T);
+intvec* singflint_LLL(intvec* A, intvec* T);
 #endif
 
-#endif 
-#endif 
+#endif
+#endif
 // LIBPOLYS_POLYS_FLINTCONV_H
