@@ -1214,7 +1214,20 @@ BOOLEAN iiBranchTo(leftv r, leftv args)
     BOOLEAN err;
     //Print("branchTo: %s\n",h->Name());
     iiCurrProc=(idhdl)h->data;
-    err=iiAllStart(IDPROC(iiCurrProc),IDPROC(iiCurrProc)->data.s.body,BT_proc,IDPROC(iiCurrProc)->data.s.body_lineno-(iiCurrArgs==NULL));
+    procinfo * pi=IDPROC(iiCurrProc);
+    if( pi->data.s.body==NULL )
+    {
+      iiGetLibProcBuffer(pi);
+      if (pi->data.s.body==NULL) return TRUE;
+    }
+    if ((pi->pack!=NULL)&&(currPack!=pi->pack))
+    {
+      currPack=pi->pack;
+      iiCheckPack(currPack);
+      currPackHdl=packFindHdl(currPack);
+      //Print("set pack=%s\n",IDID(currPackHdl));
+    }
+    err=iiAllStart(pi,pi->data.s.body,BT_proc,pi->data.s.body_lineno-(iiCurrArgs==NULL));
     exitBuffer(BT_proc);
     if (iiCurrArgs!=NULL)
     {
@@ -5349,7 +5362,7 @@ ring rInit(sleftv* pn, sleftv* rv, sleftv* ord)
            depending on the size of a long on the respective platform */
         //ringtype = 1;       // Use Z/2^ch
         cf=nInitChar(n_Z2m,(void*)(long)modExponent);
-	mpz_clear(modBase);
+        mpz_clear(modBase);
         omFreeSize (modBase, sizeof (mpz_t));
       }
       else
@@ -5886,9 +5899,9 @@ void paPrint(const char *n,package p)
 BOOLEAN iiApplyINTVEC(leftv res, leftv a, int op, leftv proc)
 {
   intvec *aa=(intvec*)a->Data();
-  intvec *r=ivCopy(aa);
   sleftv tmp_out;
   sleftv tmp_in;
+  leftv curr=res;
   BOOLEAN bo=FALSE;
   for(int i=0;i<aa->length(); i++)
   {
@@ -5899,15 +5912,20 @@ BOOLEAN iiApplyINTVEC(leftv res, leftv a, int op, leftv proc)
       bo=iiExprArith1(&tmp_out,&tmp_in,op);
     else
       bo=jjPROC(&tmp_out,proc,&tmp_in);
-    if (bo || (tmp_out.rtyp!=INT_CMD))
+    if (bo)
     {
-      if (r!=NULL) delete r;
+      res->CleanUp(currRing);
       Werror("apply fails at index %d",i+1);
       return TRUE;
     }
-    (*r)[i]=(int)(long)tmp_out.data;
+    if (i==0) { memcpy(res,&tmp_out,sizeof(tmp_out)); }
+    else
+    {
+      curr->next=(leftv)omAllocBin(sleftv_bin);
+      curr=curr->next;
+      memcpy(curr,&tmp_out,sizeof(tmp_out));
+    }
   }
-  res->data=(void*)r;
   return FALSE;
 }
 BOOLEAN iiApplyBIGINTMAT(leftv res, leftv a, int op, leftv proc)
@@ -5923,9 +5941,9 @@ BOOLEAN iiApplyIDEAL(leftv res, leftv a, int op, leftv proc)
 BOOLEAN iiApplyLIST(leftv res, leftv a, int op, leftv proc)
 {
   lists aa=(lists)a->Data();
-  lists r=(lists)omAlloc0Bin(slists_bin); r->Init(aa->nr+1);
   sleftv tmp_out;
   sleftv tmp_in;
+  leftv curr=res;
   BOOLEAN bo=FALSE;
   for(int i=0;i<=aa->nr; i++)
   {
@@ -5938,13 +5956,18 @@ BOOLEAN iiApplyLIST(leftv res, leftv a, int op, leftv proc)
     tmp_in.CleanUp();
     if (bo)
     {
-      if (r!=NULL) r->Clean();
+      res->CleanUp(currRing);
       Werror("apply fails at index %d",i+1);
       return TRUE;
     }
-    memcpy(&(r->m[i]),&tmp_out,sizeof(sleftv));
+    if (i==0) { memcpy(res,&tmp_out,sizeof(tmp_out)); }
+    else
+    {
+      curr->next=(leftv)omAllocBin(sleftv_bin);
+      curr=curr->next;
+      memcpy(curr,&tmp_out,sizeof(tmp_out));
+    }
   }
-  res->data=(void*)r;
   return FALSE;
 }
 BOOLEAN iiApply(leftv res, leftv a, int op, leftv proc)
