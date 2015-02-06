@@ -1762,9 +1762,8 @@ static BOOLEAN jjALIGN_M(leftv res, leftv u, leftv v)
   {
     if (s+p_MinComp(M->m[i],currRing)<=0)
     { id_Delete(&M,currRing);return TRUE;}
-    p_Shift(&(M->m[i]),s,currRing);
   }
-  M->rank += s; 
+  id_Shift(M,s,currRing);
   res->data=M;
   return FALSE;
 }

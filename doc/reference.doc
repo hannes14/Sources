@@ -231,7 +231,7 @@ and @code{LIB} no brackets are allowed.
 @item @strong{Type:}
 type of the first argument
 @item @strong{Purpose:}
-maps module generators @code{gen(i)} to @code(gen(i+s)} for all i.
+maps module generators @code{gen(i)} to @code{gen(i+s)} for all i.
 @item @strong{Example:}
 @smallexample
 @c example
@@ -7258,6 +7258,13 @@ returns names of people who contributed to the @sc{Singular} kernel as string.
 @cindex system, cpu
 returns the number of cpus as int (for creating multiple threads/processes).
 (see @code{system("--cpus")}).
+@c ..........................
+@item @code{system("denom_list")}
+@cindex denom_list
+@cindex system, denom_list
+returns the list of denominators (number) which occured in the latest std
+computationi(s).
+Is reset to the empty list at ring changes or by this system call.
 @c ..........................
 @item @code{system("eigenvals",} matrix @code{)}
 @cindex system, eigenvals
