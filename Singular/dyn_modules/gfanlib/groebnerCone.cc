@@ -4,9 +4,9 @@
 #include <kernel/ideals.h>
 #include <Singular/ipid.h>
 
-#include <libpolys/polys/monomials/p_polys.h>
-#include <libpolys/polys/monomials/ring.h>
-#include <libpolys/polys/prCopy.h>
+#include <polys/monomials/p_polys.h>
+#include <polys/monomials/ring.h>
+#include <polys/prCopy.h>
 
 #include <gfanlib/gfanlib.h>
 #include <gfanlib/gfanlib_matrix.h>
@@ -57,12 +57,14 @@ static bool checkPolyhedralInput(const gfan::ZCone zc, const gfan::ZVector p)
   return zc.containsRelatively(p);
 }
 
+#if 0 /*unused*/
 static bool checkOrderingAndWeight(const ideal I, const ring r, const gfan::ZVector w, const tropicalStrategy& currentCase)
 {
   groebnerCone sigma(I,r,currentCase);
   gfan::ZCone zc = sigma.getPolyhedralCone();
   return zc.contains(w);
 }
+#endif
 
 bool groebnerCone::checkFlipConeInput(const gfan::ZVector interiorPoint, const gfan::ZVector facetNormal) const
 {

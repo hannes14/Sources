@@ -1,8 +1,8 @@
-#include <libpolys/polys/monomials/p_polys.h>
+#include <polys/monomials/p_polys.h>
 #include <Singular/ipid.h>
 
-#include <singularWishlist.h>
-#include <ppinitialReduction.h>
+#include "singularWishlist.h"
+#include "ppinitialReduction.h"
 
 #include <map>
 #include <set>
