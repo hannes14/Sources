@@ -1029,13 +1029,8 @@ int  sleftv::Typ()
       if ((t==LIST_CMD)||((b!=NULL)&&BB_LIKE_LIST(b)))
       {
         lists l;
-        if (rtyp==IDHDL) l=IDLIST((idhdl)data);
-        else if (rtyp==ALIAS_CMD)
-        {
-          idhdl h=(idhdl)data;
-          l=(lists)(((idhdl)h->data.ustring)->data.ustring);
-        }
-        else             l=(lists)data;
+        if (rtyp==IDHDL) l=IDLIST((idhdl)d);
+        else             l=(lists)d;
         if ((0<e->start)&&(e->start<=l->nr+1))
         {
           Subexpr tmp=l->m[e->start-1].e;
