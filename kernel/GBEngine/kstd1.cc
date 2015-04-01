@@ -1640,6 +1640,11 @@ loop_count = 1;
         strat->P.pNorm();
       // tailreduction
       strat->P.p = redtail(&(strat->P),strat->sl,strat);
+      if (strat->P.p==NULL)
+      {
+        WerrorS("expoent overflow - wrong ordering");
+	return(idInit(1,1));
+      }
       // set ecart -- might have changed because of tail reductions
       if ((!strat->noTailReduction) && (!strat->honey))
         strat->initEcart(&strat->P);
@@ -2695,9 +2700,10 @@ ideal kNF(ideal F, ideal Q, ideal p,int syzComp,int lazyReduce)
   return res;
 }
 
-poly kNF (ideal F, ideal Q, poly p,int syzComp, int lazyReduce, const ring _currRing)
+poly k_NF (ideal F, ideal Q, poly p,int syzComp, int lazyReduce, const ring _currRing)
 {
-  const ring save = currRing; if( currRing != _currRing ) rChangeCurrRing(_currRing);
+  const ring save = currRing;
+  if( currRing != _currRing ) rChangeCurrRing(_currRing);
   poly ret = kNF(F, Q, p, syzComp, lazyReduce);
   if( currRing != save )     rChangeCurrRing(save);
   return ret;

@@ -1321,6 +1321,7 @@ void definiteGcdCancellation(number a, const coeffs cf,
 
   /* here we assume: NUM(f), DEN(f) !=NULL, in Z_a reqp. Z/p_a */
   poly pGcd = singclap_gcd_and_divide(NUM(f), DEN(f), ntRing);
+  //PrintS("gcd= ");p_wrp(pGcd,ntRing);PrintLn();
   if (p_IsConstant(pGcd, ntRing)
   && n_IsOne(p_GetCoeff(pGcd, ntRing), ntCoeffs)
   )
@@ -1456,6 +1457,8 @@ void ntNormalize (number &a, const coeffs cf)
 {
   if ( /*(*/ a!=NULL /*)*/ )
   {
+    //PrintS("num=");p_wrp(NUM(a),ntRing);
+    //PrintS(" den=");p_wrp(DEN(a),ntRing);PrintLn();
     definiteGcdCancellation(a, cf, FALSE);
     if ((DEN(a)!=NULL)
     &&(!n_GreaterZero(pGetCoeff(DEN(a)),ntCoeffs)))
@@ -2330,7 +2333,7 @@ static void ntClearDenominators(ICoeffsEnumerator& numberCollectionEnumerator, n
   ntTest(c);
 }
 
-number  ntChineseRemainder(number *x, number *q,int rl, BOOLEAN sym,const coeffs cf)
+number  ntChineseRemainder(number *x, number *q,int rl, BOOLEAN sym,CFArray &inv_cache,const coeffs cf)
 {
   fraction result = (fraction)omAlloc0Bin(fractionObjectBin);
   int i;
@@ -2339,14 +2342,14 @@ number  ntChineseRemainder(number *x, number *q,int rl, BOOLEAN sym,const coeffs
   number *X=(number *)omAlloc(rl*sizeof(number));
 
   for(i=0;i<rl;i++) P[i]=p_Copy(NUM((fraction)(x[i])),cf->extRing);
-  NUM(result)=p_ChineseRemainder(P,X,q,rl,cf->extRing);
+  NUM(result)=p_ChineseRemainder(P,X,q,rl,inv_cache,cf->extRing);
 
   for(i=0;i<rl;i++)
   {
     P[i]=p_Copy(DEN((fraction)(x[i])),cf->extRing);
     if (P[i]==NULL) P[i]=p_One(cf->extRing);
   }
-  DEN(result)=p_ChineseRemainder(P,X,q,rl,cf->extRing);
+  DEN(result)=p_ChineseRemainder(P,X,q,rl,inv_cache,cf->extRing);
 
   omFreeSize(X,rl*sizeof(number));
   omFreeSize(P,rl*sizeof(poly*));
