@@ -47,12 +47,12 @@ PROCEDURES:
     grrndmat(s,d[,p,b])   generate random matrix compatible with src and dst gradings
     grrndmap(S,D[,p,b])   generate random 0-deg homomorphism src(S) -> src(D)
     grrndmap2(S,D[,p,b])   generate random 0-deg homomorphism dst(S) -> dst(D)
-    grlifting(A,B)     RANDOM! chain lifting
-    grlifting2(A,B)    RANDOM! chain lifting
+    grlifting(A,B)     RND! chain lifting
+    grlifting2(A,B)    RND! chain lifting
     mappingcone(M,N)   mapping cone?
     mappingcone2(M,N)  mapping cone2?
-    grlifting3(A,B)    RANDOM! chain lifting?
-    grlifting4(A,B)    RANDOM! chain lifting?
+    grlifting3(A,B)    RND! chain lifting? probably wrong one
+    grlifting4(A,B)    RND! chain lifting? newer from #hani# for mappingcone3
     mappingcone3(A,B)  mapping cone3? (using grlifting4 at the moment)
     grrange(M)         get the row-weightings
 ";
@@ -68,6 +68,50 @@ LIB "matrix.lib"; // ?
 static proc repeat(int n, string c) { string r = ""; while( n > 0 ){ r = r + c; n--; } return(r); }
 static proc pad(int m, string s, string c){ string r = s; while( size(r) < m ){ r = c + r; } return(r); }
 static proc mstring( int m, string c){ if( m < 0 ) { return (c); }; return (string(m)); }
+
+static proc grsumstr(string R, intvec v)
+"direct sum_i=1^size R(-v[i]), for source and targets of graded objects"
+{
+  if (R  == "")
+  {
+    R = nameof(basering);
+  }
+
+  ASSUME(0, defined(R) && (R != "") );
+
+  int n = size(v);
+
+  if ( (n == 0) or (v == intvec(0)) ) { return (R); }
+
+  ASSUME(0, n > 0 );
+
+  v = -v; // NOTE: due to Mathematical meanings of Singular data
+  
+
+  int lst = v[1];
+  int cnt = 1; 
+
+  string p = R + "(" + string(lst) + ")";
+
+  int k, d;
+  for (k = 2; k <= n; k++ ) 
+  {
+    d = v[k];
+    if( d == lst ) { cnt ++; }
+    else 
+    {
+      if (cnt > 1){ p = p + "^" + string(cnt); }
+
+      cnt = 1; lst = d;
+
+      p = p + " + " + R + "(" + string(lst) + ")";
+    }
+  }
+  if (cnt > 1){ p = p + "^" + string(cnt); }
+
+  return (p);
+}
+
 // view helper
 static proc draw ( intmat D, int d )
 {
@@ -80,29 +124,31 @@ static proc draw ( intmat D, int d )
   string head = ""; string foot = ""; string middle = "";
   for ( c = d+1; c < (nc-d); c++ )
   {
-    head = head + pad(max, string(D[1 , c]), " ") + " ";
+    head = head + pad(max, string(D[1 , c]), ".") + " ";
     foot = foot + pad(max, string(D[nr, c]), " ") + " ";
   }
   // last head/foot enties:
-  head = head + pad(max, string(D[1 , c]), " ");
+  head = head + pad(max, string(D[1 , c]), ".");
   foot = foot + pad(max, string(D[nr, c]), " ");
   // head/foot dash lines:
-  string dash  = repeat( (max + 1) * (nc - 2*d) , "-");
-  string dash2 = repeat( (max + 1) * (nc - 2*d) , "=");
+  string dash  = "-"; string dash2  = "=";
+  dash = repeat( (nc - 2*d) - 1 , repeat(max, dash) + " " ) + repeat(max, dash) + " "; // dash  = repeat( (max + 1) * (nc - 2*d) , dash );
+  dash2 = repeat( (nc - 2*d) - 1 , repeat(max, dash2) + " " ) + repeat(max, dash2) + " "; // dash2 = repeat( (max + 1) * (nc - 2*d) , dash2);
   for ( r = d+1; r <= (nr-d); r++ )
   {
     middle = middle + pad(max, string(D[r,1]), " ") + " :";
-    for ( c = d+1; c < (nc-d); c++ ) { middle = middle + pad(max, mstring(D[r,c], "."), " ") + " "; }
-    middle = middle + pad(max, mstring(D[r,nc-d], "."), " ") + " |" + pad(max, string(D[r,nc]), " ") + newline;
+    for ( c = d+1; c < (nc-d); c++ ) { middle = middle + pad(max, mstring(D[r,c], "-"), " ") + " "; }
+    middle = middle + pad(max, mstring(D[r,nc-d], "-"), " ") + " |" + pad(max, string(D[r,nc]), ".") + newline;
   }
+  string corner_id = repeat(max, ".");
   string corner = repeat(max, " ");
   // print everything all at once:
   print                                     (
-      corner + "  " + head  + "  " + corner + newline +
-      corner + "  " + dash  +  " " + corner + newline +
+      corner + "  " + head  + " ." + corner_id + newline +
+      corner + "  " + dash  + "+"  + corner_id + newline +
                       middle                          +
-      corner + "  " + dash2 +  " " + corner + newline +
-      corner + "  " + foot  + "  " + corner );
+      corner + "  " + dash2 + " "  + corner + newline +
+      corner + "  " + foot +  "  " + corner );
 }
 
 proc grview(N)
@@ -114,10 +160,41 @@ EXAMPLE: example grview; shows an example
 "
 {
 //  if( size(N) == 0 ) { return (); }
+  string msg = "Graded";
+  string lst;
+
+  string arrow = " <- ";
+  string R = nameof(basering);
 
   if( typeof( N ) == "list" )
   {
-    int i; for( i = 1; i <= size(N); i++ ){ "i:", i; grview(N[i]); };
+    msg = msg + " resolution"; 
+    if( size(R) >= 2 )
+    {
+      msg = msg + "(let R:="+R+")";
+      R = "R";
+    }
+
+
+    int i = 1;  int n = size(N);
+    string dst;
+    
+    msg = msg + ": " + newline + grsumstr(R, grrange(N[i])) + " <-- d_" + string(i) + " -- " ;
+    for( ; i < n; i++ )
+    { 
+      dst = grsumstr(R, grdeg(N[i])) +  " <-- d_" + string(i+1) + " --";
+      msg = msg + newline + dst; 
+    };
+
+    msg = msg + newline + grsumstr(R, grdeg(N[i])) + ", given by maps: "; 
+
+    print(msg);
+
+    for( i = 1; i <= size(N); i++ )
+    { 
+      "d_" + string(i) + " :"; grview(N[i]); 
+    };
+
     return ();
   }
 
@@ -150,7 +227,70 @@ EXAMPLE: example grview; shows an example
     }
     D[r+d, nc+2*d] = r; // right-most block with indeces
   }
-  draw(D, d); // print it nicely!
+
+  msg = msg + " homomorphism: ";
+  if( size(R) >= 2 )
+  {
+    msg = msg + "(let R:="+R+")";
+    R = "R";
+  }
+    
+  msg = msg + ": ";
+
+  string dst = grsumstr(R, gr);
+  string src = grsumstr(R, G);
+
+  lst = msg;
+
+  if( (size(lst) + size(dst) + size(src) + 4) > 80 ) 
+  { 
+    if( (size(lst) + size(dst)) > 80 ) { msg = msg + newline; lst = ""; }
+
+    msg = msg + dst + arrow;
+    lst = lst + dst + arrow;
+
+    if( (size(lst) + size(src)) > 80 ) { msg = msg + newline; lst = ""; }
+
+    msg = msg + src;
+    lst = lst + src;
+  } else
+  {
+    msg = msg + dst + arrow + src;
+    lst = lst + dst + arrow + src;
+  }
+
+  if( size(lst) > 70 ) { msg = msg + newline; } // lst = "";
+  msg = msg + ", given by ";
+//  lst = lst + ", given by ";
+
+  if( size(N) == 0 )
+  {
+    msg = msg + "zero matrix.";
+    print(msg);
+  } else
+  {
+    if( nr == nc) // square matreix // detect diagonal?
+    {
+      for (c = nr; c > 0; c-- )
+      {
+        M[c,c] = 0;
+      }
+
+      if( size(module(M)) == 0 )
+      {
+        msg = msg + "a diagonal matrix";
+      } else
+      {
+        msg = msg + "a square matrix";
+      }
+
+    } else 
+    { 
+      msg = msg + "a matrix";
+    }
+    print(msg + ", with degrees: " );
+    draw(D, d); // print it nicely!    
+  }
 }
 example
 { "EXAMPLE:"; echo = 2;
@@ -165,6 +305,15 @@ example
 
   module D = grsum( grsum(grpower(A,2), grtwist(1,1)), grsum(grtwist(1,2), grpower(B,2)) );
   grview(D);
+
+  ring R = 0,(w,x,y,z), dp; def I = grobj( ideal(y2-xz, xy-wz, x2z-wyz), intvec(0) );
+  list res1 = grres(I, 0); // non-minimal
+  grview(res1);
+  print(betti(res1,0), "betti");
+
+  list res2 = grres(grshift(I, -10), 0, 1); //  minimal!
+  grview(res2);
+  print(betti(res2,0), "betti");
 }
 
 static proc issorted( intvec g, int s )
@@ -1470,7 +1619,10 @@ proc grrange(M)
 }
 
 proc grlift0(M, N, alpha1)
-"generic random alpha0 : coker(M) -> coker(N) from random alpha1"
+"PURPOSE: generic random alpha0 : coker(M) -> coker(N) from random alpha1
+NOTE: this proc can work only if some assumptions are fulfilled (due
+to Wolfram)! e.g. at the end of a resolution for the source module...
+"
 {
 
   ASSUME(1, grtest(M));
@@ -2040,6 +2192,14 @@ def N=grlifting3(I,J); grview(N); // ???
 G0<-----F0+G1<------F1+G2<-------F2+G3<-----
 */
 
+proc grneg(M)
+"negative map
+TODO for Hanieh: please document this and find good motivating examples for this proc!!
+"
+{
+  return ( grobj(-M, grrange(M), grdeg(M) ) );
+}
+
 // note: not clear which grlifting3 should be used by the following
 // procedure!!?
 proc mappingcone3(A,B)
@@ -2077,8 +2237,9 @@ EXAMPLE: example mappingcone3; shows an example
     module B=grobj(zero,v,w);
 
 //    ASSUME( 0, grtest(B) );
-    ASSUME( 0, grtest(-rM[i-1]) );    
-    module C=grconcat(-rM[i-1],B); // FIXME: '-' is wrong! need a graded-enabled minus (e.g. grneg?)
+//    ASSUME( 0, grtest(-rM[i-1]) );    
+    ASSUME( 0, grtest( grneg( rM[i-1]) ) );
+    module C=grconcat( grneg( rM[i-1] ) ,B); // FIXME: '-' is wrong! need a graded-enabled minus (e.g. grneg?)
     module D=grconcat(grtranspose(C), grtranspose(A));
 
     T[i]=grtranspose(D);
@@ -2100,7 +2261,8 @@ grview(T);
 
 def F=grlifting4(A,T); grview(F);
 
-/* BUG in the proc */ // def G=mappingcone3(A,T); grview(G);
+/* BUG in the proc */ 
+def G=mappingcone3(A,T); grview(G);
 
 /*
 module W=grtranspose(G[1]);
@@ -2113,11 +2275,15 @@ print(betti(L),"betti");
 
 
 def R=KeneshlouMatrixPresentation(intvec(0,0,0,2,0));
+grview(R);
+
 def S=KeneshlouMatrixPresentation(intvec(1,2,0,0,0));
+grview(S);
 
 def H=grlifting4(R,S); grview(H);
 
-/* BUG in the proc */ // def G=mappingcone3(R,S); // ????????
+/* BUG in the proc */ 
+def G=mappingcone3(R,S); // ????????
 
 
 def I=KeneshlouMatrixPresentation(intvec(2,3,0,6,2));
@@ -2188,8 +2354,8 @@ grview(T);
 def F=grlifting4(A,T);
 grview(F);
 
-/*
 def G=mappingcone3(A,T);grview(G);
+/*
 module W=grtranspose(G[1]);
 resolution U=mres(W,0);
 print(betti(U,0),"betti"); // ?
@@ -2204,10 +2370,10 @@ def S=KeneshlouMatrixPresentation(intvec(1,2,0,0,0));
 
 def H=grlifting4(R,S); grview(H);
 
-// def G=mappingcone3(R,S); // ????????
+def G=mappingcone3(R,S); // ????????
 
 def I=KeneshlouMatrixPresentation(intvec(2,3,0,6,2));
 def J=KeneshlouMatrixPresentation(intvec(4,0,1,2,1));
-/* 2nd module does not lie in the first: */ // def N=grlifting4(I,J); 
+/* 2nd module does not lie in the first: */ //def N=grlifting4(I,J);
 
 }
