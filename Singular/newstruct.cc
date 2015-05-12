@@ -165,7 +165,7 @@ void * newstruct_Copy(blackbox*, void *d)
 }
 
 // Used by newstruct_Assign for overloaded '='
-BOOLEAN newstruct_equal(int op, leftv l, leftv r)
+BOOLEAN newstruct_Assign_user(int op, leftv l, leftv r)
 {
   blackbox *ll=getBlackboxStuff(op);
   assume(ll->data != NULL);
@@ -221,72 +221,26 @@ void lClean_newstruct(lists l)
   omFreeBin((ADDRESS)l,slists_bin);
 }
 
-BOOLEAN newstruct_Assign(leftv l, leftv r)
+static BOOLEAN newstruct_Assign_same(leftv l, leftv r)
 {
-  if (r->Typ()>MAX_TOK)
+  assume(l->Typ() == r->Typ());
+  if (l->Data()!=NULL)
   {
-    blackbox *rr=getBlackboxStuff(r->Typ());
-    if (l->Typ()!=r->Typ())
-    {
-      newstruct_desc rrn=(newstruct_desc)rr->data;
-
-      if (!rrn)
-      {
-        Werror("custom type %s(%d) cannot be assigned to newstruct %s(%d)",
-               Tok2Cmdname(r->Typ()), r->Typ(), Tok2Cmdname(l->Typ()), l->Typ());
-        return TRUE;
-      }
-
-      newstruct_desc rrp=rrn->parent;
-      while ((rrp!=NULL)&&(rrp->id!=l->Typ())) rrp=rrp->parent;
-      if (rrp!=NULL)
-      {
-        if (l->rtyp==IDHDL)
-        {
-          IDTYP((idhdl)l->data)=r->Typ();
-        }
-        else
-        {
-          l->rtyp=r->Typ();
-        }
-      }
-      else                      // unrelated types - look for custom conversion
-      {
-        sleftv tmp;
-        BOOLEAN newstruct_Op1(int, leftv, leftv);  // forward declaration
-        if (! newstruct_Op1(l->Typ(), &tmp, r))  return newstruct_Assign(l, &tmp);
-      }
-    }
-    if (l->Typ()==r->Typ())
-    {
-      if (l->Data()!=NULL)
-      {
-        lists n1=(lists)l->Data();
-        lClean_newstruct(n1);
-      }
-      lists n2=(lists)r->Data();
-      n2=lCopy_newstruct(n2);
-      r->CleanUp();
-      if (l->rtyp==IDHDL)
-      {
-        IDDATA((idhdl)l->data)=(char *)n2;
-      }
-      else
-      {
-        l->data=(void *)n2;
-      }
-      return FALSE;
-    }
+    lists n1=(lists)l->Data();
+    lClean_newstruct(n1);
+  }
+  lists n2=(lists)r->Data();
+  n2=lCopy_newstruct(n2);
+  r->CleanUp();
+  if (l->rtyp==IDHDL)
+  {
+    IDDATA((idhdl)l->data)=(char *)n2;
   }
   else
   {
-    assume(l->Typ() > MAX_TOK);
-    sleftv tmp;
-    if(!newstruct_equal(l->Typ(), &tmp, r)) return newstruct_Assign(l, &tmp);
+    l->data=(void *)n2;
   }
-  Werror("assign %s(%d) = %s(%d)",
-        Tok2Cmdname(l->Typ()),l->Typ(),Tok2Cmdname(r->Typ()),r->Typ());
-  return TRUE;
+  return FALSE;
 }
 
 BOOLEAN newstruct_Op1(int op, leftv res, leftv arg)
@@ -321,7 +275,62 @@ BOOLEAN newstruct_Op1(int op, leftv res, leftv arg)
   return blackboxDefaultOp1(op,res,arg);
 }
 
+BOOLEAN newstruct_Assign(leftv l, leftv r)
+{
+  assume(l->Typ() > MAX_TOK);
+  if (l->Typ()==r->Typ())
+  {
+    return newstruct_Assign_same(l,r);
+  }
+  if (r->Typ()>MAX_TOK)
+  {
+    blackbox *rr=getBlackboxStuff(r->Typ());
+    if (l->Typ()!=r->Typ())
+    {
+      newstruct_desc rrn=(newstruct_desc)rr->data;
 
+      if (rrn==NULL) // this is not a newstruct
+      {
+        Werror("custom type %s(%d) cannot be assigned to newstruct %s(%d)",
+               Tok2Cmdname(r->Typ()), r->Typ(), Tok2Cmdname(l->Typ()), l->Typ());
+        return TRUE;
+      }
+
+      // try to find a parent newstruct:
+      newstruct_desc rrp=rrn->parent;
+      while ((rrp!=NULL)&&(rrp->id!=l->Typ())) rrp=rrp->parent;
+      if (rrp!=NULL)
+      {
+        if (l->rtyp==IDHDL)
+        {
+          IDTYP((idhdl)l->data)=r->Typ();
+        }
+        else
+        {
+          l->rtyp=r->Typ();
+        }
+      }
+      else                      // unrelated types - look for custom conversion
+      {
+        sleftv tmp;
+        if (! newstruct_Op1(l->Typ(), &tmp, r))  return newstruct_Assign(l, &tmp);
+        if(!newstruct_Assign_user(l->Typ(), &tmp, r)) return newstruct_Assign(l, &tmp);
+      }
+    }
+    if (l->Typ()==r->Typ())
+    {
+      return  newstruct_Assign_same(l,r);
+    }
+  }
+  else
+  {
+    sleftv tmp;
+    if(!newstruct_Assign_user(l->Typ(), &tmp, r)) return newstruct_Assign(l, &tmp);
+  }
+  Werror("assign %s(%d) = %s(%d)",
+        Tok2Cmdname(l->Typ()),l->Typ(),Tok2Cmdname(r->Typ()),r->Typ());
+  return TRUE;
+}
 
 BOOLEAN newstruct_Op2(int op, leftv res, leftv a1, leftv a2)
 {
@@ -868,6 +877,8 @@ BOOLEAN newstruct_set_proc(const char *bbname,const char *func, int args,procinf
         tt=CMD_1; /* ++,--,= */
       else if (t=='(') /* proc call */
         tt=CMD_M;
+      else if (t=='-') /* unary and binary - */
+        tt=CMD_12;
     }
     else
     {

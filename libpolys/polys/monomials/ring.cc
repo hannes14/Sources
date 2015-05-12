@@ -1244,9 +1244,19 @@ int rSumInternal(ring r1, ring r2, ring &sum, BOOLEAN vartest, BOOLEAN dp_dp)
 
     omFree((ADDRESS)perm2);
   }
-  if ( (Q1!=NULL) || ( Q2!=NULL))
+  if (Q1!=NULL) 
   {
-    Q = id_SimpleAdd(Q1,Q2,sum);
+    if ( Q2!=NULL)
+      Q = id_SimpleAdd(Q1,Q2,sum);
+    else
+      Q=id_Copy(Q1,sum);
+  }
+  else
+  {
+    if ( Q2!=NULL)
+      Q = id_Copy(Q2,sum);
+    else
+      Q=NULL;
   }
   sum->qideal = Q;
 
@@ -4211,7 +4221,7 @@ void p_DebugPrint(poly p, const ring r)
     for(i=0;i<r->ExpL_Size;i++)
       Print("%ld ",p->exp[i]);
     PrintLn();
-    Print("v0:%ld ",p_GetComp(p, r));
+    Print("v0:%d ",p_GetComp(p, r));
     for(i=1;i<=r->N;i++) Print(" v%d:%ld",i,p_GetExp(p,i, r));
     PrintLn();
     pIter(p);

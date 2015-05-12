@@ -3451,7 +3451,7 @@ ideal createG0()
 */
 void initenterstrongPairs (poly h,int k,int ecart,int isFromQ,kStrategy strat, int atR = -1)
 {
-  const unsigned long iCompH = pGetComp(h);
+  const int iCompH = pGetComp(h);
   if (!nIsOne(pGetCoeff(h)))
   {
     int j;
@@ -4408,7 +4408,7 @@ int posInT17_c (const TSet set,const int length,LObject &p)
   int cc = (-1+2*currRing->order[0]==ringorder_c);
   /* cc==1 for (c,..), cc==-1 for (C,..) */
   int o = p.GetpFDeg() + p.ecart;
-  unsigned long c = pGetComp(p.p)*cc;
+  int c = pGetComp(p.p)*cc;
 
   if (pGetComp(set[length].p)*cc < c)
     return length+1;
@@ -5340,6 +5340,7 @@ poly redtail (LObject* L, int pos, kStrategy strat)
   poly h, hn;
   strat->redTailChange=FALSE;
 
+  L->GetP();
   poly p = L->p;
   if (strat->noTailReduction || pNext(p) == NULL)
     return p;
@@ -7588,6 +7589,7 @@ void initBuchMora (ideal F,ideal Q,kStrategy strat)
   /*- init local data struct.---------------------------------------- -*/
   strat->P.ecart=0;
   strat->P.length=0;
+  strat->P.pLength=0;
   if (rHasLocalOrMixedOrdering(currRing))
   {
     if (strat->kHEdge!=NULL) pSetComp(strat->kHEdge, strat->ak);
