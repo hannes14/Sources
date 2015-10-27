@@ -1510,11 +1510,16 @@ BOOLEAN enterOneStrongPoly (int i,poly p,int /*ecart*/, int /*isFromQ*/,kStrateg
   else
   {
     if(h.IsNull()) return FALSE;
-    int red_result;
-    if(strat->L != NULL)
-      red_result = strat->red(&h,strat);
+    //int red_result;
+    //reduzieren ist teur!!!
+    //if(strat->L != NULL)
+      //red_result = strat->red(&h,strat);
     if(!h.IsNull())
+    {
       enterT(h, strat,-1);
+      //int pos = posInS(strat,strat->sl,h.p,h.ecart);
+      //strat->enterS(h,pos,strat,-1);
+    }
   }
   //#if 1
   #if ADIDEBUG
@@ -3769,9 +3774,10 @@ void initenterstrongPairs (poly h,int k,int ecart,int isFromQ,kStrategy strat, i
 ring r=256,(x,y,z),dp;
 ideal I=12xz-133y, 2xy-z;
 */
-
 }
+#endif
 
+#ifdef HAVE_RINGS
 /*2
 * Generates spoly(0, h) if applicable. Assumes ring in Z/2^n.
 */
@@ -3866,7 +3872,9 @@ void enterExtendedSpoly(poly h,kStrategy strat)
   }
   nDelete(&gcd);
 }
+#endif
 
+#ifdef HAVE_RINGS
 void clearSbatch (poly h,int k,int pos,kStrategy strat)
 {
   int j = pos;
@@ -3886,7 +3894,9 @@ void clearSbatch (poly h,int k,int pos,kStrategy strat)
     // Print("end clearS sl=%d\n",strat->sl);
   }
 }
+#endif
 
+#ifdef HAVE_RINGS
 /*2
 * Generates a sufficient set of spolys (maybe just a finite generating
 * set of the syzygys)
