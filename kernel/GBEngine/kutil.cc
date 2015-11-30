@@ -732,10 +732,6 @@ BOOLEAN kTest_T(TObject * T, ring strat_tailRing, int i, char TN)
   }
   else
   {
-    if (T->max != NULL)
-      return dReportError("%c[%d].max != NULL but tailRing == currRing",TN,i);
-    if (T->t_p != NULL)
-      return dReportError("%c[%d].t_p != NULL but tailRing == currRing",TN,i);
     if (T->p == NULL && i > 0)
       return dReportError("%c[%d].p is NULL", TN, i);
     pFalseReturn(p_Test(T->p, currRing));
@@ -9709,11 +9705,8 @@ ring sbaRing (kStrategy strat, const ring r, BOOLEAN /*complete*/, int /*sgn*/)
 skStrategy::skStrategy()
 {
   memset(this, 0, sizeof(skStrategy));
-#ifndef SING_NDEBUG
   strat_nr++;
   nr=strat_nr;
-  if (strat_fac_debug) Print("s(%d) created\n",nr);
-#endif
   tailRing = currRing;
   P.tailRing = currRing;
   tl = -1;
