@@ -1327,16 +1327,4 @@ void siInit(char *name)
     SI_RESTORE_OPT(save1,save2);
   }
   errorreported = 0;
-// default coeffs
-  {
-  idhdl h;
-  h=enterid(omStrDup("QQ"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
-  IDDATA(h)=(char*)nInitChar(n_Q,NULL);
-  h=enterid(omStrDup("ZZ"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
-  IDDATA(h)=(char*)nInitChar(n_Z,NULL);
-  //h=enterid(omStrDup("RR"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
-  //IDDATA(h)=(char*)nInitChar(n_R,NULL);
-  //h=enterid(omStrDup("CC"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
-  //IDDATA(h)=(char*)nInitChar(n_long_C,NULL);
-  }
 }

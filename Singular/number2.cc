@@ -6,6 +6,7 @@
 #include <coeffs/rmodulon.h> // ZnmInfo
 #include <coeffs/bigintmat.h> // bigintmat
 #include <coeffs/longrat.h> // BIGINTs: nlGMP
+#include <misc/prime.h> // IsPrime
 
 #include <Singular/blackbox.h> // blackbox type
 #include <Singular/ipshell.h> // IsPrime
