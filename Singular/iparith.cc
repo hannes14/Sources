@@ -94,7 +94,6 @@
 #include <vector>
 
 lists rDecompose(const ring r);
-BOOLEAN rDecompose_CF(leftv res,const coeffs C);
 ring rCompose(const lists  L, const BOOLEAN check_comp=TRUE);
 
 
@@ -4846,10 +4845,7 @@ static BOOLEAN jjRINGLIST(leftv res, leftv v)
     res->data = (char *)rDecompose((ring)v->Data());
   return (r==NULL)||(res->data==NULL);
 }
-<<<<<<< HEAD
-=======
 #ifdef SINGULAR_4_1
->>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
 static BOOLEAN jjRINGLIST_C(leftv res, leftv v)
 {
   coeffs r=(coeffs)v->Data();
@@ -4857,10 +4853,7 @@ static BOOLEAN jjRINGLIST_C(leftv res, leftv v)
     return rDecompose_CF(res,r);
   return TRUE;
 }
-<<<<<<< HEAD
-=======
 #endif
->>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
 static BOOLEAN jjROWS(leftv res, leftv v)
 {
   ideal i = (ideal)v->Data();
@@ -5187,8 +5180,7 @@ static BOOLEAN jjTYPEOF(leftv res, leftv v)
     case RESOLUTION_CMD:
          res->data=omStrDup(Tok2Cmdname(t)); break;
     case DEF_CMD:
-    case NONE:
-         res->data=omStrDup("none"); break;
+    case NONE:           res->data=omStrDup("none"); break;
     default:
     {
       if (t>MAX_TOK)

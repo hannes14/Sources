@@ -483,11 +483,6 @@ void list_cmd(int typ, const char* what, const char *prefix,BOOLEAN iterate, BOO
   start=h;
   while (h!=NULL)
   {
-<<<<<<< HEAD
-    if ((all && (IDTYP(h)!=PROC_CMD) &&(IDTYP(h)!=PACKAGE_CMD) &&(IDTYP(h)!=CRING_CMD))
-    || (typ == IDTYP(h))
-    || ((IDTYP(h)==QRING_CMD) && (typ==RING_CMD)))
-=======
     if ((all
       && (IDTYP(h)!=PROC_CMD)
       &&(IDTYP(h)!=PACKAGE_CMD)
@@ -502,7 +497,6 @@ void list_cmd(int typ, const char* what, const char *prefix,BOOLEAN iterate, BOO
     || ((IDTYP(h)==QRING_CMD) && (typ==RING_CMD))
     #endif
     )
->>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
     {
       list1(prefix,h,start==currRingHdl, fullname);
       if (((IDTYP(h)==RING_CMD)||(IDTYP(h)==QRING_CMD))
@@ -1690,9 +1684,6 @@ void rDecomposeCF(leftv h,const ring r,const ring R)
   }
   // ----------------------------------------
 }
-<<<<<<< HEAD
-void rDecomposeC(leftv h,const coeffs C)
-=======
 #ifdef SINGULAR_4_1
 static void rDecomposeC(leftv h,const coeffs C)
 /* field is R or C */
@@ -1730,11 +1721,10 @@ static void rDecomposeC(leftv h,const coeffs C)
 }
 #else
 static void rDecomposeC(leftv h,const ring R)
->>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
 /* field is R or C */
 {
   lists L=(lists)omAlloc0Bin(slists_bin);
-  if (nCoeff_is_long_C(C)) L->Init(3);
+  if (rField_is_long_C(R)) L->Init(3);
   else                     L->Init(2);
   h->rtyp=LIST_CMD;
   h->data=(void *)L;
@@ -1750,17 +1740,17 @@ static void rDecomposeC(leftv h,const ring R)
   lists LL=(lists)omAlloc0Bin(slists_bin);
   LL->Init(2);
     LL->m[0].rtyp=INT_CMD;
-    LL->m[0].data=(void *)(long)si_max(C->float_len,SHORT_REAL_LENGTH/2);
+    LL->m[0].data=(void *)(long)si_max(R->cf->float_len,SHORT_REAL_LENGTH/2);
     LL->m[1].rtyp=INT_CMD;
-    LL->m[1].data=(void *)(long)si_max(C->float_len2,SHORT_REAL_LENGTH);
+    LL->m[1].data=(void *)(long)si_max(R->cf->float_len2,SHORT_REAL_LENGTH);
   L->m[1].rtyp=LIST_CMD;
   L->m[1].data=(void *)LL;
   // ----------------------------------------
   // 2: list (par)
-  if (nCoeff_is_long_C(C))
+  if (rField_is_long_C(R))
   {
     L->m[2].rtyp=STRING_CMD;
-    L->m[2].data=(void *)omStrDup(*n_ParameterNames(C));
+    L->m[2].data=(void *)omStrDup(*rParameter(R));
   }
   // ----------------------------------------
 }
@@ -1797,12 +1787,12 @@ void rDecomposeRing(leftv h,const coeffs C)
 #endif
 #else
 #ifdef HAVE_RINGS
-void rDecomposeRing(leftv h,const coeffs C)
+void rDecomposeRing(leftv h,const ring R)
 /* field is R or C */
 {
   lists L=(lists)omAlloc0Bin(slists_bin);
-  if (nCoeff_is_Ring(C)) L->Init(1);
-  else                   L->Init(2);
+  if (rField_is_Ring_Z(R)) L->Init(1);
+  else                     L->Init(2);
   h->rtyp=LIST_CMD;
   h->data=(void *)L;
   // 0: char/ cf - ring
@@ -1812,14 +1802,14 @@ void rDecomposeRing(leftv h,const coeffs C)
   L->m[0].rtyp=STRING_CMD;
   L->m[0].data=(void *)omStrDup("integer");
   // ----------------------------------------
-  // 1: modulo
-  if (nCoeff_is_Ring_Z(C)) return;
+  // 1: module
+  if (rField_is_Ring_Z(R)) return;
   lists LL=(lists)omAlloc0Bin(slists_bin);
   LL->Init(2);
   LL->m[0].rtyp=BIGINT_CMD;
-  LL->m[0].data=nlMapGMP((number) C->modBase, C, coeffs_BIGINT);
+  LL->m[0].data=nlMapGMP((number) R->cf->modBase, R->cf, R->cf); // TODO: what is this?? // extern number nlMapGMP(number from, const coeffs src, const coeffs dst); // FIXME: replace with n_InitMPZ(R->cf->modBase, coeffs_BIGINT); ?
   LL->m[1].rtyp=INT_CMD;
-  LL->m[1].data=(void *) C->modExponent;
+  LL->m[1].data=(void *) R->cf->modExponent;
   L->m[1].rtyp=LIST_CMD;
   L->m[1].data=(void *)LL;
 }
@@ -1881,9 +1871,6 @@ BOOLEAN rDecompose_CF(leftv res,const coeffs C)
     Lo->m[0].rtyp=LIST_CMD;
     Lo->m[0].data=(void*)Loo;
 
-<<<<<<< HEAD
-BOOLEAN rDecompose_CF(leftv res,const coeffs C)
-=======
     Lc->m[2].rtyp=LIST_CMD;
     Lc->m[2].data=(void*)Lo;
     // q-ideal:
@@ -1905,19 +1892,24 @@ BOOLEAN rDecompose_CF(leftv res,const coeffs C)
 
 #ifdef SINGULAR_4_1
 lists rDecompose(const ring r)
->>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
 {
+  assume( r != NULL );
+  const coeffs C = r->cf;
   assume( C != NULL );
 
   // sanity check: require currRing==r for rings with polynomial data
-  if ( nCoeff_is_algExt(C) && (C != currRing->cf))
+  if ( (r!=currRing) && (
+           (nCoeff_is_algExt(C) && (C != currRing->cf))
+        || (r->qideal != NULL)
+#ifdef HAVE_PLURAL
+        || (rIsPluralRing(r))
+#endif
+                        )
+     )
   {
     WerrorS("ring with polynomial data must be the base ring or compatible");
-    return TRUE;
+    return NULL;
   }
-<<<<<<< HEAD
-  if (nCoeff_is_numeric(C))
-=======
   // 0: char/ cf - ring
   // 1: list (var)
   // 2: list (ord)
@@ -2067,32 +2059,31 @@ lists rDecompose(const ring r)
   // ----------------------------------------
   // 0: char/ cf - ring
   if (rField_is_numeric(r))
->>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
   {
-    rDecomposeC(res,C);
+    rDecomposeC(&(L->m[0]),r);
   }
 #ifdef HAVE_RINGS
-  else if (nCoeff_is_Ring(C))
+  else if (rField_is_Ring(r))
   {
-    rDecomposeRing(res,C);
+    rDecomposeRing(&(L->m[0]),r);
   }
 #endif
-  else if ( C->extRing!=NULL )// nCoeff_is_algExt(r->cf))
+  else if ( r->cf->extRing!=NULL )// nCoeff_is_algExt(r->cf))
   {
-    rDecomposeCF(res, C->extRing, currRing);
+    rDecomposeCF(&(L->m[0]), r->cf->extRing, r);
   }
-  else if(nCoeff_is_GF(C))
+  else if(rField_is_GF(r))
   {
     lists Lc=(lists)omAlloc0Bin(slists_bin);
     Lc->Init(4);
     // char:
     Lc->m[0].rtyp=INT_CMD;
-    Lc->m[0].data=(void*)(long)C->m_nfCharQ;
+    Lc->m[0].data=(void*)(long)r->cf->m_nfCharQ;
     // var:
     lists Lv=(lists)omAlloc0Bin(slists_bin);
     Lv->Init(1);
     Lv->m[0].rtyp=STRING_CMD;
-    Lv->m[0].data=(void *)omStrDup(*n_ParameterNames(C));
+    Lv->m[0].data=(void *)omStrDup(*rParameter(r));
     Lc->m[1].rtyp=LIST_CMD;
     Lc->m[1].data=(void*)Lv;
     // ord:
@@ -2116,55 +2107,14 @@ lists rDecompose(const ring r)
     Lc->m[3].rtyp=IDEAL_CMD;
     Lc->m[3].data=(void *)idInit(1,1);
     // ----------------------
-    res->rtyp=LIST_CMD;
-    res->data=(void*)Lc;
+    L->m[0].rtyp=LIST_CMD;
+    L->m[0].data=(void*)Lc;
   }
   else
   {
-    res->rtyp=INT_CMD;
-    res->data=(void *)(long)C->ch;
+    L->m[0].rtyp=INT_CMD;
+    L->m[0].data=(void *)(long)r->cf->ch;
   }
-<<<<<<< HEAD
-  // ----------------------------------------
-  return FALSE;
-}
-lists rDecompose(const ring r)
-{
-  assume( r != NULL );
-  const coeffs C = r->cf;
-  assume( C != NULL );
-
-  // sanity check: require currRing==r for rings with polynomial data
-  if ( (r!=currRing) && (
-           (nCoeff_is_algExt(C) && (C != currRing->cf))
-        || (r->qideal != NULL)
-#ifdef HAVE_PLURAL
-        || (rIsPluralRing(r))
-#endif
-                        )
-     )
-  {
-    WerrorS("ring with polynomial data must be the base ring or compatible");
-    return NULL;
-  }
-  // 0: char/ cf - ring
-  // 1: list (var)
-  // 2: list (ord)
-  // 3: qideal
-  // possibly:
-  // 4: C
-  // 5: D
-  lists L=(lists)omAlloc0Bin(slists_bin);
-  if (rIsPluralRing(r))
-    L->Init(6);
-  else
-    L->Init(4);
-  // ----------------------------------------
-  // 0: char/ cf - ring
-  L->m[0].rtyp=CRING_CMD;
-  L->m[0].data=(char*)r->cf; r->cf->ref++;
-=======
->>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
   // ----------------------------------------
   // 1: list (var)
   lists LL=(lists)omAlloc0Bin(slists_bin);
@@ -2567,19 +2517,13 @@ ring rCompose(const lists  L, const BOOLEAN check_comp)
       }
     }
   }
-<<<<<<< HEAD
-=======
   #ifdef SINGULAR_4_1
->>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
   else if (L->m[0].Typ()==CRING_CMD)
   {
     R->cf=(coeffs)L->m[0].Data();
     R->cf->ref++;
   }
-<<<<<<< HEAD
-=======
   #endif
->>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
   else
   {
     WerrorS("coefficient field must be described by `int` or `list`");
@@ -5538,10 +5482,7 @@ ring rInit(sleftv* pn, sleftv* rv, sleftv* ord)
   assume( pn != NULL );
   const int P = pn->listLength();
 
-<<<<<<< HEAD
-=======
   #ifdef SINGULAR_4_1
->>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
   if (pn->Typ()==CRING_CMD)
   {
     cf=(coeffs)pn->CopyD();
@@ -6436,13 +6377,9 @@ BOOLEAN iiARROW(leftv r, char* a, char *s)
 BOOLEAN iiAssignCR(leftv r, leftv arg)
 {
   int t=arg->Typ();
-<<<<<<< HEAD
-=======
   char* ring_name=omStrDup((char*)r->Name());
->>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
   if ((t==RING_CMD) ||(t==QRING_CMD))
   {
-    char* ring_name=omStrDup(r->Name());
     sleftv tmp;
     memset(&tmp,0,sizeof(tmp));
     tmp.rtyp=IDHDL;
@@ -6458,8 +6395,6 @@ BOOLEAN iiAssignCR(leftv r, leftv arg)
     else
       return TRUE;
   }
-<<<<<<< HEAD
-=======
   #ifdef SINGULAR_4_1
   else if (t==CRING_CMD)
   {
@@ -6474,7 +6409,6 @@ BOOLEAN iiAssignCR(leftv r, leftv arg)
     return FALSE;
   }
   #endif
->>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
   //Print("create %s\n",r->Name());
   //Print("from %s(%d)\n",Tok2Cmdname(arg->Typ()),arg->Typ());
   return TRUE;// not handled -> error for now

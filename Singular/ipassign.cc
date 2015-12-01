@@ -792,7 +792,7 @@ static BOOLEAN jiA_INTVEC(leftv res, leftv a, Subexpr)
 static BOOLEAN jiA_BIGINTMAT(leftv res, leftv a, Subexpr)
 {
   if (res->data!=NULL) delete ((bigintmat *)res->data);
-  res->data=(void *)a->CopyD();
+  res->data=(void *)a->CopyD(BIGINTMAT_CMD);
   jiAssignAttr(res,a);
   return FALSE;
 }
