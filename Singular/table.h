@@ -25,7 +25,6 @@ struct sValCmd1 dArith1[]=
 ,{D(jjUMINUS_I),   '-',             INT_CMD,        INT_CMD       , ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjUMINUS_BI),   '-',            BIGINT_CMD,     BIGINT_CMD    , ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjUMINUS_N),   '-',             NUMBER_CMD,     NUMBER_CMD    , ALLOW_PLURAL |ALLOW_RING}
-,{D(jjNUMBER2_OP1),'-',             CNUMBER_CMD,    CNUMBER_CMD   , ALLOW_PLURAL |ALLOW_RING}
 #ifdef SINGULAR_4_1
 ,{D(jjNUMBER2_OP1),'-',             CNUMBER_CMD,    CNUMBER_CMD   , ALLOW_PLURAL |ALLOW_RING}
 #endif
@@ -81,10 +80,12 @@ struct sValCmd1 dArith1[]=
 ,{D(jjCOUNT_IV),   COUNT_CMD,       INT_CMD,        INTMAT_CMD    , ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjCOUNT_L),    COUNT_CMD,       INT_CMD,        LIST_CMD      , ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjCOUNT_RG),   COUNT_CMD,       INT_CMD,        RING_CMD      , ALLOW_PLURAL |ALLOW_RING}
+#ifdef SINGULAR_4_1
 ,{D(jjN2_CR),      CRING_CMD,       CRING_CMD,      CNUMBER_CMD   , ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjCM_CR),      CRING_CMD,       CRING_CMD,      CMATRIX_CMD   , ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjBIM2_CR),    CRING_CMD,       CRING_CMD,      BIGINTMAT_CMD , ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjR2_CR),      CRING_CMD,       CRING_CMD,      RING_CMD      , ALLOW_PLURAL |ALLOW_RING}
+#endif
 ,{D(jjNULL),       DEF_CMD,         DEF_CMD,        INT_CMD       , ALLOW_PLURAL |ALLOW_RING}
 ,{  jjWRONG ,      DEF_CMD,         0,              ANY_TYPE      , ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjDEG),        DEG_CMD,         INT_CMD,        POLY_CMD      , ALLOW_PLURAL |ALLOW_RING}
@@ -184,7 +185,9 @@ struct sValCmd1 dArith1[]=
 ,{D(jjN2_N),       NUMBER_CMD,      NUMBER_CMD,     CNUMBER_CMD   , ALLOW_PLURAL |ALLOW_RING}
 #endif
 ,{D(jjDUMMY),      NUMBER_CMD,      NUMBER_CMD,     NUMBER_CMD    , ALLOW_PLURAL |ALLOW_RING}
+#ifdef SINGULAR_4_1
 ,{D(jjN2_N),       NUMBER_CMD,      NUMBER_CMD,     CNUMBER_CMD   , ALLOW_PLURAL |ALLOW_RING}
+#endif
 ,{D(jjP2N),        NUMBER_CMD,      NUMBER_CMD,     POLY_CMD      , ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjBI2N),       NUMBER_CMD,      NUMBER_CMD,     BIGINT_CMD    , ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjDUMMY),      CNUMBER_CMD,     CNUMBER_CMD,    CNUMBER_CMD   , ALLOW_PLURAL |ALLOW_RING}
@@ -412,8 +415,10 @@ struct sValCmd2 dArith2[]=
 ,{D(jjDIV_BI),    '/',            BIGINT_CMD,     BIGINT_CMD, BIGINT_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjOP_IV_I),   '/',            INTVEC_CMD,     INTVEC_CMD, INT_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjOP_IV_I),   '/',            INTMAT_CMD,     INTMAT_CMD, INT_CMD, ALLOW_PLURAL | ALLOW_RING}
+#ifdef SINGULAR_4_1
 ,{D(jjCRING_Zp),  '/',            CRING_CMD,      CRING_CMD,  INT_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjCRING_Zm),  '/',            CRING_CMD,      CRING_CMD,  BIGINT_CMD, ALLOW_PLURAL | ALLOW_RING}
+#endif
 ,{D(jjDIVMOD_I),  INTDIV_CMD,     INT_CMD,        INT_CMD,    INT_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjDIV_BI),    INTDIV_CMD,     BIGINT_CMD,     BIGINT_CMD, BIGINT_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjOP_IV_I),   INTDIV_CMD,     INTVEC_CMD,     INTVEC_CMD, INT_CMD, ALLOW_PLURAL | ALLOW_RING}
@@ -472,7 +477,9 @@ struct sValCmd2 dArith2[]=
 ,{D(jjCOMPARE_P), '>',            INT_CMD,        VECTOR_CMD, VECTOR_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjAND_I),     '&',            INT_CMD,        INT_CMD,    INT_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjOR_I),      '|',            INT_CMD,        INT_CMD,    INT_CMD, ALLOW_PLURAL | ALLOW_RING}
+#ifdef SINGULAR_4_1
 ,{D(jjEQUAL_CR),  EQUAL_EQUAL,    INT_CMD,        CRING_CMD,  CRING_CMD, ALLOW_PLURAL | ALLOW_RING}
+#endif
 ,{D(jjEQUAL_I),   EQUAL_EQUAL,    INT_CMD,        INT_CMD,    INT_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjEQUAL_BI),  EQUAL_EQUAL,    INT_CMD,        BIGINT_CMD, BIGINT_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjEQUAL_N),   EQUAL_EQUAL,    INT_CMD,        NUMBER_CMD, NUMBER_CMD, ALLOW_PLURAL | ALLOW_RING}
@@ -635,10 +642,12 @@ struct sValCmd2 dArith2[]=
 ,{D(jjRES),       MRES_CMD,       RESOLUTION_CMD, IDEAL_CMD,  INT_CMD, ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjRES),       MRES_CMD,       RESOLUTION_CMD, MODUL_CMD,  INT_CMD, ALLOW_PLURAL |ALLOW_RING}
 //,{D(nuMPResMat),  MPRES_CMD,      MODUL_CMD,      IDEAL_CMD,  INT_CMD, NO_PLURAL |ALLOW_RING}
+#ifdef SINGULAR_4_1
 ,{D(jjNUMBER2CR), CNUMBER_CMD,    CNUMBER_CMD,    INT_CMD,    CRING_CMD, ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjNUMBER2CR), CNUMBER_CMD,    CNUMBER_CMD,    BIGINT_CMD, CRING_CMD, ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjNUMBER2CR), CNUMBER_CMD,    CNUMBER_CMD,    NUMBER_CMD, CRING_CMD, ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjNUMBER2CR), CNUMBER_CMD,    CNUMBER_CMD,    CNUMBER_CMD,CRING_CMD, ALLOW_PLURAL |ALLOW_RING}
+#endif
 ,{D(jjPFAC2),     PFAC_CMD,       LIST_CMD,       BIGINT_CMD, INT_CMD, ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjPFAC2),     PFAC_CMD,       LIST_CMD,       NUMBER_CMD, INT_CMD, ALLOW_PLURAL |ALLOW_RING}
 #ifdef HAVE_PLURAL
@@ -910,7 +919,9 @@ cmdnames cmds[] =
   { "continue",    0, CONTINUE_CMD ,      CONTINUE_CMD},
   { "contract",    0, CONTRACT_CMD ,      CMD_2},
   { "convhull",    0, NEWTONPOLY_CMD,     CMD_1},
+#ifdef SINGULAR_4_1  
   { "cring",       0, CRING_CMD,          ROOT_DECL},
+#endif
   { "dbprint",     0, DBPRINT_CMD ,       CMD_M},
   { "def",         0, DEF_CMD ,           ROOT_DECL},
   { "defined",     0, DEFINED_CMD ,       CMD_1},
@@ -1161,10 +1172,12 @@ struct sConvertTypes dConvertTypes[] =
 //  int -> number
    { INT_CMD,         NUMBER_CMD,     D(iiI2N) , NULL_VAL },
    { BIGINT_CMD,      NUMBER_CMD,     D(iiBI2N) , NULL_VAL },
+#ifdef SINGULAR_4_1
    { INT_CMD,         CNUMBER_CMD,    D(iiI2NN) , NULL_VAL },
    { BIGINT_CMD,      CNUMBER_CMD,    D(iiBI2NN) , NULL_VAL },
    { CNUMBER_CMD,     NUMBER_CMD,     D(iiNN2N) , NULL_VAL },
    { CNUMBER_CMD,     POLY_CMD,       D(iiNN2P) , NULL_VAL },
+#endif
 //  int -> poly
    { INT_CMD,         POLY_CMD,       D(iiI2P) , NULL_VAL },
    { BIGINT_CMD,      POLY_CMD,       D(iiBI2P) , NULL_VAL },
@@ -1221,7 +1234,7 @@ struct sConvertTypes dConvertTypes[] =
    { RESOLUTION_CMD,  LIST_CMD,       NULL_VAL /*iiR2L*/ , D(iiR2L_l) },
 // list -> resolution
    { LIST_CMD,        RESOLUTION_CMD, D(iiL2R) , NULL_VAL},
-// qring -> qring
+// qring -> ring
    { QRING_CMD,       RING_CMD,       D(iiDummy), NULL_VAL},
 //  end of list
    { 0,               0,              NULL_VAL , NULL_VAL }
@@ -1259,7 +1272,9 @@ struct sValAssign dAssign[]=
 ,{D(jiA_BIGINTMAT),BIGINTMAT_CMD,  BIGINTMAT_CMD}
 ,{D(jiA_BIGINTMAT),CMATRIX_CMD,    CMATRIX_CMD}
 ,{D(jiA_NUMBER),   NUMBER_CMD,     NUMBER_CMD }
+#ifdef SINGULAR_4_1
 ,{D(jiA_NUMBER2),  CNUMBER_CMD,    CNUMBER_CMD }
+#endif
 ,{D(jiA_BIGINT),   BIGINT_CMD,     BIGINT_CMD }
 ,{D(jiA_LIST_RES), LIST_CMD,       RESOLUTION_CMD }
 ,{D(jiA_LIST),     LIST_CMD,       LIST_CMD }

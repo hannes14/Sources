@@ -175,6 +175,10 @@ static void * iiI2BI(void *data)
   return (void *)n;
 }
 
+<<<<<<< HEAD
+=======
+#ifdef SINGULAR_4_1
+>>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
 static void * iiI2NN(void *data)
 {
   if (currRing==NULL)
@@ -188,6 +192,10 @@ static void * iiI2NN(void *data)
   nn->n=n;
   return (void *)nn;
 }
+<<<<<<< HEAD
+=======
+#endif
+>>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
 
 static void * iiBI2N(void *data)
 {
@@ -203,6 +211,10 @@ static void * iiBI2N(void *data)
   return (void*)n;
 }
 
+<<<<<<< HEAD
+=======
+#ifdef SINGULAR_4_1
+>>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
 static void * iiBI2NN(void *data)
 {
   if (currRing==NULL)
@@ -222,7 +234,13 @@ static void * iiBI2NN(void *data)
   nn->cf=currRing->cf; nn->cf->ref++;
   return (void*)nn;
 }
+<<<<<<< HEAD
 
+=======
+#endif
+
+#ifdef SINGULAR_4_1
+>>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
 static void * iiNN2N(void *data)
 {
   number2 d=(number2)data;
@@ -236,7 +254,13 @@ static void * iiNN2N(void *data)
   n2Delete(d);
   return (void*)n;
 }
+<<<<<<< HEAD
 
+=======
+#endif
+
+#ifdef SINGULAR_4_1
+>>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
 static void * iiNN2P(void *data)
 {
   number2 d=(number2)data;
@@ -250,6 +274,10 @@ static void * iiNN2P(void *data)
   n2Delete(d);
   return (void*)p_NSet(n,currRing);
 }
+<<<<<<< HEAD
+=======
+#endif
+>>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
 
 static void * iiIm2Ma(void *data)
 {

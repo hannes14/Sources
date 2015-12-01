@@ -4846,6 +4846,10 @@ static BOOLEAN jjRINGLIST(leftv res, leftv v)
     res->data = (char *)rDecompose((ring)v->Data());
   return (r==NULL)||(res->data==NULL);
 }
+<<<<<<< HEAD
+=======
+#ifdef SINGULAR_4_1
+>>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
 static BOOLEAN jjRINGLIST_C(leftv res, leftv v)
 {
   coeffs r=(coeffs)v->Data();
@@ -4853,6 +4857,10 @@ static BOOLEAN jjRINGLIST_C(leftv res, leftv v)
     return rDecompose_CF(res,r);
   return TRUE;
 }
+<<<<<<< HEAD
+=======
+#endif
+>>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
 static BOOLEAN jjROWS(leftv res, leftv v)
 {
   ideal i = (ideal)v->Data();
@@ -5151,7 +5159,9 @@ static BOOLEAN jjTYPEOF(leftv res, leftv v)
   int t=(int)(long)v->data;
   switch (t)
   {
+    #ifdef SINGULAR_4_1
     case CRING_CMD:
+    #endif
     case INT_CMD:
     case POLY_CMD:
     case VECTOR_CMD:
@@ -8872,7 +8882,9 @@ const char * Tok2Cmdname(int tok)
   //if (tok==OBJECT) return "object";
   //if (tok==PRINT_EXPR) return "print_expr";
   if (tok==IDHDL) return "identifier";
+  #ifdef SINGULAR_4_1
   if (tok==CRING_CMD) return "(c)ring";
+  #endif
   if (tok==QRING_CMD) return "ring";
   if (tok>MAX_TOK) return getBlackboxName(tok);
   int i;
