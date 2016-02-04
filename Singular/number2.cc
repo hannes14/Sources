@@ -7,10 +7,6 @@
 #include <coeffs/bigintmat.h> // bigintmat
 #include <coeffs/longrat.h> // BIGINTs: nlGMP
 #include <misc/prime.h> // IsPrime
-<<<<<<< HEAD
-
-=======
->>>>>>> afbc156e93ab6dfad0477f291c7b677738910a62
 #include <Singular/blackbox.h> // blackbox type
 #include <Singular/ipshell.h> // IsPrime
 
