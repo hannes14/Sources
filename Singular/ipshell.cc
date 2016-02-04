@@ -70,12 +70,7 @@
 #include <math.h>
 #include <ctype.h>
 
-// define this if you want to use the fast_map routine for mapping ideals
-#define FAST_MAP
-
-#ifdef FAST_MAP
-#include <kernel/maps/fast_maps.h>
-#endif
+#include <kernel/maps/gen_maps.h>
 
 #ifdef SINGULAR_4_1
 #include <Singular/number2.h>
@@ -678,16 +673,24 @@ leftv iiMap(map theMap, const char * what)
         || (tmpW.rtyp==MAP_CMD))
       {
         ideal id=(ideal)tmpW.data;
+        long *degs=(long*)omAlloc(IDELEMS(id)*sizeof(long));
+        for(int i=IDELEMS(id)-1;i>=0;i--)
+        {
+          poly p=id->m[i];
+          if (p!=NULL) degs[i]=p_Totaldegree(p,src_ring);
+          else         degs[i]=0;
+        }
         for(int j=IDELEMS(theMap)-1;j>=0 && !overflow;j--)
         {
           if (theMap->m[j]!=NULL)
           {
             long deg_monexp=pTotaldegree(theMap->m[j]);
+
             for(int i=IDELEMS(id)-1;i>=0;i--)
             {
               poly p=id->m[i];
-              if ((p!=NULL) && (p_Totaldegree(p,src_ring)!=0) &&
-              ((unsigned long)deg_monexp > (currRing->bitmask / (unsigned long)p_Totaldegree(p,src_ring)/2)))
+              if ((p!=NULL) && (degs[i]!=0) &&
+              ((unsigned long)deg_monexp > (currRing->bitmask / ((unsigned long)degs[i])/2)))
               {
                 overflow=TRUE;
                 break;
@@ -695,6 +698,7 @@ leftv iiMap(map theMap, const char * what)
             }
           }
         }
+        omFreeSize(degs,IDELEMS(id)*sizeof(long));
       }
       else if (tmpW.rtyp==POLY_CMD)
       {
@@ -704,8 +708,9 @@ leftv iiMap(map theMap, const char * what)
           {
             long deg_monexp=pTotaldegree(theMap->m[j]);
             poly p=(poly)tmpW.data;
-            if ((p!=NULL) && (p_Totaldegree(p,src_ring)!=0) &&
-            ((unsigned long)deg_monexp > (currRing->bitmask / (unsigned long)p_Totaldegree(p,src_ring)/2)))
+            long deg=0;
+            if ((p!=NULL) && ((deg=p_Totaldegree(p,src_ring))!=0) &&
+            ((unsigned long)deg_monexp > (currRing->bitmask / ((unsigned long)deg)/2)))
             {
               overflow=TRUE;
               break;
@@ -724,28 +729,27 @@ leftv iiMap(map theMap, const char * what)
       else
 #endif
       {
-#ifdef FAST_MAP
-        if ((tmpW.rtyp==IDEAL_CMD) && (nMap == ndCopyMap)
-#ifdef HAVE_PLURAL
-        && (!rIsPluralRing(currRing))
-#endif
-        )
+        if ((tmpW.rtyp==IDEAL_CMD)
+        ||(tmpW.rtyp==MODUL_CMD)
+        ||(tmpW.rtyp==MATRIX_CMD)
+        ||(tmpW.rtyp==MAP_CMD))
         {
-          v->rtyp=IDEAL_CMD;
+          v->rtyp=tmpW.rtyp;
           char *tmp = theMap->preimage;
           theMap->preimage=(char*)1L;
           // map gets 1 as its rank (as an ideal)
-          v->data=fast_map(IDIDEAL(w), src_ring, (ideal)theMap, currRing);
+          v->data=maMapIdeal(IDIDEAL(w), src_ring, (ideal)theMap, currRing,nMap);
           theMap->preimage=tmp; // map gets its preimage back
         }
-        else
-#endif
-        if (maApplyFetch(MAP_CMD,theMap,v,&tmpW,src_ring,NULL,NULL,0,nMap))
+        if (v->data==NULL) /*i.e. not IDEAL_CMD/MODUL_CMD/MATRIX_CMD/MAP */
         {
-          Werror("cannot map %s(%d)",Tok2Cmdname(w->typ),w->typ);
-          omFreeBin((ADDRESS)v, sleftv_bin);
-          if (save_r!=NULL) IDMAP(w)->preimage=save_r;
-          return NULL;
+          if (maApplyFetch(MAP_CMD,theMap,v,&tmpW,src_ring,NULL,NULL,0,nMap))
+          {
+            Werror("cannot map %s(%d)",Tok2Cmdname(w->typ),w->typ);
+            omFreeBin((ADDRESS)v, sleftv_bin);
+            if (save_r!=NULL) IDMAP(w)->preimage=save_r;
+            return NULL;
+          }
         }
       }
       if (save_r!=NULL)
@@ -1171,7 +1175,7 @@ BOOLEAN iiDefaultParameter(leftv p)
   tmp.data=at->CopyA();
   return iiAssign(p,&tmp);
 }
-BOOLEAN iiBranchTo(leftv r, leftv args)
+BOOLEAN iiBranchTo(leftv, leftv args)
 {
   // <string1...stringN>,<proc>
   // known: args!=NULL, l>=1
@@ -1685,7 +1689,7 @@ void rDecomposeCF(leftv h,const ring r,const ring R)
   // ----------------------------------------
 }
 #ifdef SINGULAR_4_1
-static void rDecomposeC(leftv h,const coeffs C)
+static void rDecomposeC_41(leftv h,const coeffs C)
 /* field is R or C */
 {
   lists L=(lists)omAlloc0Bin(slists_bin);
@@ -1719,7 +1723,7 @@ static void rDecomposeC(leftv h,const coeffs C)
   }
   // ----------------------------------------
 }
-#else
+#endif
 static void rDecomposeC(leftv h,const ring R)
 /* field is R or C */
 {
@@ -1754,11 +1758,10 @@ static void rDecomposeC(leftv h,const ring R)
   }
   // ----------------------------------------
 }
-#endif
 
 #ifdef SINGULAR_4_1
 #ifdef HAVE_RINGS
-void rDecomposeRing(leftv h,const coeffs C)
+void rDecomposeRing_41(leftv h,const coeffs C)
 /* field is R or C */
 {
   lists L=(lists)omAlloc0Bin(slists_bin);
@@ -1785,7 +1788,8 @@ void rDecomposeRing(leftv h,const coeffs C)
   L->m[1].data=(void *)LL;
 }
 #endif
-#else
+#endif
+
 #ifdef HAVE_RINGS
 void rDecomposeRing(leftv h,const ring R)
 /* field is R or C */
@@ -1814,7 +1818,6 @@ void rDecomposeRing(leftv h,const ring R)
   L->m[1].data=(void *)LL;
 }
 #endif
-#endif
 
 
 #ifdef SINGULAR_4_1
@@ -1830,12 +1833,12 @@ BOOLEAN rDecompose_CF(leftv res,const coeffs C)
   }
   if (nCoeff_is_numeric(C))
   {
-    rDecomposeC(res,C);
+    rDecomposeC_41(res,C);
   }
 #ifdef HAVE_RINGS
   else if (nCoeff_is_Ring(C))
   {
-    rDecomposeRing(res,C);
+    rDecomposeRing_41(res,C);
   }
 #endif
   else if ( C->extRing!=NULL )// nCoeff_is_algExt(r->cf))
@@ -1891,7 +1894,7 @@ BOOLEAN rDecompose_CF(leftv res,const coeffs C)
 #endif
 
 #ifdef SINGULAR_4_1
-lists rDecompose(const ring r)
+lists rDecompose_list_cf(const ring r)
 {
   assume( r != NULL );
   const coeffs C = r->cf;
@@ -2024,7 +2027,6 @@ lists rDecompose(const ring r)
 }
 #endif
 
-#ifndef SINGULAR_4_1
 lists rDecompose(const ring r)
 {
   assume( r != NULL );
@@ -2211,7 +2213,6 @@ lists rDecompose(const ring r)
 #endif
   return L;
 }
-#endif
 
 void rComposeC(lists L, ring R)
 /* field is R or C */
@@ -5372,6 +5373,11 @@ BOOLEAN rSleftvOrdering2Ordering(sleftv *ord, ring R)
     }
     sl=sl->next;
   }
+  // find OrdSgn:
+  R->OrdSgn = 1;
+  for(i=1;i<=R->N;i++)
+  { if (weights[i]<0) { R->OrdSgn=-1;break; }}
+  omFree(weights);
 
   // check for complete coverage
   while ( n >= 0 && (
@@ -5406,39 +5412,39 @@ BOOLEAN rSleftvOrdering2Ordering(sleftv *ord, ring R)
       return TRUE;
     }
   }
-  // find OrdSgn:
-  R->OrdSgn = 1;
-  for(i=1;i<=R->N;i++)
-  { if (weights[i]<0) { R->OrdSgn=-1;break; }}
-  omFree(weights);
   return FALSE;
 }
 
-BOOLEAN rSleftvList2StringArray(sleftv* sl, char** p)
+static BOOLEAN rSleftvList2StringArray(leftv sl, char** p)
 {
 
   while(sl!=NULL)
   {
-    if (sl->Name() == sNoName)
+    if ((sl->rtyp == IDHDL)||(sl->rtyp==ALIAS_CMD))
     {
-      if (sl->Typ()==POLY_CMD)
+      *p = omStrDup(sl->Name());
+    }
+    else if (sl->name!=NULL)
+    {
+      *p = (char*)sl->name;
+      sl->name=NULL;
+    }
+    else if (sl->rtyp==POLY_CMD)
+    {
+      sleftv s_sl;
+      iiConvert(POLY_CMD,ANY_TYPE,-1,sl,&s_sl);
+      if (s_sl.name != NULL)
       {
-        sleftv s_sl;
-        iiConvert(POLY_CMD,ANY_TYPE,-1,sl,&s_sl);
-        if (s_sl.Name() != sNoName)
-          *p = omStrDup(s_sl.Name());
-        else
-          *p = NULL;
-        sl->next = s_sl.next;
-        s_sl.next = NULL;
-        s_sl.CleanUp();
-        if (*p == NULL) return TRUE;
+        *p = (char*)s_sl.name; s_sl.name=NULL;
       }
       else
-        return TRUE;
+        *p = NULL;
+      sl->next = s_sl.next;
+      s_sl.next = NULL;
+      s_sl.CleanUp();
+      if (*p == NULL) return TRUE;
     }
-    else
-      *p = omStrDup(sl->Name());
+    else return TRUE;
     p++;
     sl=sl->next;
   }
@@ -5451,14 +5457,13 @@ const short MAX_SHORT = 32767; // (1 << (sizeof(short)*8)) - 1;
 //
 // rInit itself:
 //
-// INPUT:  s: name, pn: ch & parameter (names), rv: variable (names)
-//         ord: ordering
+// INPUT:  pn: ch & parameter (names), rv: variable (names)
+//         ord: ordering (all !=NULL)
 // RETURN: currRingHdl on success
 //         NULL        on error
 // NOTE:   * makes new ring to current ring, on success
 //         * considers input sleftv's as read-only
-//idhdl rInit(char *s, sleftv* pn, sleftv* rv, sleftv* ord)
-ring rInit(sleftv* pn, sleftv* rv, sleftv* ord)
+ring rInit(leftv pn, leftv rv, leftv ord)
 {
 #ifdef HAVE_RINGS
   //unsigned int ringtype = 0;
@@ -5485,14 +5490,15 @@ ring rInit(sleftv* pn, sleftv* rv, sleftv* ord)
   if (pn->Typ()==CRING_CMD)
   {
     cf=(coeffs)pn->CopyD();
+    leftv pnn=pn;
     if(P>1) /*parameter*/
     {
-      pn = pn->next;
-      const int pars = pn->listLength();
+      pnn = pnn->next;
+      const int pars = pnn->listLength();
       assume( pars > 0 );
       char ** names = (char**)omAlloc0(pars * sizeof(char_ptr));
 
-      if (rSleftvList2StringArray(pn, names))
+      if (rSleftvList2StringArray(pnn, names))
       {
         WerrorS("parameter expected");
         goto rInitError;
@@ -5516,11 +5522,12 @@ ring rInit(sleftv* pn, sleftv* rv, sleftv* ord)
   if (pn->Typ()==INT_CMD)
   {
     int ch = (int)(long)pn->Data();
+    leftv pnn=pn;
 
     /* parameter? -------------------------------------------------------*/
-    pn = pn->next;
+    pnn = pnn->next;
 
-    if (pn == NULL) // no params!?
+    if (pnn == NULL) // no params!?
     {
       if (ch!=0)
       {
@@ -5537,7 +5544,7 @@ ring rInit(sleftv* pn, sleftv* rv, sleftv* ord)
     }
     else
     {
-      const int pars = pn->listLength();
+      const int pars = pnn->listLength();
 
       assume( pars > 0 );
 
@@ -5548,7 +5555,7 @@ ring rInit(sleftv* pn, sleftv* rv, sleftv* ord)
 
         param.GFChar = ch;
         param.GFDegree = 1;
-        param.GFPar_name = pn->name;
+        param.GFPar_name = pnn->name;
 
         cf = nInitChar(n_GF, &param);
       }
@@ -5562,7 +5569,7 @@ ring rInit(sleftv* pn, sleftv* rv, sleftv* ord)
 
         char ** names = (char**)omAlloc0(pars * sizeof(char_ptr));
 
-        if (rSleftvList2StringArray(pn, names))
+        if (rSleftvList2StringArray(pnn, names))
         {
           WerrorS("parameter expected");
           goto rInitError;
@@ -5587,21 +5594,22 @@ ring rInit(sleftv* pn, sleftv* rv, sleftv* ord)
   else if ((pn->name != NULL)
   && ((strcmp(pn->name,"real")==0) || (strcmp(pn->name,"complex")==0)))
   {
+    leftv pnn=pn->next;
     BOOLEAN complex_flag=(strcmp(pn->name,"complex")==0);
-    if ((pn->next!=NULL) && (pn->next->Typ()==INT_CMD))
+    if ((pnn!=NULL) && (pnn->Typ()==INT_CMD))
     {
-      float_len=(int)(long)pn->next->Data();
+      float_len=(int)(long)pnn->Data();
       float_len2=float_len;
-      pn=pn->next;
-      if ((pn->next!=NULL) && (pn->next->Typ()==INT_CMD))
+      pnn=pnn->next;
+      if ((pnn!=NULL) && (pnn->Typ()==INT_CMD))
       {
-        float_len2=(int)(long)pn->next->Data();
-        pn=pn->next;
+        float_len2=(int)(long)pnn->Data();
+        pnn=pnn->next;
       }
     }
 
     if (!complex_flag)
-      complex_flag= pn->next != NULL;
+      complex_flag= (pnn!=NULL) && (pnn->name!=NULL);
     if( !complex_flag && (float_len2 <= (short)SHORT_REAL_LENGTH))
        cf=nInitChar(n_R, NULL);
     else // longR or longC?
@@ -5619,10 +5627,10 @@ ring rInit(sleftv* pn, sleftv* rv, sleftv* ord)
            param.float_len= SHORT_REAL_LENGTH;
            param.float_len2= SHORT_REAL_LENGTH;
          }
-         if (pn->next == NULL)
+         if ((pnn == NULL) || (pnn->name == NULL))
            param.par_name=(const char*)"i"; //default to i
          else
-           param.par_name = (const char*)pn->next->name;
+           param.par_name = (const char*)pnn->name;
        }
 
        cf = nInitChar(complex_flag ? n_long_C: n_long_R, (void*)&param);
@@ -5637,24 +5645,25 @@ ring rInit(sleftv* pn, sleftv* rv, sleftv* ord)
     mpz_init_set_si(modBase, 0);
     if (pn->next!=NULL)
     {
-      if (pn->next->Typ()==INT_CMD)
+      leftv pnn=pn;
+      if (pnn->next->Typ()==INT_CMD)
       {
-        mpz_set_ui(modBase, (int)(long) pn->next->Data());
-        pn=pn->next;
-        if ((pn->next!=NULL) && (pn->next->Typ()==INT_CMD))
+        pnn=pnn->next;
+        mpz_set_ui(modBase, (int)(long) pnn->Data());
+        if ((pnn->next!=NULL) && (pnn->next->Typ()==INT_CMD))
         {
-          modExponent = (long) pn->next->Data();
-          pn=pn->next;
+          pnn=pnn->next;
+          modExponent = (long) pnn->Data();
         }
-        while ((pn->next!=NULL) && (pn->next->Typ()==INT_CMD))
+        while ((pnn->next!=NULL) && (pnn->next->Typ()==INT_CMD))
         {
-          mpz_mul_ui(modBase, modBase, (int)(long) pn->next->Data());
-          pn=pn->next;
+          pnn=pnn->next;
+          mpz_mul_ui(modBase, modBase, (int)(long) pnn->Data());
         }
       }
-      else if (pn->next->Typ()==BIGINT_CMD)
+      else if (pnn->next->Typ()==BIGINT_CMD)
       {
-        number p=(number)pn->next->CopyD(); // FIXME: why CopyD() here if nlGMP should not overtake p!?
+        number p=(number)pnn->next->CopyD();
         nlGMP(p,(number)modBase,coeffs_BIGINT); // TODO? // extern void   nlGMP(number &i, number n, const coeffs r); // FIXME: n_MPZ( modBase, p, coeffs_BIGINT); ?
         n_Delete(&p,coeffs_BIGINT);
       }
@@ -5744,7 +5753,6 @@ ring rInit(sleftv* pn, sleftv* rv, sleftv* ord)
 #endif
     goto rInitError;
   }
-//  pn=pn->next;
 
   /*every entry in the new ring is initialized to 0*/
 
@@ -5813,9 +5821,9 @@ ring rInit(sleftv* pn, sleftv* rv, sleftv* ord)
   // need to clean up sleftv here, before this ring can be set to
   // new currRing or currRing can be killed beacuse new ring has
   // same name
-  if (pn != NULL) pn->CleanUp();
-  if (rv != NULL) rv->CleanUp();
-  if (ord != NULL) ord->CleanUp();
+  pn->CleanUp();
+  rv->CleanUp();
+  ord->CleanUp();
   //if ((tmp = enterid(s, myynest, RING_CMD, &IDROOT))==NULL)
   //  goto rInitError;
 
@@ -5828,9 +5836,9 @@ ring rInit(sleftv* pn, sleftv* rv, sleftv* ord)
   // error case:
   rInitError:
   if  ((R != NULL)&&(R->cf!=NULL)) rDelete(R);
-  if (pn != NULL) pn->CleanUp();
-  if (rv != NULL) rv->CleanUp();
-  if (ord != NULL) ord->CleanUp();
+  pn->CleanUp();
+  rv->CleanUp();
+  ord->CleanUp();
   return NULL;
 }
 
@@ -6248,12 +6256,12 @@ BOOLEAN iiApplyINTVEC(leftv res, leftv a, int op, leftv proc)
   }
   return FALSE;
 }
-BOOLEAN iiApplyBIGINTMAT(leftv res, leftv a, int op, leftv proc)
+BOOLEAN iiApplyBIGINTMAT(leftv, leftv, int, leftv)
 {
   WerrorS("not implemented");
   return TRUE;
 }
-BOOLEAN iiApplyIDEAL(leftv res, leftv a, int op, leftv proc)
+BOOLEAN iiApplyIDEAL(leftv, leftv, int, leftv)
 {
   WerrorS("not implemented");
   return TRUE;

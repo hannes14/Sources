@@ -222,7 +222,8 @@ struct sValCmd1 dArith1[]=
 ,{D(jjDUMMY),      RESOLUTION_CMD,  RESOLUTION_CMD, RESOLUTION_CMD, ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjRINGLIST),   RINGLIST_CMD,    LIST_CMD,       RING_CMD      , ALLOW_PLURAL |ALLOW_RING}
 #ifdef SINGULAR_4_1
-,{D(jjRINGLIST_C), RINGLIST_CMD,    LIST_CMD,       CRING_CMD     , ALLOW_PLURAL |ALLOW_RING}
+,{D(jjRING_LIST),  RING_LIST_CMD,   LIST_CMD,       RING_CMD      , ALLOW_PLURAL |ALLOW_RING}
+,{D(jjRINGLIST_C), RING_LIST_CMD,   LIST_CMD,       CRING_CMD     , ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjN2_CR),      RING_CMD,        CRING_CMD,      CNUMBER_CMD   , ALLOW_PLURAL |ALLOW_RING}
 ,{D(jjCM_CR),      RING_CMD,        CRING_CMD,      CMATRIX_CMD   , ALLOW_PLURAL |ALLOW_RING}
 #endif
@@ -1083,6 +1084,9 @@ cmdnames cmds[] =
   { "RETURN",      0, END_GRAMMAR ,       RETURN},
   { "ring",        0, RING_CMD ,          RING_CMD},
   { "ringlist",    0, RINGLIST_CMD ,      CMD_1},
+  #ifdef SINGULAR_4_1
+  { "ring_list",   0, RING_LIST_CMD ,     CMD_1},
+  #endif
   { "rvar",        0, IS_RINGVAR ,        CMD_1},
   { "sba",         0, SBA_CMD ,           CMD_123},
   { "setring",     0, SETRING_CMD ,       SETRING_CMD},

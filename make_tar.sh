@@ -1,10 +1,11 @@
 #!/bin/sh
-VERSION=4.0.2p3
+VERSION=4.0.3
 export VERSION
 
 git archive --prefix=singular-$VERSION/ HEAD |tar xf -
 mkdir singular-$VERSION/doc
 cp doc/*.man singular-$VERSION/doc/.
+cp doc/singular.idx singular-$VERSION/doc/.
 if test -e doc/doc.tbz2
 then
   cp doc/doc.tbz2 singular-$VERSION/doc/.
@@ -28,6 +29,7 @@ command rm -rf singular-$VERSION/dox/Doxyfile.html.all singular-$VERSION/dox/Dox
 command rm singular-$VERSION/factory/ConwayList.txt
 command rm -rf singular-$VERSION/logo  singular-$VERSION/standalone.test  singular-$VERSION/templates  singular-$VERSION/tests
 cp redhat/singular.spec singular-$VERSION/redhat/singular.spec
+cp /tmp/wawa-i/share/singular/LIB/all.lib  singular-$VERSION/Singular/LIB/.
 tar cf singular-$VERSION.tar singular-$VERSION
 gzip -9 -f singular-$VERSION.tar
 command rm -rf singular-$VERSION

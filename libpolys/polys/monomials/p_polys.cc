@@ -556,7 +556,7 @@ void p_Setm_WFirstTotalDegree(poly p, const ring r)
   p->exp[r->pOrdIndex] = p_WFirstTotalDegree(p, r);
 }
 
-p_SetmProc p_GetSetmProc(ring r)
+p_SetmProc p_GetSetmProc(const ring r)
 {
   // covers lp, rp, ls,
   if (r->typ == NULL) return p_Setm_Dummy;
@@ -3928,7 +3928,7 @@ poly p_PermPoly (poly p, const int * perm, const ring oldRing, const ring dst,
 {
 #if 0
     p_Test(p, oldRing);
-    PrintS("\np_PermPoly::p: "); p_Write(p, oldRing, oldRing); PrintLn();
+    PrintS("p_PermPoly::p: "); p_Write(p, oldRing, oldRing);
 #endif
   const int OldpVariables = rVar(oldRing);
   poly result = NULL;
@@ -4042,7 +4042,7 @@ poly p_PermPoly (poly p, const int * perm, const ring oldRing, const ring dst,
           }
         }
       }
-      if ( mapped_to_par && qq!= NULL && nCoeff_is_algExt(dst->cf) )
+      if ( mapped_to_par && (qq!= NULL) && nCoeff_is_algExt(dst->cf) )
       {
         number n = p_GetCoeff(qq, dst);
         n_Normalize(n, dst->cf);
@@ -4053,7 +4053,7 @@ poly p_PermPoly (poly p, const int * perm, const ring oldRing, const ring dst,
 
 #if 0
     p_Test(aq,dst);
-    PrintS("\naq: "); p_Write(aq, dst, dst); PrintLn();
+    PrintS("aq: "); p_Write(aq, dst, dst);
 #endif
 
 
@@ -4066,8 +4066,7 @@ poly p_PermPoly (poly p, const int * perm, const ring oldRing, const ring dst,
       p_Test(qq,dst);
 
 #if 0
-    p_Test(qq,dst);
-    PrintS("\nqq: "); p_Write(qq, dst, dst); PrintLn();
+    PrintS("qq: "); p_Write(qq, dst, dst);
 #endif
 
       if (aq!=NULL)
@@ -4122,7 +4121,7 @@ poly p_PermPoly (poly p, const int * perm, const ring oldRing, const ring dst,
   p_Test(result,dst);
 #if 0
   p_Test(result,dst);
-  PrintS("\nresult: "); p_Write(result,dst,dst); PrintLn();
+  PrintS("result: "); p_Write(result,dst,dst);
 #endif
   return result;
 }
