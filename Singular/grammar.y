@@ -680,13 +680,12 @@ expr:   expr_arithmetic
           }
         | elemexpr       { $$ = $1; }
         | '(' exprlist ')'    { $$ = $2; }
-        | expr '[' expr ',' expr ']'
+        | expr '[' exprlist ']'
           {
-            if(iiExprArith3(&$$,'[',&$1,&$3,&$5)) YYERROR;
-          }
-        | expr '[' expr ']'
-          {
-            if(iiExprArith2(&$$,&$1,'[',&$3)) YYERROR;
+            ($1).next = (leftv)omAllocBin(sleftv_bin);
+            memcpy(($1).next,&($3),sizeof(sleftv));
+	    memset(&($3),0,sizeof(sleftv));
+            if(iiExprArithM(&$$,&$1,'[')) YYERROR;
           }
         | APPLY '('  expr ',' CMD_1 ')'
           {
