@@ -87,7 +87,7 @@ void fePrintReportBug(char* msg, char* file, int line)
 {
   error("YOU HAVE FOUND A BUG IN SINGULAR.\n"
 "Please, email the following output to singular@mathematik.uni-kl.de\n"
-"Bug occured at %s:%d\n"
+"Bug occurred at %s:%d\n"
 "Message: %s\n"
 "Version: " S_UNAME VERSION __DATE__ __TIME__,
         file, line, msg);
@@ -201,7 +201,11 @@ int main(int argc, char** argv)
   if (emacs == NULL) emacs = feResource('X', 0);
   if (emacs == NULL)
   {
-    error( "Error: Can't find emacs xterm program. \n Expected it at %s or %s\n Specify alternative with --xterm=PROGRAM option,\n or set ESINGULAR_EMACS environment variable to the name of the program to use as xterm.\n",
+  #ifdef __CYGWIN__
+    error( "Error: Can't find rxvt program. \n Expected it at %s or %s\n Specify alternative with --rxvt=PROGRAM option,\n or set RXVT environment variable to the name of the program to use as xterm.\n",
+  #else
+    error( "Error: Can't find xterm program. \n Expected it at %s or %s\n Specify alternative with --xterm=PROGRAM option,\n or set XTERM environment variable to the name of the program to use as xterm.\n",
+  #endif
            feResourceDefault('X'));
     mainUsage();
     exit(1);

@@ -6403,7 +6403,7 @@ static BOOLEAN jjSUBST_P(leftv res, leftv u, leftv v,leftv w)
     if ((monomexpr!=NULL) && (p!=NULL) && (pTotaldegree(p)!=0) &&
     ((unsigned long)pTotaldegree(monomexpr) > (currRing->bitmask / (unsigned long)pTotaldegree(p)/2)))
     {
-      Warn("possible OVERFLOW in subst, max exponent is %ld, subtituting deg %d by deg %d",currRing->bitmask/2, pTotaldegree(monomexpr), pTotaldegree(p));
+      Warn("possible OVERFLOW in subst, max exponent is %ld, substituting deg %d by deg %d",currRing->bitmask/2, pTotaldegree(monomexpr), pTotaldegree(p));
       //return TRUE;
     }
     if ((monomexpr==NULL)||(pNext(monomexpr)==NULL))
@@ -7398,6 +7398,7 @@ static BOOLEAN jjJET4(leftv res, leftv u)
     return TRUE;
   }
 }
+#if 0
 static BOOLEAN jjBRACKET_PL(leftv res, leftv u)
 {
   int ut=u->Typ();
@@ -7433,6 +7434,7 @@ static BOOLEAN jjBRACKET_PL(leftv res, leftv u)
   return TRUE;
   #endif
 }
+#endif
 static BOOLEAN jjKLAMMER_PL(leftv res, leftv u)
 {
   if ((yyInRingConstruction)
@@ -8731,7 +8733,6 @@ BOOLEAN iiExprArithM(leftv res, leftv a, int op)
       }
       else          return TRUE;
     }
-    BOOLEAN failed=FALSE;
     int args=0;
     if (a!=NULL) args=a->listLength();
 
@@ -8751,13 +8752,13 @@ BOOLEAN iiExprArithM(leftv res, leftv a, int op)
         }
         if (traceit&TRACE_CALL)
           Print("call %s(... (%d args))\n", iiTwoOps(op),args);
-        if ((failed=dArithM[i].p(res,a))==TRUE)
+        if (dArithM[i].p(res,a))
         {
           break;// leave loop, goto error handling
         }
         if (a!=NULL) a->CleanUp();
         //Print("op: %d,result typ:%d\n",op,res->rtyp);
-        return failed;
+        return FALSE;
       }
       i++;
     }
