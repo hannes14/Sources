@@ -829,6 +829,8 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
           }
           loop
           {
+            if (!SI_LINK_OPEN_P(l)) m2_end(0);
+            if(d->f_read->is_eof) m2_end(0);
             leftv h=ssiRead1(l); /*contains an exit.... */
             if (feErrors != NULL && *feErrors != '\0')
             {
@@ -1957,18 +1959,36 @@ static BOOLEAN DumpSsiIdhdl(si_link l, idhdl h)
 
   if (type_id == PACKAGE_CMD)
   {
-    // do not dump Top
-    if (strcmp(IDID(h), "Top") == 0) return FALSE;
+    // do not dump Top, Standard
+    if ((strcmp(IDID(h), "Top") == 0)
+    || (strcmp(IDID(h), "Standard") == 0))
+    {
+      omFreeSize(D,sizeof(*D));
+      return FALSE;
+    }
     package p=(package)IDDATA(h);
-    // dump Singular-packages as load("...");
+    // dump Singular-packages as LIB("...");
     if (p->language==LANG_SINGULAR)
+    {
+      D->op=LOAD_CMD;
+      D->argc=2;
+      D->arg1.rtyp=STRING_CMD;
+      D->arg1.data=p->libname;
+      D->arg2.rtyp=STRING_CMD;
+      D->arg2.data=(char*)"with";
+      ssiWrite(l,&tmp);
+      omFreeSize(D,sizeof(*D));
+      return FALSE;
+    }
+    // dump Singular-packages as load("...");
+    else if (p->language==LANG_C)
     {
       D->op=LOAD_CMD;
       D->argc=1;
       D->arg1.rtyp=STRING_CMD;
       D->arg1.data=p->libname;
       ssiWrite(l,&tmp);
-      omFree(D);
+      omFreeSize(D,sizeof(*D));
       return FALSE;
     }
   }
@@ -1986,7 +2006,7 @@ static BOOLEAN DumpSsiIdhdl(si_link l, idhdl h)
   D->arg2.rtyp=IDTYP(h);
   D->arg2.data=IDDATA(h);
   ssiWrite(l,&tmp);
-  omFree(D);
+  omFreeSize(D,sizeof(*D));
   return FALSE;
 }
 static BOOLEAN ssiDumpIter(si_link l, idhdl h)
