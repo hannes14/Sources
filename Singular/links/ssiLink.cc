@@ -59,13 +59,13 @@
 #include <sys/wait.h>
 #include <time.h>
 
-#define SSI_VERSION 11
+#define SSI_VERSION 10
 // 5->6: changed newstruct representation
 // 6->7: attributes
 // 7->8: qring
 // 8->9: module: added rank
 // 9->10: tokens in grammar.h/tok.h reorganized
-// 10->11: extended ring descr. for named coeffs
+// 10->11: extended ring descr. for named coeffs (not in used until 4.1)
 
 link_list ssiToBeClosed=NULL;
 volatile BOOLEAN ssiToBeClosed_inactive=TRUE;
@@ -991,6 +991,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         else if(r == 1)
         {
           WarnS("program not specified, using /usr/local/bin/Singular");
+          Warn("in line >>%s<<",my_yylinebuf);
           strcpy(path,"/usr/local/bin/Singular");
         }
         char* ssh_command = (char*)omAlloc(256);
@@ -1248,7 +1249,7 @@ leftv ssiRead1(si_link l)
     case 15:
     case 5:{
              d->r=ssiReadRing(d);
-	     if (d->r==NULL) return NULL;
+             if (d->r==NULL) return NULL;
              res->data=(char*)d->r;
              if (d->r->qideal==NULL)
                res->rtyp=RING_CMD;
