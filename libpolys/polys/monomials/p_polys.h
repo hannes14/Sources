@@ -1497,6 +1497,85 @@ static inline int p_LmCmp(poly p, poly q, const ring r)
 
 }
 
+#ifdef HAVE_RINGS
+// The coefficient will be compared in absolute value
+static inline int p_LtCmp(poly p, poly q, const ring r)
+{
+  int res = p_LmCmp(p,q,r);
+  if(res == 0)
+  {
+    if(p_GetCoeff(p,r) == NULL || p_GetCoeff(q,r) == NULL)
+      return res;
+    number pc = n_Copy(p_GetCoeff(p,r),r->cf);
+    number qc = n_Copy(p_GetCoeff(q,r),r->cf);
+    if(!n_GreaterZero(pc,r->cf))
+      pc = n_InpNeg(pc,r->cf);
+    if(!n_GreaterZero(qc,r->cf))
+      qc = n_InpNeg(qc,r->cf);
+    if(n_Greater(pc,qc,r->cf))
+      res = 1;
+    if(n_Greater(qc,pc,r->cf))
+      res = -1;
+    if(n_Equal(pc,qc,r->cf))
+      res = 0;
+    n_Delete(&pc,r->cf);
+    n_Delete(&qc,r->cf);
+  }
+  return res;
+}
+#endif
+
+#ifdef HAVE_RINGS
+// This is the equivalent of pLmCmp(p,q) != -currRing->OrdSgn for rings
+// It is used in posInLRing and posInTRing
+static inline int p_LtCmpOrdSgnDiffM(poly p, poly q, const ring r)
+{
+  if(r->OrdSgn == 1)
+  {
+    return(p_LtCmp(p,q,r) != -1);
+  }
+  else
+  {
+    return(p_LmCmp(p,q,r) == -1);
+  }
+}
+#endif
+
+#ifdef HAVE_RINGS
+// This is the equivalent of pLmCmp(p,q) != currRing->OrdSgn for rings
+// It is used in posInLRing and posInTRing
+static inline int p_LtCmpOrdSgnDiffP(poly p, poly q, const ring r)
+{
+  if(r->OrdSgn == 1)
+  {
+    return(p_LmCmp(p,q,r) == -1);
+  }
+  else
+  {
+    return(p_LtCmp(p,q,r) != -1);
+  }
+
+}
+#endif
+
+#ifdef HAVE_RINGS
+// This is the equivalent of pLmCmp(p,q) == -currRing->OrdSgn for rings
+// It is used in posInLRing and posInTRing
+static inline int p_LtCmpOrdSgnEqM(poly p, poly q, const ring r)
+{
+  return(p_LtCmp(p,q,r) == -r->OrdSgn);
+}
+#endif
+
+#ifdef HAVE_RINGS
+// This is the equivalent of pLmCmp(p,q) == currRing->OrdSgn for rings
+// It is used in posInLRing and posInTRing
+static inline int p_LtCmpOrdSgnEqP(poly p, poly q, const ring r)
+{
+  return(p_LtCmp(p,q,r) == r->OrdSgn);
+}
+#endif
+
 /// returns TRUE if p1 is a skalar multiple of p2
 /// assume p1 != NULL and p2 != NULL
 BOOLEAN p_ComparePolys(poly p1,poly p2, const ring r);
@@ -1806,10 +1885,8 @@ static inline BOOLEAN p_IsConstantPoly(const poly p, const ring r)
 static inline BOOLEAN p_IsUnit(const poly p, const ring r)
 {
   if (p == NULL) return FALSE;
-#ifdef HAVE_RINGS
   if (rField_is_Ring(r))
     return (p_LmIsConstant(p, r) && n_IsUnit(pGetCoeff(p),r->cf));
-#endif
   return p_LmIsConstant(p, r);
 }
 

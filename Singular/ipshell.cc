@@ -936,7 +936,8 @@ BOOLEAN jjBETTI2(leftv res, leftv u, leftv v)
 
   intvec *weights=NULL;
   int add_row_shift=0;
-  intvec *ww=(intvec *)atGet(&(l->m[0]),"isHomog",INTVEC_CMD);
+  intvec *ww=NULL;
+  if (l->nr>=0) ww=(intvec *)atGet(&(l->m[0]),"isHomog",INTVEC_CMD);
   if (ww!=NULL)
   {
      weights=ivCopy(ww);
@@ -947,8 +948,16 @@ BOOLEAN jjBETTI2(leftv res, leftv u, leftv v)
 
   r=liFindRes(l,&len,&typ0);
   if (r==NULL) return TRUE;
-  res->data=(char *)syBetti(r,len,&reg,weights,(int)(long)v->Data());
+  intvec* res_im=syBetti(r,len,&reg,weights,(int)(long)v->Data());
+  res->data=(void*)res_im;
   omFreeSize((ADDRESS)r,(len)*sizeof(ideal));
+  //Print("rowShift: %d ",add_row_shift);
+  for(int i=1;i<=res_im->rows();i++)
+  {
+    if (IMATELEM(*res_im,1,i)==0) { add_row_shift--; }
+    else break;
+  }
+  //Print(" %d\n",add_row_shift);
   atSet(res,omStrDup("rowShift"),(void*)(long)add_row_shift,INT_CMD);
   if (weights!=NULL) delete weights;
   return FALSE;
@@ -1314,7 +1323,7 @@ static BOOLEAN iiInternalExport (leftv v, int toLev)
         }
         if (BVERBOSE(V_REDEFINE))
         {
-          Warn("redefining %s",IDID(h));
+          Warn("redefining %s (%s)",IDID(h),my_yylinebuf);
         }
 #ifdef USE_IILOCALRING
         if (iiLocalRing[0]==IDRING(h) && (!keepring)) iiLocalRing[0]=NULL;
@@ -1445,7 +1454,7 @@ BOOLEAN iiExport (leftv v, int toLev, package pack)
         {
           if (BVERBOSE(V_REDEFINE))
           {
-            Warn("redefining %s",IDID(old));
+            Warn("redefining %s (%s)",IDID(old),my_yylinebuf);
           }
           v->name=omStrDup(v->name);
           killhdl2(old,&(pack->idroot),currRing);
@@ -1515,18 +1524,16 @@ poly    iiHighCorner(ideal I, int ak)
 
 void iiCheckPack(package &p)
 {
-  if (p==basePack) return;
-
-  idhdl t=basePack->idroot;
-
-  while ((t!=NULL) && (IDTYP(t)!=PACKAGE_CMD) && (IDPACKAGE(t)!=p)) t=t->next;
-
-  if (t==NULL)
+  if (p!=basePack)
   {
-    WarnS("package not found\n");
-    p=basePack;
+    idhdl t=basePack->idroot;
+    while ((t!=NULL) && (IDTYP(t)!=PACKAGE_CMD) && (IDPACKAGE(t)!=p)) t=t->next;
+    if (t==NULL)
+    {
+      WarnS("package not found\n");
+      p=basePack;
+    }
   }
-  return;
 }
 
 idhdl rDefault(const char *s)
@@ -1790,10 +1797,10 @@ void rDecomposeRing_41(leftv h,const coeffs C)
 #endif
 #endif
 
-#ifdef HAVE_RINGS
 void rDecomposeRing(leftv h,const ring R)
 /* field is R or C */
 {
+#ifdef HAVE_RINGS
   lists L=(lists)omAlloc0Bin(slists_bin);
   if (rField_is_Ring_Z(R)) L->Init(1);
   else                     L->Init(2);
@@ -1816,8 +1823,10 @@ void rDecomposeRing(leftv h,const ring R)
   LL->m[1].data=(void *) R->cf->modExponent;
   L->m[1].rtyp=LIST_CMD;
   L->m[1].data=(void *)LL;
-}
+#else
+  WerrorS("rDecomposeRing");
 #endif
+}
 
 
 #ifdef SINGULAR_4_1
@@ -2064,12 +2073,10 @@ lists rDecompose(const ring r)
   {
     rDecomposeC(&(L->m[0]),r);
   }
-#ifdef HAVE_RINGS
   else if (rField_is_Ring(r))
   {
     rDecomposeRing(&(L->m[0]),r);
   }
-#endif
   else if ( r->cf->extRing!=NULL )// nCoeff_is_algExt(r->cf))
   {
     rDecomposeCF(&(L->m[0]), r->cf->extRing, r);
@@ -3167,7 +3174,7 @@ lists syConvRes(syStrategy syzstr,BOOLEAN toDel,int add_row_shift)
 /*3
 * converts a list of modules into a resolution
 */
-syStrategy syConvList(lists li,BOOLEAN toDel)
+syStrategy syConvList(lists li)
 {
   int typ0;
   syStrategy result=(syStrategy)omAlloc0(sizeof(ssyStrategy));
@@ -3190,7 +3197,6 @@ syStrategy syConvList(lists li,BOOLEAN toDel)
     omFreeSize(result, sizeof(ssyStrategy));
     result = NULL;
   }
-  if (toDel) li->Clean();
   return result;
 }
 

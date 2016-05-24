@@ -533,9 +533,7 @@ resolvente syResolvente(ideal arg, int maxlength, int * length,
     {
       res[/*syzIndex+*/1] = idSyzygies(res[0/*syzIndex*/],hom,&w,FALSE,setRegularity,&Kstd1_deg);
       if ((!TEST_OPT_NOTREGULARITY) && (Kstd1_deg>0)
-      #ifdef HAVE_RINGS
       && (!rField_is_Ring(currRing))
-      #endif
       ) si_opt_1 |= Sy_bit(OPT_DEGBOUND);
     }
     else
@@ -864,7 +862,9 @@ intvec * syBetti(resolvente res,int length, int * regularity,
       if (res[i]->m[j]!=NULL)
       {
         if ((pGetComp(res[i]->m[j])>l)
-        || ((i>1) && (res[i-1]->m[pGetComp(res[i]->m[j])-1]==NULL)))
+	// usual resolutions do not the following, but artifulal built may: (tr. #763)
+        //|| ((i>1) && (res[i-1]->m[pGetComp(res[i]->m[j])-1]==NULL))
+	)
         {
           WerrorS("input not a resolvent");
           omFreeSize((ADDRESS)temp1,(l+1)*sizeof(int));

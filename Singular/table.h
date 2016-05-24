@@ -497,6 +497,7 @@ const struct sValCmd2 dArith2[]=
 ,{D(jjCOMPARE_BIM),EQUAL_EQUAL,   INT_CMD,        CMATRIX_CMD, CMATRIX_CMD, ALLOW_PLURAL | ALLOW_RING}
 #endif
 ,{D(jjEQUAL_Ma),  EQUAL_EQUAL,    INT_CMD,        MATRIX_CMD, MATRIX_CMD, ALLOW_PLURAL | ALLOW_RING}
+,{D(jjEQUAL_R),   EQUAL_EQUAL,    INT_CMD,        RING_CMD,   RING_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{  jjWRONG2 ,    EQUAL_EQUAL,    0,              IDEAL_CMD,  IDEAL_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{  jjWRONG2 ,    EQUAL_EQUAL,    0,              MODUL_CMD,  MODUL_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{  jjWRONG2 ,    EQUAL_EQUAL,    0,              IDEAL_CMD,  MODUL_CMD, ALLOW_PLURAL | ALLOW_RING}
@@ -514,6 +515,7 @@ const struct sValCmd2 dArith2[]=
 ,{  jjWRONG2 ,    NOTEQUAL,       0,              MODUL_CMD,  MODUL_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{  jjWRONG2 ,    NOTEQUAL,       0,              IDEAL_CMD,  MODUL_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{  jjWRONG2 ,    NOTEQUAL,       0,              MODUL_CMD,  IDEAL_CMD, ALLOW_PLURAL | ALLOW_RING}
+,{D(jjEQUAL_R),   NOTEQUAL,       INT_CMD,        RING_CMD,   RING_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjDOTDOT),    DOTDOT,         INTVEC_CMD,     INT_CMD,    INT_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjINDEX_I),   '[',            INT_CMD,        INTVEC_CMD, INT_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjINDEX_IV),  '[',            INT_CMD,        INTVEC_CMD, INTVEC_CMD, ALLOW_PLURAL | ALLOW_RING}
@@ -1236,9 +1238,9 @@ const struct sConvertTypes dConvertTypes[] =
 //  link
    { STRING_CMD,      LINK_CMD,       D(iiS2Link) , NULL_VAL },
 // resolution -> list
-   { RESOLUTION_CMD,  LIST_CMD,       NULL_VAL /*iiR2L*/ , D(iiR2L_l) },
+   { RESOLUTION_CMD,  LIST_CMD,       NULL_VAL , D(iiR2L_l) },
 // list -> resolution
-   { LIST_CMD,        RESOLUTION_CMD, D(iiL2R) , NULL_VAL},
+   { LIST_CMD,        RESOLUTION_CMD, NULL_VAL ,  D(iiL2R) },
 // qring -> ring
    { QRING_CMD,       RING_CMD,       D(iiDummy), NULL_VAL},
 //  end of list

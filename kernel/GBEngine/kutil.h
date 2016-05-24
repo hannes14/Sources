@@ -427,8 +427,12 @@ int posInT110 (const TSet set,const int length,LObject &p);
 int posInT13 (const TSet set,const int length,LObject &p);
 int posInT15 (const TSet set,const int length,LObject &p);
 int posInT17 (const TSet set,const int length,LObject &p);
+int posInT17_c (const TSet set,const int length,LObject &p);
 int posInT19 (const TSet set,const int length,LObject &p);
 int posInT_EcartpLength(const TSet set,const int length,LObject &p);
+int posInT_EcartFDegpLength(const TSet set,const int length,LObject &p);
+int posInT_FDegpLength(const TSet set,const int length,LObject &p);
+int posInT_pLength(const TSet set,const int length,LObject &p);
 
 #ifdef HAVE_MORE_POS_IN_T
 int posInT_EcartFDegpLength(const TSet set,const int length,LObject &p);
@@ -457,9 +461,13 @@ int posInL13 (const LSet set, const int length,
              LObject* L,const kStrategy strat);
 int posInL15 (const LSet set, const int length,
              LObject* L,const kStrategy strat);
+int posInL15Ring (const LSet set, const int length,
+             LObject* L,const kStrategy strat);
 int posInL17 (const LSet set, const int length,
              LObject* L,const kStrategy strat);
 int posInL10 (const LSet set, const int length,
+             LObject* L,const kStrategy strat);
+int posInL10Ring (const LSet set, const int length,
              LObject* L,const kStrategy strat);
 int posInL110 (const LSet set, const int length,
              LObject* L,const kStrategy strat);
@@ -533,6 +541,7 @@ void initBuchMoraCrit(kStrategy strat);
 void initSbaCrit(kStrategy strat);
 void initHilbCrit(ideal F, ideal Q, intvec **hilb,kStrategy strat);
 void initBuchMoraPos(kStrategy strat);
+void initBuchMoraPosRing(kStrategy strat);
 void initSbaPos(kStrategy strat);
 void initBuchMora (ideal F, ideal Q,kStrategy strat);
 void initSbaBuchMora (ideal F, ideal Q,kStrategy strat);

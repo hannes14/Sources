@@ -11,14 +11,6 @@
 
 #include <omalloc/omalloc.h>
 
-#ifndef SING_NDEBUG
-# define MYTEST 0
-#else /* ifndef SING_NDEBUG */
-# define MYTEST 0
-#endif /* ifndef SING_NDEBUG */
-
-#include <omalloc/omalloc.h>
-
 #include <misc/options.h>
 #include <misc/intvec.h>
 
@@ -57,14 +49,12 @@ ideal idMinBase (ideal h1)
   int i,l,ll;
   intvec * wth;
   BOOLEAN homog;
-  #ifdef HAVE_RINGS
   if(rField_is_Ring(currRing))
   {
       WarnS("minbase applies only to the local or homogeneous case over coefficient fields");
       e=idCopy(h1);
       return e;
   }
-  #endif
   homog = idHomModule(h1,currRing->qideal,&wth);
   if (rHasGlobalOrdering(currRing))
   {
@@ -493,15 +483,6 @@ static ideal idPrepare (ideal  h1, tHomog hom, int syzcomp, intvec **w)
   //  }
   //}
 
-#if MYTEST
-#ifdef RDEBUG
-  Print("Prepare::h2: ");
-  idPrint(h2);
-
-  idTest(h2);
-#endif
-#endif
-
   for (j=0; j<i; j++)
   {
     p = h2->m[j];
@@ -517,32 +498,9 @@ static ideal idPrepare (ideal  h1, tHomog hom, int syzcomp, intvec **w)
       h2->m[j]=q;
   }
 
-#ifdef PDEBUG
-  for(j=0;j<IDELEMS(h2);j++) pTest(h2->m[j]);
-
-#if MYTEST
-#ifdef RDEBUG
-  Print("Prepare::Input: ");
-  idPrint(h2);
-
-  Print("Prepare::currQuotient: ");
-  idPrint(currRing->qideal);
-#endif
-#endif
-
-#endif
-
   idTest(h2);
 
   h3 = kStd(h2,currRing->qideal,hom,w,NULL,syzcomp);
-
-#if MYTEST
-#ifdef RDEBUG
-  Print("Prepare::Output: ");
-  idPrint(h3);
-  idpTest(h3);
-#endif
-#endif
 
   idDelete(&h2);
   return h3;
@@ -655,9 +613,7 @@ ideal idSyzygies (ideal  h1, tHomog h,intvec **w, BOOLEAN setSyzComp,
   && (setRegularity)
   && (h==isHomog)
   && (!rIsPluralRing(currRing))
-  #ifdef HAVE_RINGS
   && (!rField_is_Ring(currRing))
-  #endif
   )
   {
     ring dp_C_ring = rAssure_dp_C(syz_ring); // will do rChangeCurrRing later
@@ -1292,10 +1248,7 @@ static ideal idInitializeQuot (ideal  h1, ideal h2, BOOLEAN h1IsStb, BOOLEAN *ad
       h4->m[i] = h4->m[i+1];
     }
     h4->m[IDELEMS(h4)-1] = p;
-    #ifdef HAVE_RINGS
-    if(!rField_is_Ring(currRing))
-    #endif
-    si_opt_1 |= Sy_bit(OPT_SB_1);
+    if(!rField_is_Ring(currRing)) si_opt_1 |= Sy_bit(OPT_SB_1);
   }
   idDelete(&temph1);
   //idTest(h4);//see remark at the beginning
