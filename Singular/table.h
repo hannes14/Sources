@@ -484,6 +484,8 @@ const struct sValCmd2 dArith2[]=
 ,{D(jjEQUAL_CR),  EQUAL_EQUAL,    INT_CMD,        CRING_CMD,  CRING_CMD, ALLOW_PLURAL | ALLOW_RING}
 #endif
 ,{D(jjEQUAL_I),   EQUAL_EQUAL,    INT_CMD,        INT_CMD,    INT_CMD, ALLOW_PLURAL | ALLOW_RING}
+,{D(jjEQUAL_I),   EQUAL_EQUAL,    INT_CMD,        RING_CMD,   INT_CMD, ALLOW_PLURAL | ALLOW_RING}
+,{D(jjEQUAL_I),   EQUAL_EQUAL,    INT_CMD,        RING_CMD,   RING_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjEQUAL_BI),  EQUAL_EQUAL,    INT_CMD,        BIGINT_CMD, BIGINT_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjEQUAL_N),   EQUAL_EQUAL,    INT_CMD,        NUMBER_CMD, NUMBER_CMD, ALLOW_PLURAL | ALLOW_RING}
 ,{D(jjCOMPARE_S), EQUAL_EQUAL,    INT_CMD,        STRING_CMD, STRING_CMD, ALLOW_PLURAL | ALLOW_RING}
@@ -923,7 +925,7 @@ cmdnames cmds[] =
   { "continue",    0, CONTINUE_CMD ,      CONTINUE_CMD},
   { "contract",    0, CONTRACT_CMD ,      CMD_2},
   { "convhull",    0, NEWTONPOLY_CMD,     CMD_1},
-#ifdef SINGULAR_4_1  
+#ifdef SINGULAR_4_1
   { "cring",       0, CRING_CMD,          ROOT_DECL},
 #endif
   { "dbprint",     0, DBPRINT_CMD ,       CMD_M},
