@@ -76,7 +76,7 @@
 
 /* preparation for versio 4.1.0: */
 #ifndef SINGULAR_4_1
-#define SINGULAR_4_1 
+#define SINGULAR_4_1
 #endif /* SINGULAR_4_1 */
 
 #ifndef SIZEOF_LONG

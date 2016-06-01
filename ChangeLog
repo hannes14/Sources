@@ -10,7 +10,7 @@ News for 4-1-0:
   + ring r= <cring>,(<vars>),(<ord>);
   + ring r=(<cring,<vars>),...
   + def r=ringlist(<list with cring as first member>)
-- charstr returns ZZ, ZZ/.., QQ, CC(...)  
+- charstr returns ZZ, ZZ/.., QQ, CC(...)
 - operations for Number:
   + create from int/bint/number/Number n in cring cf:
     Number(n,cf)
