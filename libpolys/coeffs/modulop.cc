@@ -2,7 +2,7 @@
 *  Computer Algebra System SINGULAR     *
 ****************************************/
 /*
-* ABSTRACT: numbers modulo p (<=32003)
+* ABSTRACT: numbers modulo p (<=32749)
 */
 
 #include <misc/auxiliary.h>
@@ -813,7 +813,7 @@ nMapFunc npSetMap(const coeffs src, const coeffs dst)
 }
 
 // -----------------------------------------------------------
-//  operation for very large primes (32003< p < 2^31-1)
+//  operation for very large primes (32749< p < 2^31-1)
 // ----------------------------------------------------------
 #ifdef NV_OPS
 
