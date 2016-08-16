@@ -9,3 +9,4 @@ semigroup(f);
 
 tst_status(1); $;
 
+

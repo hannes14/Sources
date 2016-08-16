@@ -145,15 +145,15 @@ ring rDefault(int ch, int N, char **n,int ord_size, int *ord, int *block0, int *
   assume( cf != NULL);
   return rDefault(cf,N,n,ord_size,ord,block0,block1,wvhdl);
 }
-ring   rDefault(const coeffs cf, int N, char **n)
+ring rDefault(const coeffs cf, int N, char **n,  const rRingOrder_t o)
 {
   assume( cf != NULL);
-  /*order: lp,0*/
+  /*order: o=lp,0*/
   int *order = (int *) omAlloc(2* sizeof(int));
   int *block0 = (int *)omAlloc0(2 * sizeof(int));
   int *block1 = (int *)omAlloc0(2 * sizeof(int));
-  /* ringorder dp for the first block: var 1..N */
-  order[0]  = ringorder_lp;
+  /* ringorder o=lp for the first block: var 1..N */
+  order[0]  = o;
   block0[0] = 1;
   block1[0] = N;
   /* the last block: everything is 0 */
@@ -5645,7 +5645,7 @@ int n_IsParam(const number m, const ring r)
 
   const n_coeffType _filed_type = getCoeffType(C);
 
-  if( _filed_type == n_algExt )
+  if(( _filed_type == n_algExt )||( _filed_type == n_polyExt ))
     return naIsParam(m, C);
 
   if( _filed_type == n_transExt )

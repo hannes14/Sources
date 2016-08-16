@@ -23,10 +23,6 @@
 
 #ifdef HAVE_RINGS
 
-/// Our Type!
-static const n_coeffType ID = n_Zn;
-static const n_coeffType ID2 = n_Znm;
-
 number  nrnCopy        (number a, const coeffs r);
 int     nrnSize        (number a, const coeffs r);
 void    nrnDelete      (number *a, const coeffs r);
@@ -103,9 +99,15 @@ static char* nrnCoeffString(const coeffs r)
   size_t l = (size_t)mpz_sizeinbase(r->modBase, 10) +2;
   char* b = (char*) omAlloc(l);
   b= mpz_get_str (b, 10, r->modBase);
+  #ifdef SINGULAR_4_1
+  char* s = (char*) omAlloc(15+l);
+  if (nCoeff_is_Ring_ModN(r)) sprintf(s,"ZZ/bigint(%s)",b);
+  else /*if (nCoeff_is_Ring_PtoM(r))*/ sprintf(s,"ZZ/(bigint(%s)^%lu)",b,r->modExponent);
+  #else
   char* s = (char*) omAlloc(7+2+10+l);
   if (nCoeff_is_Ring_ModN(r)) sprintf(s,"integer,%s",b);
   else /*if (nCoeff_is_Ring_PtoM(r))*/ sprintf(s,"integer,%s^%lu",b,r->modExponent);
+  #endif
   omFreeSize(b,l);
   return s;
 }
@@ -166,7 +168,7 @@ coeffs nrnQuot1(number c, const coeffs r)
 /* for initializing function pointers */
 BOOLEAN nrnInitChar (coeffs r, void* p)
 {
-  assume( (getCoeffType(r) == ID) || (getCoeffType (r) == ID2) );
+  assume( (getCoeffType(r) == n_Zn) || (getCoeffType (r) == n_Znm) );
   ZnmInfo * info= (ZnmInfo *) p;
   r->modBase= (mpz_ptr)nrnCopy((number)info->base, r); //this circumvents the problem
   //in bigintmat.cc where we cannot create a "legal" nrn that can be freed.

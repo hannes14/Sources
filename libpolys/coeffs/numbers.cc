@@ -300,9 +300,11 @@ cfInitCharProc nInitCharTableDefault[]=
  nfInitChar,   /* n_GF */
  ngfInitChar,  /* n_long_R */
  #ifdef HAVE_POLYEXTENSIONS
+ n2pInitChar, /* n_polyExt */
  naInitChar,  /* n_algExt */
  ntInitChar,  /* n_transExt */
  #else
+ NULL,        /* n_polyExt */
  NULL,        /* n_algExt */
  NULL,        /* n_transExt */
  #endif
@@ -514,7 +516,6 @@ void nKillChar(coeffs r)
     }
   }
 }
-
 
 n_coeffType nRegister(n_coeffType n, cfInitCharProc p)
 {

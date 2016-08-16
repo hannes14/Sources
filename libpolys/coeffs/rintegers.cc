@@ -28,9 +28,6 @@
 #ifdef HAVE_RINGS
 
 
-/// Our Type!
-static const n_coeffType ID = n_Z;
-
 number  nrzCopy        (number a, const coeffs r);
 int     nrzSize        (number a, const coeffs r);
 void    nrzDelete      (number *a, const coeffs r);
@@ -469,7 +466,11 @@ void    nrzCoeffWrite  (const coeffs, BOOLEAN /*details*/)
 
 static char* nrzCoeffString(const coeffs)
 {
+#ifdef SINGULAR_4_1
+  return omStrDup("ZZ");
+#else
   return omStrDup("integer");
+#endif  
 }
 
 coeffs nrzQuot1(number c, const coeffs r)
@@ -487,7 +488,7 @@ coeffs nrzQuot1(number c, const coeffs r)
 
 BOOLEAN nrzInitChar(coeffs r,  void *)
 {
-  assume( getCoeffType(r) == ID );
+  assume( getCoeffType(r) == n_Z );
 
   r->is_field=FALSE;
   r->is_domain=TRUE;
@@ -1710,7 +1711,7 @@ coeffs nrzQuot1(number c, const coeffs r)
 
 BOOLEAN nrzInitChar(coeffs r,  void *)
 {
-  assume( getCoeffType(r) == ID );
+  assume( getCoeffType(r) == n_Z );
 
   r->is_field=FALSE;
   r->is_domain=TRUE;

@@ -24,9 +24,6 @@
 
 #ifdef HAVE_RINGS
 
-/// Our Type!
-static const n_coeffType ID = n_Z2m;
-
 number  nr2mCopy        (number a, const coeffs r);
 BOOLEAN nr2mGreaterZero (number k, const coeffs r);
 number  nr2mMult        (number a, number b, const coeffs r);
@@ -108,8 +105,13 @@ BOOLEAN nr2mCoeffIsEqual(const coeffs r, n_coeffType n, void * p)
 
 static char* nr2mCoeffString(const coeffs r)
 {
+  // r->modExponent <=bitsize(long)
   char* s = (char*) omAlloc(11+11);
+#ifdef SINGULAR_4_1
+  sprintf(s,"ZZ/(2^%lu)",r->modExponent);
+#else
   sprintf(s,"integer,2,%lu",r->modExponent);
+#endif
   return s;
 }
 
@@ -158,7 +160,7 @@ static number nr2mAnn(number b, const coeffs r);
 /* for initializing function pointers */
 BOOLEAN nr2mInitChar (coeffs r, void* p)
 {
-  assume( getCoeffType(r) == ID );
+  assume( getCoeffType(r) == n_Z2m );
   nr2mInitExp((int)(long)(p), r);
 
   r->is_field=FALSE;
