@@ -2856,7 +2856,6 @@ static BOOLEAN jjPlural_num_poly(leftv res, leftv a, leftv b)
     ring r=rCopy(currRing);
     BOOLEAN result=nc_CallPlural(NULL,NULL,(poly)a->Data(),(poly)b->Data(),r,false,true,false,currRing);
     res->data=r;
-    if (r->qideal!=NULL) res->rtyp=QRING_CMD;
     return result;
   }
 }
@@ -2877,7 +2876,6 @@ static BOOLEAN jjPlural_num_mat(leftv res, leftv a, leftv b)
     ring r=rCopy(currRing);
     BOOLEAN result=nc_CallPlural(NULL,(matrix)b->Data(),(poly)a->Data(),NULL,r,false,true,false,currRing);
     res->data=r;
-    if (r->qideal!=NULL) res->rtyp=QRING_CMD;
     return result;
   }
 }
@@ -2898,7 +2896,6 @@ static BOOLEAN jjPlural_mat_poly(leftv res, leftv a, leftv b)
     ring r=rCopy(currRing);
     BOOLEAN result=nc_CallPlural((matrix)a->Data(),NULL,NULL,(poly)b->Data(),r,false,true,false,currRing);
     res->data=r;
-    if (r->qideal!=NULL) res->rtyp=QRING_CMD;
     return result;
   }
 }
@@ -2919,7 +2916,6 @@ static BOOLEAN jjPlural_mat_mat(leftv res, leftv a, leftv b)
     ring r=rCopy(currRing);
     BOOLEAN result=nc_CallPlural((matrix)a->Data(),(matrix)b->Data(),NULL,NULL,r,false,true,false,currRing);
     res->data=r;
-    if (r->qideal!=NULL) res->rtyp=QRING_CMD;
     return result;
   }
 }
@@ -4575,7 +4571,6 @@ static BOOLEAN jjLISTRING(leftv res, leftv v)
 {
   ring r=rCompose((lists)v->Data());
   if (r==NULL) return TRUE;
-  if (r->qideal!=NULL) res->rtyp=QRING_CMD;
   res->data=(char *)r;
   return FALSE;
 }
@@ -5182,19 +5177,7 @@ static BOOLEAN jjENVELOPE(leftv res, leftv a)
   ring    r = (ring)a->Data();
   if (rIsPluralRing(r))
   {
-    //    ideal   i;
-//     if (a->rtyp == QRING_CMD)
-//     {
-//       i = r->qideal;
-//       r->qideal = NULL;
-//     }
     ring s = rEnvelope(r);
-//     if (a->rtyp == QRING_CMD)
-//     {
-//       ideal is  = idOppose(r,i); /* twostd? */
-//       is        = idAdd(is,i);
-//       s->qideal = i;
-//     }
     res->data = s;
   }
   else  res->data = rCopy(r);
@@ -5229,7 +5212,7 @@ static BOOLEAN jjTYPEOF(leftv res, leftv v)
     case MAP_CMD:
     case PROC_CMD:
     case RING_CMD:
-    case QRING_CMD:
+    //case QRING_CMD:
     case INTMAT_CMD:
     case BIGINTMAT_CMD:
     case NUMBER_CMD:
@@ -7001,7 +6984,7 @@ static BOOLEAN jjFETCH_M(leftv res, leftv u)
   leftv perm_par_l=v->next->next;
   if ((perm_var_l->Typ()!=INTVEC_CMD)
   ||((perm_par_l!=NULL)&&(perm_par_l->Typ()!=INTVEC_CMD))
-  ||((u->Typ()!=RING_CMD)&&(u->Typ()!=QRING_CMD)))
+  ||(u->Typ()!=RING_CMD))
   {
     WerrorS("fetch(<ring>,<name>[,<intvec>[,<intvec>])");
     return TRUE;
@@ -7533,7 +7516,7 @@ BOOLEAN jjLIST_PL(leftv res, leftv v)
         Werror("`%s` is undefined",h->Fullname());
         return TRUE;
       }
-      if ((rt==RING_CMD)||(rt==QRING_CMD))
+      if (rt==RING_CMD)
       {
         L->m[i].rtyp=rt;  L->m[i].data=h->Data();
         ((ring)L->m[i].data)->ref++;
@@ -8983,9 +8966,8 @@ const char * Tok2Cmdname(int tok)
   //if (tok==PRINT_EXPR) return "print_expr";
   if (tok==IDHDL) return "identifier";
   #ifdef SINGULAR_4_1
-  if (tok==CRING_CMD) return "Ring";
+  //if (tok==CRING_CMD) return "Ring";
   #endif
-  if (tok==QRING_CMD) return "ring";
   if (tok>MAX_TOK) return getBlackboxName(tok);
   int i;
   for(i=0; i<sArithBase.nCmdUsed; i++)

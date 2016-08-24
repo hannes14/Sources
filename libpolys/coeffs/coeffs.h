@@ -40,10 +40,10 @@ enum n_coeffType
                   the top-most extension in an extension tower
                   is transcendental */
   n_long_C, /**< complex floating point (GMP) numbers */
-  n_Z, /**< only used if HAVE_RINGS is defined: ? */
-  n_Zn, /**< only used if HAVE_RINGS is defined: ? */
-  n_Znm, /**< only used if HAVE_RINGS is defined: ? */
-  n_Z2m, /**< only used if HAVE_RINGS is defined: ? */
+  n_Z, /**< only used if HAVE_RINGS is defined  */
+  n_Zn, /**< only used if HAVE_RINGS is defined */
+  n_Znm, /**< only used if HAVE_RINGS is defined */
+  n_Z2m, /**< only used if HAVE_RINGS is defined */
   n_CF /**< ? */
 };
 
@@ -227,6 +227,8 @@ struct n_Procs_s
            (*cfEqual)(number a,number b, const coeffs r),
            (*cfIsZero)(number a, const coeffs r),
            (*cfIsOne)(number a, const coeffs r),
+       // IsMOne is used for printing os polynomials:
+       // -1 is only printed for constant monomials
            (*cfIsMOne)(number a, const coeffs r),
        //GreaterZero is used for printing of polynomials:
        //  a "+" is only printed in front of a coefficient

@@ -1509,13 +1509,8 @@ void syKillComputation(syStrategy syzstr, ring r)
       {
         if (syzstr->minres[i]!=NULL)
         {
-          for (j=0;j<IDELEMS(syzstr->minres[i]);j++)
-          {
-            if (syzstr->minres[i]->m[j]!=NULL)
-              p_Delete(&(syzstr->minres[i]->m[j]),r);
-          }
+          id_Delete(&(syzstr->minres[i]),r);
         }
-        id_Delete(&(syzstr->minres[i]),r);
       }
       omFreeSize((ADDRESS)syzstr->minres,(syzstr->length+1)*sizeof(ideal));
     }
@@ -1525,13 +1520,8 @@ void syKillComputation(syStrategy syzstr, ring r)
       {
         if (syzstr->fullres[i]!=NULL)
         {
-          for (j=0;j<IDELEMS(syzstr->fullres[i]);j++)
-          {
-            if (syzstr->fullres[i]->m[j]!=NULL)
-              p_Delete(&(syzstr->fullres[i]->m[j]),r);
-          }
+          id_Delete(&(syzstr->fullres[i]),r);
         }
-        id_Delete(&(syzstr->fullres[i]),r);
       }
       omFreeSize((ADDRESS)syzstr->fullres,(syzstr->length+1)*sizeof(ideal));
     }
@@ -1567,8 +1557,8 @@ void syKillComputation(syStrategy syzstr, ring r)
           {
             syzstr->orderedRes[i]->m[j] = NULL;
           }
+          id_Delete(&(syzstr->orderedRes[i]),sr);
         }
-        id_Delete(&(syzstr->orderedRes[i]),sr);
         if (syzstr->truecomponents[i]!=NULL)
         {
           omFreeSize((ADDRESS)syzstr->truecomponents[i],(IDELEMS(syzstr->res[i])+1)*sizeof(int));
@@ -1826,7 +1816,8 @@ intvec * syBettiOfComputation(syStrategy syzstr, BOOLEAN minim,int * row_shift,
 
   if ((result!=NULL)
   && ((minim) || (syzstr->resPairs!=NULL))
-  && std_weights)
+  && std_weights
+  && (syzstr->betti==NULL))
   {
     syzstr->betti = ivCopy(result); // cache the result...
   }
@@ -2036,8 +2027,7 @@ void syPrint(syStrategy syzstr, const char *sn)
   PrintLn();
   if (syzstr->minres==NULL)
   {
-    PrintS("resolution not minimized yet");
-    PrintLn();
+    PrintS("resolution not minimized yet\n");
   }
 
   if (syzstr->resolution == NULL) syzstr->resolution = resolution;

@@ -80,10 +80,8 @@ void    nrnCoeffWrite  (const coeffs r, BOOLEAN /*details*/)
   char* s = (char*) omAlloc(l);
   s= mpz_get_str (s, 10, r->modBase);
 
-  //if (nCoeff_is_Ring_ModN(r)) Print("//  ZZ/%s\n", s);
-  //else if (nCoeff_is_Ring_PtoM(r)) Print("//  ZZ/%s^%lu\n", s, r->modExponent);
-  if (nCoeff_is_Ring_ModN(r)) Print("//   coeff. ring is : Z/%s\n", s);
-  else if (nCoeff_is_Ring_PtoM(r)) Print("//   coeff. ring is : Z/%s^%lu\n", s, r->modExponent);
+  if (nCoeff_is_Ring_ModN(r)) Print("//   coeff. ring is : ZZ/%s\n", s);
+  else if (nCoeff_is_Ring_PtoM(r)) Print("//   coeff. ring is : ZZ/%s^%lu\n", s, r->modExponent);
 
   omFreeSize((ADDRESS)s, l);
 }
@@ -101,7 +99,7 @@ static char* nrnCoeffString(const coeffs r)
   b= mpz_get_str (b, 10, r->modBase);
   #ifdef SINGULAR_4_1
   char* s = (char*) omAlloc(15+l);
-  if (nCoeff_is_Ring_ModN(r)) sprintf(s,"ZZ/bigint(%s)",b);
+  if (nCoeff_is_Ring_ModN(r)) sprintf(s,"ZZ/%s",b);
   else /*if (nCoeff_is_Ring_PtoM(r))*/ sprintf(s,"ZZ/(bigint(%s)^%lu)",b,r->modExponent);
   #else
   char* s = (char*) omAlloc(7+2+10+l);
@@ -513,6 +511,7 @@ BOOLEAN nrnIsMOne(number a, const coeffs r)
 #ifdef LDEBUG
   if (a == NULL) return FALSE;
 #endif
+  if(nrnIsOne(a,r)) return FALSE; // for char 2
   mpz_t t; mpz_init_set(t, (mpz_ptr)a);
   mpz_add_ui(t, t, 1);
   bool erg = (0 == mpz_cmp(t, r->modNumber));

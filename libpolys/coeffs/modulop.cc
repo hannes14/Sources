@@ -187,7 +187,7 @@ BOOLEAN npIsMOne (number a, const coeffs r)
 {
   n_Test(a, r);
 
-  return ((r->npPminus1M == (long)a)&&(1L!=(long)a));
+  return ((r->npPminus1M == (long)a) &&(1L!=(long)a))/*for char 2*/;
 }
 
 #ifdef HAVE_DIV_MOD
@@ -475,7 +475,7 @@ static char* npCoeffString(const coeffs r)
 #else
   char *s=(char*)omAlloc(11);
   snprintf(s,11,"%d",r->ch);
-#endif  
+#endif
   return s;
 }
 

@@ -31,6 +31,7 @@ PROCEDURES:
  hasMixedOrdering()       mixed versus global/local ordering
  hasFieldCoefficient(rng) coefficients are a field
  hasAlgExtensionCoefficient(r) coefficients are an algebraic extension
+ hasTransExtensionCoefficient(r) coefficients are rational functions
  isQuotientRing(rng)      ring is a qotient ring
  isSubModule(I,J)         check if I is in J as submodule
 
@@ -1020,16 +1021,12 @@ example
 
 proc hasAlgExtensionCoefficient(def rng )
 "USAGE: hasAlgExtensionCoefficient ( rng );
-RETURN:  1 if the coeffcients are an gelebrai extension, 0 otherwise.
+RETURN:  1 if the coeffcients are an algebraic extension, 0 otherwise.
 KEYWORDS: ring coefficients
 EXAMPLE: example hasAlgExtensionCoefficient; shows an example
 "
 {
-  def savering=basering;
-  setring rng;
-  int r=(string(minpoly)!="0");
-  setring savering;
-  return(r);
+  return(attrib(rng,"cf_class")==7);
 }
 example
 {
@@ -1038,6 +1035,28 @@ example
   hasAlgExtensionCoefficient(rng); //no
   ring rng2 = (0,a), x, dp; minpoly=a2-1;
   hasAlgExtensionCoefficient(rng2);  // yes
+  ring rng3=(49,a),x,dp;
+  hasAlgExtensionCoefficient(rng3);  // no
+}
+
+proc hasTransExtensionCoefficient(def rng )
+"USAGE: hasTransExtensionCoefficient ( rng );
+RETURN:  1 if the coeffcients are rational functions, 0 otherwise.
+KEYWORDS: ring coefficients
+EXAMPLE: example hasTransExtensionCoefficient; shows an example
+"
+{
+  return(attrib(rng,"cf_class")==8);
+}
+example
+{
+  "EXAMPLE:";echo=2;
+  ring rng = integer,x,dp;
+  hasTransExtensionCoefficient(rng); //no
+  ring rng2 = (0,a), x, dp;
+  hasTransExtensionCoefficient(rng2);  // yes
+  ring rng3=(49,a),x,dp;
+  hasTransExtensionCoefficient(rng3);  // no
 }
 
 proc hasGFCoefficient(def rng )
@@ -1047,11 +1066,12 @@ KEYWORDS: ring coefficients
 EXAMPLE: example hasGFCoefficient; shows an example
 "
 {
-  return((charstr(rng)!=string(char(rng))) &&
-  (npars(rng)==1) &&
-  (find(charstr(rng),string(char(rng)))!=1) &&
-  (charstr(basering)<>"real")&&
-  (charstr(basering)<>"complex") );
+  //return((charstr(rng)!=string(char(rng))) &&
+  //(npars(rng)==1) &&
+  //(find(charstr(rng),string(char(rng)))!=1) &&
+  //(charstr(basering)<>"real")&&
+  //(charstr(basering)<>"complex") );
+  return(attrib(rng,"cf_class")==4);
 }
 example
 {

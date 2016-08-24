@@ -742,7 +742,8 @@ static newstruct_desc scanNewstructFromString(const char *s, newstruct_desc res)
       currRingHdl=save_ring;
       return NULL;
     }
-    if (RingDependend(t) || (t==DEF_CMD)||(t==LIST_CMD))
+    if (t==QRING_CMD) t=RING_CMD;
+    else if (RingDependend(t) || (t==DEF_CMD)||(t==LIST_CMD))
       res->size++;    // one additional field for the ring (before the data)
     //Print("found type %s at real-pos %d",start,res->size);
     elem=(newstruct_member)omAlloc0(sizeof(*elem));
