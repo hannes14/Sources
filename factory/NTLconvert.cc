@@ -205,10 +205,10 @@ GF2X convertFacCF2NTLGF2X(const CanonicalForm & f)
     if (!i.coeff().isImm())
     {
       #ifndef NOSTREAMIO
-      cout<<"convertFacCF2NTLGF2X: coefficient not immidiate! : " << f << "\n";
+      cout<<"convertFacCF2NTLGF2X: coefficient not immediate! : " << f << "\n";
       #else
       //NTL_SNS
-      printf("convertFacCF2NTLGF2X: coefficient not immidiate!");
+      printf("convertFacCF2NTLGF2X: coefficient not immediate!");
       #endif
       NTL_SNS exit(1);
     }
@@ -505,8 +505,10 @@ convertZZ2CF (const ZZ & a)
     const long * rep =
 #if NTL_MAJOR_VERSION <= 6
       static_cast<long *>( a.rep );
-#else
+#elif NTL_MAJOR_VERSION <=9
       static_cast<long *>( a.rep.rep ); // what about NTL7?
+#else
+      (long*)( a.rep.rep );
 #endif
     long sizeofrep= rep[1];
     bool lessZero= false;
@@ -547,7 +549,6 @@ convertZZ2CF (const ZZ & a)
 
     result= CanonicalForm (cf_stringtemp2, 16);
     delete [] cf_stringtemp2;
-    return result;
   }
   return result;
 }

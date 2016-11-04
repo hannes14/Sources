@@ -109,8 +109,13 @@ void sleftv::Print(leftv store, int spaces)
         case CRING_CMD:
           crPrint((coeffs)d);
           break;
+#endif
+#ifdef SINGULAR_4_2
         case CNUMBER_CMD:
           n2Print((number2)d);
+          break;
+        case CPOLY_CMD:
+          p2Print((poly2)d);
           break;
         case CMATRIX_CMD: // like BIGINTMAT
 #endif
@@ -126,6 +131,7 @@ void sleftv::Print(leftv store, int spaces)
           PrintNSpaces(spaces);
           paPrint(n,(package)d);
           break;
+	case LIB_CMD:
         case NONE:
           return;
         case INTVEC_CMD:
@@ -231,20 +237,29 @@ void sleftv::Print(leftv store, int spaces)
             ::Print("// write: %s", slStatus(l, "write"));
           break;
           }
-        case NUMBER_CMD:
         case BIGINT_CMD:
-          if (t==NUMBER_CMD)
-          {
-            number n=(number)d;
-            nNormalize(n);
-            d=n;
-          }
           s=String(d);
           if (s==NULL) return;
           PrintNSpaces(spaces);
           PrintS(s);
           omFree((ADDRESS)s);
           break;
+        case NUMBER_CMD:
+          {
+            number n=(number)d;
+            nNormalize(n);
+            if ((number)d !=n)
+            {
+              d=n;
+              if (rtyp==IDHDL) IDNUMBER(((idhdl)data))=n;
+              else if(rtyp==NUMBER_CMD) data=(void*)n;
+            }
+            s=String(d);
+            if (s==NULL) return;
+            PrintS(s);
+            omFree((ADDRESS)s);
+            break;
+          }
         case LIST_CMD:
         {
           lists l=(lists)d;
@@ -353,7 +368,6 @@ void sleftv::CleanUp(ring r)
         case VSHORTOUT:
         case VNOETHER:
         case VMINPOLY:
-        case LIB_CMD:
         case 0:
           //attribute=NULL; // will be done by Init() at the end
           break;
@@ -411,8 +425,12 @@ static inline void * s_internalCopy(const int t,  void *d)
         cf->ref++;
         return (void*)d;
       }
+#endif
+#ifdef SINGULAR_4_2
     case CNUMBER_CMD:
       return (void*)n2Copy((number2)d);
+    case CPOLY_CMD:
+      return (void*)p2Copy((poly2)d);
     case CMATRIX_CMD: // like BIGINTMAT
 #endif
     case BIGINTMAT_CMD:
@@ -486,12 +504,30 @@ void s_internalDelete(const int t,  void *d, const ring r)
   {
 #ifdef SINGULAR_4_1
     case CRING_CMD:
-      nKillChar((coeffs)d);
-      break;
+      {
+        coeffs cf=(coeffs)d;
+        if ((cf->ref<=1)&&
+        ((cf->type <=n_long_R)
+          ||((cf->type >=n_long_C)&&(cf->type <=n_CF))))
+        {
+          Werror("cannot kill %s",nCoeffName(cf));
+        }
+        else
+          nKillChar((coeffs)d);
+        break;
+      }
+#endif
+#ifdef SINGULAR_4_2
     case CNUMBER_CMD:
       {
         number2 n=(number2)d;
         n2Delete(n);
+        break;
+      }
+    case CPOLY_CMD:
+      {
+        poly2 n=(poly2)d;
+        p2Delete(n);
         break;
       }
     case CMATRIX_CMD: //like BIGINTMAT
@@ -542,7 +578,7 @@ void s_internalDelete(const int t,  void *d, const ring r)
     case NUMBER_CMD:
     {
       number n=(number)d;
-      n_Delete(&n,r);
+      n_Delete(&n,r->cf);
       break;
     }
     case BIGINT_CMD:
@@ -608,7 +644,6 @@ void s_internalDelete(const int t,  void *d, const ring r)
     case VSHORTOUT:
     case VNOETHER:
     case VMINPOLY:
-    case LIB_CMD:
     case 0: /* type in error case */
       break; /* error recovery: do nothing */
     //case COMMAND:
@@ -703,7 +738,7 @@ void * sleftv::CopyD(int t)
 //void * sleftv::CopyD()
 //{
   //if ((rtyp!=IDHDL)&&(e==NULL)
-  //&&(rtyp!=VNOETHER)&&(rtyp!=LIB_CMD)&&(rtyp!=VMINPOLY))
+  //&&(rtyp!=VNOETHER)&&(rtyp!=VMINPOLY))
   //{
   //  void *x=data;
   //  data=NULL;
@@ -787,10 +822,12 @@ char *  sleftv::String(void *d, BOOLEAN typed, int dim)
             return pString((poly)d);
 
         #ifdef SINGULAR_4_1
-        case CNUMBER_CMD:
-          return n2String((number2)d,typed);
         case CRING_CMD:
           return nCoeffString((coeffs)d);
+        #endif
+        #ifdef SINGULAR_4_2
+        case CNUMBER_CMD:
+          return n2String((number2)d,typed);
         case CMATRIX_CMD:
           {
             bigintmat *b=(bigintmat*)d;
@@ -800,25 +837,13 @@ char *  sleftv::String(void *d, BOOLEAN typed, int dim)
 
         case NUMBER_CMD:
           StringSetS((char*) (typed ? "number(" : ""));
-          if ((rtyp==IDHDL)&&(IDTYP((idhdl)data)==NUMBER_CMD))
-          {
-            nWrite(IDNUMBER((idhdl)data));
-          }
-          else if (rtyp==NUMBER_CMD)
-          {
-            number n=(number)data;
-            nWrite(n);
-            data=(char *)n;
-          }
-          else if((rtyp==VMINPOLY)&&(rField_is_GF(currRing)))
+          if((rtyp==VMINPOLY)&&(rField_is_GF(currRing)))
           {
             nfShowMipo(currRing->cf);
           }
           else
           {
-            number n=nCopy((number)d);
-            nWrite(n);
-            nDelete(&n);
+            nWrite((number)d);
           }
           StringAppendS((char*) (typed ? ")" : ""));
           return StringEndS();
@@ -1020,7 +1045,7 @@ int  sleftv::Typ()
   { idhdl h=(idhdl)IDDATA((idhdl)data); t=IDTYP(h);d=IDDATA(h); }
   switch (t)
   {
-#ifdef SINGULAR_4_1
+#ifdef SINGULAR_4_2
     case CMATRIX_CMD:
     {
       bigintmat *b=(bigintmat*)d;
@@ -1114,7 +1139,7 @@ int  sleftv::LTyp()
   return Typ();
 }
 
-#ifdef SINGULAR_4_1
+#ifdef SINGULAR_4_2
 static snumber2 iiNumber2Data[4];
 static int iiCmatrix_index=0;
 #endif
@@ -1228,7 +1253,7 @@ void * sleftv::Data()
         r=(char *)(BIMATELEM((*m),index,e->next->start));
       break;
     }
-#ifdef SINGULAR_4_1
+#ifdef SINGULAR_4_2
     case CMATRIX_CMD:
     {
       bigintmat *m=(bigintmat *)d;

@@ -375,19 +375,13 @@ sTObject::ShallowCopyDelete(ring new_tailRing, omBin new_tailBin,
       pNext(t_p) = pNext(p);
     }
   }
-  if (max != NULL)
+  if (max_exp != NULL)
   {
-    if (new_tailRing == currRing)
-    {
-      p_LmFree(max, tailRing);
-      max = NULL;
-    }
-    else
-      max = p_shallow_copy_delete(max,tailRing,new_tailRing,new_tailBin);
+    max_exp = p_shallow_copy_delete(max_exp,tailRing,new_tailRing,new_tailBin);
   }
-  else if (set_max && new_tailRing != currRing && pNext(t_p) != NULL)
+  else if (set_max && pNext(t_p) != NULL)
   {
-    max = p_GetMaxExpP(pNext(t_p), new_tailRing);
+    max_exp = p_GetMaxExpP(pNext(t_p), new_tailRing);
   }
   tailRing = new_tailRing;
 }
@@ -737,25 +731,6 @@ KINLINE void sLObject::Copy()
   }
   TObject::Copy();
 }
-
-KINLINE poly sLObject::CopyGetP()
-{
-  if (bucket != NULL)
-  {
-    int i = kBucketCanonicalize(bucket);
-    poly bp = p_Copy(bucket->buckets[i], tailRing);
-    pLength = bucket->buckets_length[i] + 1;
-    if (bp != NULL)
-    {
-      assume(t_p != NULL || p != NULL);
-      if (t_p != NULL) pNext(t_p) = bp;
-      else pNext(p) = bp;
-    }
-    bucket = NULL;
-  }
-  return sLObject::GetP();
-}
-
 
 KINLINE long sLObject::pLDeg()
 {
@@ -1115,8 +1090,14 @@ void ksOldSpolyTail(poly p1, poly q, poly q2, poly spNoether, ring r)
 
 KINLINE poly redtailBba (poly p,int pos,kStrategy strat,BOOLEAN normalize)
 {
-  LObject L(p, currRing, strat->tailRing);
+  LObject L(p);
   return redtailBba(&L, pos, strat,FALSE, normalize);
+}
+
+KINLINE poly redtailBbaBound (poly p,int pos,kStrategy strat,int bound,BOOLEAN normalize)
+{
+  LObject L(p, currRing, strat->tailRing); // ? L(p); ??
+  return redtailBbaBound(&L, pos, strat,bound, FALSE, normalize);
 }
 
 #ifdef HAVE_RINGS
@@ -1148,7 +1129,7 @@ KINLINE void clearS (poly p, unsigned long p_sev, int* at, int* k,
   {
     if (!pLmShortDivisibleBy(p,p_sev, strat->S[*at], ~ strat->sevS[*at]))
       return;
-    if(!n_DivBy(pGetCoeff(strat->S[*at]), pGetCoeff(p), currRing))
+    if(!n_DivBy(pGetCoeff(strat->S[*at]), pGetCoeff(p), currRing->cf))
       return;
   }
   else

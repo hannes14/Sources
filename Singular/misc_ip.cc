@@ -780,7 +780,7 @@ char * versionString(/*const bool bShowDetails = false*/ )
   StringSetS("");
   StringAppend("Singular for %s version %s (%d, %d bit) %s #%s",
                S_UNAME, VERSION, // SINGULAR_VERSION,
-               SINGULAR_VERSION, SIZEOF_VOIDP*8,
+               SINGULAR_VERSION, sizeof(void*)*8,
 #ifdef MAKE_DISTRIBUTION
 	       VERSION_DATE, GIT_VERSION);
 #else
@@ -1083,7 +1083,11 @@ void m2_end(int i)
       {
         while (sem_acquired[j] > 0)
         {
+#if PORTABLE_SEMAPHORES
+          sem_post(semaphore[j]->sig);
+#else
           sem_post(semaphore[j]);
+#endif
           sem_acquired[j]--;
         }
       }
@@ -1170,7 +1174,7 @@ extern "C"
   }
 }
 
-#ifdef SINGULAR_4_1
+#ifdef SINGULAR_4_2
 static n_coeffType n_pAE=n_unknown;
 static BOOLEAN ii_pAE_init(leftv res,leftv a)
 {
@@ -1186,6 +1190,8 @@ static BOOLEAN ii_pAE_init(leftv res,leftv a)
     return FALSE;
   }
 }
+#endif
+#ifdef SINGULAR_4_1
 #ifdef HAVE_FLINT
 static n_coeffType n_FlintZn=n_unknown;
 static BOOLEAN ii_FlintZn_init(leftv res,leftv a)
@@ -1261,8 +1267,8 @@ void siInit(char *name)
   if(TRUE)
   {
     n_coeffType type;
-    #ifdef SINGULAR_4_1
-    type = nRegister(n_polyExt, naInitChar);
+    #ifdef SINGULAR_4_2
+    type = nRegister(n_polyExt, n2pInitChar);
     assume(type == n_polyExt);
     #endif
 
@@ -1303,10 +1309,10 @@ void siInit(char *name)
   #endif
   feSetOptValue(FE_OPT_CPUS, cpus);
 
-#ifdef SINGULAR_4_1
 // default coeffs
   {
     idhdl h;
+#ifdef SINGULAR_4_1    
     h=enterid(omStrDup("QQ"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
     IDDATA(h)=(char*)nInitChar(n_Q,NULL);
     h=enterid(omStrDup("ZZ"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
@@ -1315,7 +1321,10 @@ void siInit(char *name)
     //IDDATA(h)=(char*)nInitChar(n_R,NULL);
     //h=enterid(omStrDup("CC"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
     //IDDATA(h)=(char*)nInitChar(n_long_C,NULL);
-    n_coeffType t=nRegister(n_unknown,n_AEInitChar);
+#endif
+    n_coeffType t;
+#ifdef SINGULAR_4_2
+    t=nRegister(n_unknown,n_AEInitChar);
     if (t!=n_unknown)
     {
       h=enterid(omStrDup("AE"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
@@ -1332,6 +1341,8 @@ void siInit(char *name)
     {
       iiAddCproc("kernel","pAE",FALSE,ii_pAE_init);
     }
+#endif
+#ifdef SINGULAR_4_1
     #ifdef HAVE_FLINT
     t=nRegister(n_unknown,flintQ_InitChar);
     if (t!=n_unknown)
@@ -1345,8 +1356,8 @@ void siInit(char *name)
       iiAddCproc("kernel","flintZ",FALSE,ii_FlintZn_init);
     }
     #endif
-  }
 #endif
+  }
 // setting routines for PLURAL QRINGS:
 // allowing to use libpolys without libSingular(kStd)
 #ifdef HAVE_PLURAL

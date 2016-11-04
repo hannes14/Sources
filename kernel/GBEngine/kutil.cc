@@ -278,10 +278,10 @@ void deleteHC(LObject *L, kStrategy strat, BOOLEAN fromNext)
             assume(L->p != NULL && p == L->t_p);
             pNext(L->p) = NULL;
           }
-          L->max  = NULL;
+          L->max_exp  = NULL;
         }
         else if (fromNext)
-          L->max  = p_GetMaxExpP(pNext(L->p), L->tailRing ); // p1;
+          L->max_exp  = p_GetMaxExpP(pNext(L->p), L->tailRing ); // p1;
         //if (L->pLength != 0)
         L->pLength = l;
         // Hmmm when called from updateT, then only
@@ -387,7 +387,7 @@ void cancelunit (LObject* L,BOOLEAN inNF)
         L->length = 1;
         //if (L->pLength > 0)
         L->pLength = 1;
-        L->max = NULL;
+        L->max_exp = NULL;
 
         if (L->t_p != NULL && pNext(L->t_p) != NULL)
           p_Delete(&pNext(L->t_p),r);
@@ -447,7 +447,7 @@ void cancelunit (LObject* L,BOOLEAN inNF)
         L->length = 1;
         //if (L->pLength > 0)
         L->pLength = 1;
-        L->max = NULL;
+        L->max_exp = NULL;
 
         if (L->t_p != NULL && pNext(L->t_p) != NULL)
           p_Delete(&pNext(L->t_p),r);
@@ -563,9 +563,9 @@ void cleanT (kStrategy strat)
   {
     p = strat->T[j].p;
     strat->T[j].p=NULL;
-    if (strat->T[j].max != NULL)
+    if (strat->T[j].max_exp != NULL)
     {
-      p_LmFree(strat->T[j].max, strat->tailRing);
+      p_LmFree(strat->T[j].max_exp, strat->tailRing);
     }
     i = -1;
     loop
@@ -614,9 +614,9 @@ void cleanTSbaRing (kStrategy strat)
   {
     p = strat->T[j].p;
     strat->T[j].p=NULL;
-    if (strat->T[j].max != NULL)
+    if (strat->T[j].max_exp != NULL)
     {
-      p_LmFree(strat->T[j].max, strat->tailRing);
+      p_LmFree(strat->T[j].max_exp, strat->tailRing);
     }
     i = -1;
     loop
@@ -803,25 +803,25 @@ BOOLEAN kTest_T(TObject * T, ring strat_tailRing, int i, char TN)
     {
       if (pNext(T->t_p) == NULL)
       {
-        if (T->max != NULL)
-          return dReportError("%c[%d].max is not NULL as it should be", TN, i);
+        if (T->max_exp != NULL)
+          return dReportError("%c[%d].max_exp is not NULL as it should be", TN, i);
       }
       else
       {
-        if (T->max == NULL)
-          return dReportError("%c[%d].max is NULL", TN, i);
-        if (pNext(T->max) != NULL)
-          return dReportError("pNext(%c[%d].max) != NULL", TN, i);
+        if (T->max_exp == NULL)
+          return dReportError("%c[%d].max_exp is NULL", TN, i);
+        if (pNext(T->max_exp) != NULL)
+          return dReportError("pNext(%c[%d].max_exp) != NULL", TN, i);
 
-        pFalseReturn(p_CheckPolyRing(T->max, tailRing));
-        omCheckBinAddrSize(T->max, (omSizeWOfBin(tailRing->PolyBin))*SIZEOF_LONG);
+        pFalseReturn(p_CheckPolyRing(T->max_exp, tailRing));
+        omCheckBinAddrSize(T->max_exp, (omSizeWOfBin(tailRing->PolyBin))*SIZEOF_LONG);
 #if KDEBUG > 0
         if (! sloppy_max)
         {
           poly test_max = p_GetMaxExpP(pNext(T->t_p), tailRing);
-          p_Setm(T->max, tailRing);
+          p_Setm(T->max_exp, tailRing);
           p_Setm(test_max, tailRing);
-          BOOLEAN equal = p_ExpVectorEqual(T->max, test_max, tailRing);
+          BOOLEAN equal = p_ExpVectorEqual(T->max_exp, test_max, tailRing);
           if (! equal)
             return dReportError("%c[%d].max out of sync", TN, i);
           p_LmFree(test_max, tailRing);
@@ -1428,7 +1428,10 @@ void enterOnePairRing (int i,poly p,int ecart, int isFromQ,kStrategy strat, int 
     if(pm1 == NULL)
     {
       if(h.lcm != NULL)
-        pDelete(&h.lcm);
+      {
+        pLmDelete(h.lcm);
+	h.lcm=NULL;
+      }
       h.Clear();
       if (strat->pairtest==NULL) initPairtest(strat);
       strat->pairtest[i] = TRUE;
@@ -1690,7 +1693,7 @@ BOOLEAN sbaCheckGcdPair (LObject* h,kStrategy strat)
         h->i_r1 = -1;h->i_r2 = -1;
         if(h->lcm != NULL)
         {
-          pDelete(&h->lcm);
+          pLmDelete(h->lcm);
           h->lcm = NULL;
         }
         if (currRing!=strat->tailRing)
@@ -4039,7 +4042,7 @@ void chainCritRing (poly p,int, kStrategy strat)
         {
           for (i=strat->Bl; i>=0; i--)
           {
-            if (pDivisibleBy(strat->S[j],strat->B[i].lcm) && n_DivBy(strat->B[i].lcm->coef, strat->S[j]->coef,currRing))
+            if (pDivisibleBy(strat->S[j],strat->B[i].lcm) && n_DivBy(pGetCoeff(strat->B[i].lcm), pGetCoeff(strat->S[j]),currRing->cf))
             {
 #ifdef KDEBUG
               if (TEST_OPT_DEBUG)
@@ -7137,7 +7140,7 @@ BOOLEAN syzCriterion(poly sig, unsigned long not_sevSig, kStrategy strat)
 #endif
     if (p_LmShortDivisibleBy(strat->syz[k], strat->sevSyz[k], sig, not_sevSig, currRing)
     && (!rField_is_Ring(currRing) ||
-    (n_DivBy(pGetCoeff(sig), pGetCoeff(strat->syz[k]),currRing) && pLtCmp(sig,strat->syz[k]) == 1)))
+    (n_DivBy(pGetCoeff(sig), pGetCoeff(strat->syz[k]),currRing->cf) && pLtCmp(sig,strat->syz[k]) == 1)))
     {
 //#if 1
 #ifdef DEBUGF5
@@ -7194,7 +7197,7 @@ BOOLEAN syzCriterionInc(poly sig, unsigned long not_sevSig, kStrategy strat)
 #endif
       if (p_LmShortDivisibleBy(strat->syz[k], strat->sevSyz[k], sig, not_sevSig, currRing)
       && (!rField_is_Ring(currRing) ||
-      (n_DivBy(pGetCoeff(sig), pGetCoeff(strat->syz[k]),currRing) && pLtCmp(sig,strat->syz[k]) == 1)))
+      (n_DivBy(pGetCoeff(sig), pGetCoeff(strat->syz[k]),currRing->cf) && pLtCmp(sig,strat->syz[k]) == 1)))
       {
         #ifdef ADIDEBUG
         printf("\nsyzCrit:\n");pWrite(strat->syz[k]);pWrite(sig);
@@ -7410,14 +7413,14 @@ kFindDivisibleByInS(kStrategy strat, int pos, LObject* L, TObject *T,
         if (j > pos) return NULL;
   #if defined(PDEBUG) || defined(PDIV_DEBUG)
         if (strat->S[j]!= NULL && p_LmShortDivisibleBy(strat->S[j], sev[j], p, not_sev, r) &&
-            (ecart== LONG_MAX || ecart>= strat->ecartS[j]) && n_DivBy(pGetCoeff(p), pGetCoeff(strat->S[j]), r))
+            (ecart== LONG_MAX || ecart>= strat->ecartS[j]) && n_DivBy(pGetCoeff(p), pGetCoeff(strat->S[j]), r->cf))
         {
           break;
         }
   #else
         if (!(sev[j] & not_sev) &&
             (ecart== LONG_MAX || ecart>= strat->ecartS[j]) &&
-            p_LmDivisibleBy(strat->S[j], p, r) && n_DivBy(pGetCoeff(p), pGetCoeff(strat->S[j]), r))
+            p_LmDivisibleBy(strat->S[j], p, r) && n_DivBy(pGetCoeff(p), pGetCoeff(strat->S[j]), r->cf))
         {
           break;
         }
@@ -7482,7 +7485,7 @@ kFindDivisibleByInS(kStrategy strat, int pos, LObject* L, TObject *T,
         t = strat->S_2_T(j);
         assume(t != NULL && t->t_p != NULL && t->tailRing == r);
         if (p_LmShortDivisibleBy(t->t_p, sev[j], p, not_sev, r) &&
-            (ecart== LONG_MAX || ecart>= strat->ecartS[j]) && n_DivBy(pGetCoeff(p), pGetCoeff(t->t_p), r))
+            (ecart== LONG_MAX || ecart>= strat->ecartS[j]) && n_DivBy(pGetCoeff(p), pGetCoeff(t->t_p), r->cf))
         {
           return t;
         }
@@ -7491,7 +7494,7 @@ kFindDivisibleByInS(kStrategy strat, int pos, LObject* L, TObject *T,
         {
           t = strat->S_2_T(j);
           assume(t != NULL && t->t_p != NULL && t->tailRing == r && t->p == strat->S[j]);
-          if (p_LmDivisibleBy(t->t_p, p, r) && n_DivBy(pGetCoeff(p), pGetCoeff(t->t_p), r))
+          if (p_LmDivisibleBy(t->t_p, p, r) && n_DivBy(pGetCoeff(p), pGetCoeff(t->t_p), r->cf))
           {
             return t;
           }
@@ -7664,6 +7667,122 @@ poly redtailBba (LObject* L, int pos, kStrategy strat, BOOLEAN withT, BOOLEAN no
         goto all_done;
       }
       if (Ln.IsNull()) goto all_done;
+      if (! withT) With_s.Init(currRing);
+    }
+    pNext(h) = Ln.LmExtractAndIter();
+    pIter(h);
+    pNormalize(h);
+    L->pLength++;
+  }
+
+  all_done:
+  Ln.Delete();
+  if (L->p != NULL) pNext(L->p) = pNext(p);
+
+  if (strat->redTailChange)
+  {
+    L->length = 0;
+    L->pLength = 0;
+  }
+
+  //if (TEST_OPT_PROT) { PrintS("N"); mflush(); }
+  //L->Normalize(); // HANNES: should have a test
+  kTest_L(L);
+  return L->GetLmCurrRing();
+}
+
+poly redtailBbaBound (LObject* L, int pos, kStrategy strat, int bound, BOOLEAN withT, BOOLEAN normalize)
+{
+#define REDTAIL_CANONICALIZE 100
+  strat->redTailChange=FALSE;
+  if (strat->noTailReduction) return L->GetLmCurrRing();
+  poly h, p;
+  p = h = L->GetLmTailRing();
+  if ((h==NULL) || (pNext(h)==NULL))
+    return L->GetLmCurrRing();
+
+  TObject* With;
+  // placeholder in case strat->tl < 0
+  TObject  With_s(strat->tailRing);
+
+  LObject Ln(pNext(h), strat->tailRing);
+  Ln.pLength = L->GetpLength() - 1;
+
+  pNext(h) = NULL;
+  if (L->p != NULL) pNext(L->p) = NULL;
+  L->pLength = 1;
+
+  Ln.PrepareRed(strat->use_buckets);
+
+  int cnt=REDTAIL_CANONICALIZE;
+  while(!Ln.IsNull())
+  {
+    loop
+    {
+      if (TEST_OPT_IDLIFT)
+      {
+        if (Ln.p!=NULL)
+        {
+          if (p_GetComp(Ln.p,currRing)> strat->syzComp) break;
+        }
+        else
+        {
+          if (p_GetComp(Ln.t_p,strat->tailRing)> strat->syzComp) break;
+        }
+      }
+      Ln.SetShortExpVector();
+      if (withT)
+      {
+        int j;
+        j = kFindDivisibleByInT(strat, &Ln);
+        if (j < 0) break;
+        With = &(strat->T[j]);
+      }
+      else
+      {
+        With = kFindDivisibleByInS(strat, pos, &Ln, &With_s);
+        if (With == NULL) break;
+      }
+      cnt--;
+      if (cnt==0)
+      {
+        cnt=REDTAIL_CANONICALIZE;
+        /*poly tmp=*/Ln.CanonicalizeP();
+        if (normalize)
+        {
+          Ln.Normalize();
+          //pNormalize(tmp);
+          //if (TEST_OPT_PROT) { PrintS("n"); mflush(); }
+        }
+      }
+      if (normalize && (!TEST_OPT_INTSTRATEGY) && (!nIsOne(pGetCoeff(With->p))))
+      {
+        With->pNorm();
+      }
+      strat->redTailChange=TRUE;
+      if (ksReducePolyTail(L, With, &Ln))
+      {
+        // reducing the tail would violate the exp bound
+        //  set a flag and hope for a retry (in bba)
+        strat->completeReduce_retry=TRUE;
+        if ((Ln.p != NULL) && (Ln.t_p != NULL)) Ln.p=NULL;
+        do
+        {
+          pNext(h) = Ln.LmExtractAndIter();
+          pIter(h);
+          L->pLength++;
+        } while (!Ln.IsNull());
+        goto all_done;
+      }
+      if(!Ln.IsNull())
+      {
+        Ln.GetP();
+        Ln.p = pJet(Ln.p,bound);
+      }
+      if (Ln.IsNull())
+      {
+        goto all_done;
+      }
       if (! withT) With_s.Init(currRing);
     }
     pNext(h) = Ln.LmExtractAndIter();
@@ -9429,10 +9548,10 @@ void enterT(LObject &p, kStrategy strat, int atT)
   #endif
   //printf("\nenterT: neue hingefügt: länge = %i, ecart = %i\n",p.length,p.ecart);
 
-  if (strat->tailRing != currRing && pNext(p.p) != NULL)
-    strat->T[atT].max = p_GetMaxExpP(pNext(p.p), strat->tailRing);
+  if (pNext(p.p) != NULL)
+    strat->T[atT].max_exp = p_GetMaxExpP(pNext(p.p), strat->tailRing);
   else
-    strat->T[atT].max = NULL;
+    strat->T[atT].max_exp = NULL;
 
   strat->tl++;
   strat->R[strat->tl] = &(strat->T[atT]);
@@ -9515,10 +9634,10 @@ void enterT_strong(LObject &p, kStrategy strat, int atT)
   #endif
   //printf("\nenterT_strong: neue hingefügt: länge = %i, ecart = %i\n",p.length,p.ecart);
 
-  if (strat->tailRing != currRing && pNext(p.p) != NULL)
-    strat->T[atT].max = p_GetMaxExpP(pNext(p.p), strat->tailRing);
+  if (pNext(p.p) != NULL)
+    strat->T[atT].max_exp = p_GetMaxExpP(pNext(p.p), strat->tailRing);
   else
-    strat->T[atT].max = NULL;
+    strat->T[atT].max_exp = NULL;
 
   strat->tl++;
   strat->R[strat->tl] = &(strat->T[atT]);
@@ -9614,7 +9733,7 @@ void enterSyz(LObject &p, kStrategy strat, int atT)
                               strat->L[cc].sig, ~strat->L[cc].sevSig, currRing)
                               #ifdef HAVE_RINGS
                               &&((!rField_is_Ring(currRing))
-                              || (n_DivBy(pGetCoeff(strat->L[cc].sig),pGetCoeff(strat->syz[atT]),currRing) && (pLtCmp(strat->L[cc].sig,strat->syz[atT])==1)))
+                              || (n_DivBy(pGetCoeff(strat->L[cc].sig),pGetCoeff(strat->syz[atT]),currRing->cf) && (pLtCmp(strat->L[cc].sig,strat->syz[atT])==1)))
                               #endif
                               )
     {
@@ -10352,7 +10471,7 @@ void updateResult(ideal r,ideal Q, kStrategy strat)
             if ((Q->m[q]!=NULL)
             &&(pLmDivisibleBy(Q->m[q],r->m[l])))
             {
-              if(n_DivBy(r->m[l]->coef, Q->m[q]->coef, currRing))
+              if(n_DivBy(r->m[l]->coef, Q->m[q]->coef, currRing->cf))
               {
                 if (TEST_OPT_REDSB)
                 {
@@ -10415,7 +10534,7 @@ void updateResult(ideal r,ideal Q, kStrategy strat)
         {
           for(q=IDELEMS(Q)-1; q>=0;q--)
           {
-            if(n_DivBy(r->m[l]->coef, Q->m[q]->coef, currRing))
+            if(n_DivBy(r->m[l]->coef, Q->m[q]->coef, currRing->cf))
             {
               if ((Q->m[q]!=NULL)&&(pLmEqual(Q->m[q],r->m[l])) && pDivisibleBy(Q->m[q],r->m[l]))
               {
@@ -10452,12 +10571,12 @@ void updateResult(ideal r,ideal Q, kStrategy strat)
               if ((l!=q)
               && (r->m[q]!=NULL)
               &&(pLmDivisibleBy(r->m[l],r->m[q]))
-              &&(n_DivBy(r->m[q]->coef, r->m[l]->coef, currRing))
+              &&(n_DivBy(r->m[q]->coef, r->m[l]->coef, currRing->cf))
               )
               {
                 //If they are equal then take the one with the smallest length
                 if(pLmDivisibleBy(r->m[q],r->m[l])
-                && n_DivBy(r->m[q]->coef, r->m[l]->coef, currRing)
+                && n_DivBy(r->m[q]->coef, r->m[l]->coef, currRing->cf)
                 && (pLength(r->m[q]) < pLength(r->m[l]) ||
                 (pLength(r->m[q]) == pLength(r->m[l]) && nGreaterZero(r->m[q]->coef))))
                 {
@@ -10558,13 +10677,13 @@ void completeReduce (kStrategy strat, BOOLEAN withT)
       }
       #endif
 
-      if (strat->redTailChange && strat->tailRing != currRing)
+      if (strat->redTailChange)
       {
-        if (T_j->max != NULL) p_LmFree(T_j->max, strat->tailRing);
+        if (T_j->max_exp != NULL) p_LmFree(T_j->max_exp, strat->tailRing);
         if (pNext(T_j->p) != NULL)
-          T_j->max = p_GetMaxExpP(pNext(T_j->p), strat->tailRing);
+          T_j->max_exp = p_GetMaxExpP(pNext(T_j->p), strat->tailRing);
         else
-          T_j->max = NULL;
+          T_j->max_exp = NULL;
       }
       if (TEST_OPT_INTSTRATEGY)
         T_j->pCleardenom();
@@ -10710,8 +10829,8 @@ BOOLEAN kCheckSpolyCreation(LObject *L, kStrategy strat, poly &m1, poly &m2)
   {
     return TRUE;
   }
-  poly p1_max = (strat->R[L->i_r1])->max;
-  poly p2_max = (strat->R[L->i_r2])->max;
+  poly p1_max = (strat->R[L->i_r1])->max_exp;
+  poly p2_max = (strat->R[L->i_r2])->max_exp;
 
   if (((p1_max != NULL) && !p_LmExpVectorAddIsOk(m1, p1_max, strat->tailRing)) ||
       ((p2_max != NULL) && !p_LmExpVectorAddIsOk(m2, p2_max, strat->tailRing)))
@@ -10737,8 +10856,8 @@ BOOLEAN kCheckStrongCreation(int atR, poly m1, int atS, poly m2, kStrategy strat
   assume(strat->S_2_R[atS] >= -1 && strat->S_2_R[atS] <= strat->tl);
   //assume(strat->tailRing != currRing);
 
-  poly p1_max = (strat->R[atR])->max;
-  poly p2_max = (strat->R[strat->S_2_R[atS]])->max;
+  poly p1_max = (strat->R[atR])->max_exp;
+  poly p2_max = (strat->R[strat->S_2_R[atS]])->max_exp;
 
   if (((p1_max != NULL) && !p_LmExpVectorAddIsOk(m1, p1_max, strat->tailRing)) ||
       ((p2_max != NULL) && !p_LmExpVectorAddIsOk(m2, p2_max, strat->tailRing)))
@@ -11206,7 +11325,7 @@ BOOLEAN kStratChangeTailRing(kStrategy strat, LObject *L, TObject* T, unsigned l
       L->tailRing = new_tailRing;
       L->p = t_l->p;
       L->t_p = t_l->t_p;
-      L->max = t_l->max;
+      L->max_exp = t_l->max_exp;
     }
   }
 
@@ -12619,7 +12738,7 @@ void enterTShift(LObject p, kStrategy strat, int atT, int uptodeg, int lV)
   {
     qq      = p; //qq.Copy();
     qq.p    = NULL;
-    qq.max  = NULL;
+    qq.max_exp  = NULL;
     qq.t_p = p_LPshift(p_Copy(p.t_p,strat->tailRing), i, uptodeg, lV, strat->tailRing); // direct shift
     qq.GetP();
     // update q.sev

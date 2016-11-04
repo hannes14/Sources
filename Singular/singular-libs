@@ -38,10 +38,11 @@ SLIB0 = absfact.lib ainvar.lib aksaka.lib alexpoly.lib algebra.lib \
 # (they should be ordered alphabetically)
 
 SLIB1 = classifyceq.lib classifyci.lib classify_aeq.lib \
+        customstd.lib curveInv.lib \
         dmodloc.lib divisors.lib \
         ffsolve.lib ffmodstd.lib decomp.lib template.lib \
         findifs.lib finitediff.lib \
-        gitfan.lib gradedModules.lib \
+        gfan.lib gitfan.lib gradedModules.lib \
         locnormal.lib modnormal.lib modular.lib \
 	JMBTest.lib JMSConst.lib multigrading.lib \
 	nfmodstd.lib nfmodsyz.lib \
@@ -51,7 +52,8 @@ SLIB1 = classifyceq.lib classifyci.lib classify_aeq.lib \
 	schreyer.lib symodstd.lib deRham.lib polybori.lib ellipticcovers.lib \
 	schubert.lib tasks.lib tropical.lib hdepth.lib gradedModules.lib \
 	arr.lib brillnoether.lib chern.lib cimonom.lib GND.lib \
-	graal.lib hess.lib modwalk.lib rwalk.lib swalk.lib
+	graal.lib hess.lib modwalk.lib rwalk.lib swalk.lib \
+	classifyMapGerms.lib
 
 PLIBS = bimodules.lib bfun.lib central.lib dmod.lib dmodapp.lib dmodvar.lib\
         fpadim.lib \
@@ -61,5 +63,5 @@ PLIBS = bimodules.lib bfun.lib central.lib dmod.lib dmodapp.lib dmodvar.lib\
 	ncall.lib
 
 # contributed libs, status not yet decided
-SLIB2 = KVequiv.lib deflation.lib lejeune.lib \
-	mathml.lib maxlike.lib recover.lib redcgs.lib
+SLIB2 = KVequiv.lib deflation.lib lejeune.lib ncHilb.lib \
+	mathml.lib maxlike.lib recover.lib redcgs.lib difform.lib

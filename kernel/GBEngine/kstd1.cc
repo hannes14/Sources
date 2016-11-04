@@ -442,7 +442,7 @@ int redRiloc (LObject* h,kStrategy strat)
             &&
             p_LmShortDivisibleBy(strat->T[i].GetLmTailRing(), strat->sevT[i], h->GetLmTailRing(), ~h->sev, strat->tailRing)
             &&
-            n_DivBy(h->p->coef,strat->T[i].p->coef,strat->tailRing))
+            n_DivBy(h->p->coef,strat->T[i].p->coef,strat->tailRing->cf))
 #else
           j = kFindDivisibleByInT(strat, h, i);
         if (j < 0) break;
@@ -858,7 +858,7 @@ static poly redMoraNFRing (poly h,kStrategy strat, int flag)
     printf("\nSearching for a reducer...\n");
     #endif
     if (p_LmShortDivisibleBy(strat->T[j].GetLmTailRing(), strat->sevT[j], H.GetLmTailRing(), not_sev, strat->tailRing)
-        && (n_DivBy(H.p->coef, strat->T[j].p->coef,strat->tailRing))
+        && (n_DivBy(H.p->coef, strat->T[j].p->coef,strat->tailRing->cf))
         )
     {
       /*- remember the found T-poly -*/
@@ -884,7 +884,7 @@ static poly redMoraNFRing (poly h,kStrategy strat, int flag)
           || ((strat->T[j].ecart == ei)
         && (strat->T[j].length < li)))
         && pLmShortDivisibleBy(strat->T[j].p,strat->sevT[j], H.p, not_sev)
-        && (n_DivBy(H.p->coef, strat->T[j].p->coef,strat->tailRing))
+        && (n_DivBy(H.p->coef, strat->T[j].p->coef,strat->tailRing->cf))
         )
         {
           /*
@@ -3014,6 +3014,48 @@ poly kNF(ideal F, ideal Q, poly p,int syzComp, int lazyReduce)
   return res;
 }
 
+poly kNFBound(ideal F, ideal Q, poly p,int bound,int syzComp, int lazyReduce)
+{
+  if (p==NULL)
+     return NULL;
+
+  poly pp = p;
+
+#ifdef HAVE_PLURAL
+  if(rIsSCA(currRing))
+  {
+    const unsigned int m_iFirstAltVar = scaFirstAltVar(currRing);
+    const unsigned int m_iLastAltVar  = scaLastAltVar(currRing);
+    pp = p_KillSquares(pp, m_iFirstAltVar, m_iLastAltVar, currRing);
+
+    if(Q == currRing->qideal)
+      Q = SCAQuotient(currRing);
+  }
+#endif
+
+  if ((idIs0(F))&&(Q==NULL))
+  {
+#ifdef HAVE_PLURAL
+    if(p != pp)
+      return pp;
+#endif
+    return pCopy(p); /*F+Q=0*/
+  }
+
+  kStrategy strat=new skStrategy;
+  strat->syzComp = syzComp;
+  strat->ak = si_max(id_RankFreeModule(F,currRing),pMaxComp(p));
+  poly res;
+  res=kNF2Bound(F,Q,pp,bound,strat,lazyReduce);
+  delete(strat);
+
+#ifdef HAVE_PLURAL
+  if(pp != p)
+    p_Delete(&pp, currRing);
+#endif
+  return res;
+}
+
 ideal kNF(ideal F, ideal Q, ideal p,int syzComp,int lazyReduce)
 {
   ideal res;
@@ -3058,6 +3100,57 @@ ideal kNF(ideal F, ideal Q, ideal p,int syzComp,int lazyReduce)
     res=kNF1(F,Q,pp,strat,lazyReduce);
   else
     res=kNF2(F,Q,pp,strat,lazyReduce);
+  delete(strat);
+
+#ifdef HAVE_PLURAL
+  if(pp != p)
+    id_Delete(&pp, currRing);
+#endif
+
+  return res;
+}
+
+ideal kNFBound(ideal F, ideal Q, ideal p,int bound,int syzComp,int lazyReduce)
+{
+  ideal res;
+  if (TEST_OPT_PROT)
+  {
+    Print("(S:%d)",IDELEMS(p));mflush();
+  }
+  if (idIs0(p))
+    return idInit(IDELEMS(p),si_max(p->rank,F->rank));
+
+  ideal pp = p;
+#ifdef HAVE_PLURAL
+  if(rIsSCA(currRing))
+  {
+    const unsigned int m_iFirstAltVar = scaFirstAltVar(currRing);
+    const unsigned int m_iLastAltVar  = scaLastAltVar(currRing);
+    pp = id_KillSquares(pp, m_iFirstAltVar, m_iLastAltVar, currRing, false);
+
+    if(Q == currRing->qideal)
+      Q = SCAQuotient(currRing);
+  }
+#endif
+
+  if ((idIs0(F))&&(Q==NULL))
+  {
+#ifdef HAVE_PLURAL
+    if(p != pp)
+      return pp;
+#endif
+    return idCopy(p); /*F+Q=0*/
+  }
+
+  kStrategy strat=new skStrategy;
+  strat->syzComp = syzComp;
+  strat->ak = si_max(id_RankFreeModule(F,currRing),id_RankFreeModule(p,currRing));
+  if (strat->ak>0) // only for module case, see Tst/Short/bug_reduce.tst
+  {
+    strat->ak = si_max(strat->ak,(int)F->rank);
+  }
+
+  res=kNF2Bound(F,Q,pp,bound,strat,lazyReduce);
   delete(strat);
 
 #ifdef HAVE_PLURAL
@@ -3399,20 +3492,33 @@ ideal kInterRedBba (ideal F, ideal Q, int &need_retry)
   if((need_retry<=0) && (TEST_OPT_REDSB))
   {
     completeReduce(strat);
-#ifdef HAVE_TAIL_RING
     if (strat->completeReduce_retry)
     {
       // completeReduce needed larger exponents, retry
-      // to reduce with S (instead of T)
-      // and in currRing (instead of strat->tailRing)
-      cleanT(strat);strat->tailRing=currRing;
-      int i;
-      for(i=strat->sl;i>=0;i--) strat->S_2_R[i]=-1;
+      // hopefully: kStratChangeTailRing already provided a larger tailRing
+      //    (otherwise: it will fail again)
+      strat->completeReduce_retry=FALSE;
       completeReduce(strat);
-    }
+      if (strat->completeReduce_retry)
+      {
+#ifdef HAVE_TAIL_RING
+        if(currRing->bitmask>strat->tailRing->bitmask)
+        {
+	  // retry without T
+          strat->completeReduce_retry=FALSE;
+          cleanT(strat);strat->tailRing=currRing;
+          int i;
+          for(i=strat->sl;i>=0;i--) strat->S_2_R[i]=-1;
+          completeReduce(strat);
+        }
+        if (strat->completeReduce_retry)
 #endif
+          Werror("exponent bound is %ld",currRing->bitmask);
+      }
+    }
   }
   else if (TEST_OPT_PROT) PrintLn();
+
 
   /* release temp data-------------------------------- */
   exitBuchMora(strat);

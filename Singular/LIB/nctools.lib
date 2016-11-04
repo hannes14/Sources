@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-version="version nctools.lib 4.0.0.0 Jun_2013 "; // $Id$
+version="version nctools.lib 4.0.3.3 Sep_2016 "; // $Id$
 category="Noncommutative";
 info="
 LIBRARY: nctools.lib     General tools for noncommutative algebras
@@ -754,7 +754,6 @@ EXAMPLE: example superCommutative; shows examples
   if ( rname == "basering") // i.e. no ring has been set yet
   {
     ERROR("You have to call the procedure from the ring");
-    return();
   }
 
   def saveRing = basering;
@@ -771,14 +770,12 @@ EXAMPLE: example superCommutative; shows examples
     if(typeof(#[1]) != "int")
     {
       ERROR("The argument 'b' must be an integer!");
-      return();
     }
     b = #[1];
 
     if((b < 1)||(b > N))
     {
       ERROR("The argument 'b' must within [1..nvars(basering)]!");
-      return();
     }
 
   }
@@ -788,20 +785,17 @@ EXAMPLE: example superCommutative; shows examples
     if(typeof(#[2]) != "int")
     {
       ERROR("The argument 'e' must be an integer!");
-      return();
     }
     e = #[2];
 
     if((e < 1)||(e > N))
     {
       ERROR("The argument 'e' must within [1..nvars(basering)]!");
-      return();
     }
 
     if(e < b)
     {
       ERROR("The argument 'e' must be bigger or equal to 'b'!");
-      return();
     }
   }
 
@@ -810,7 +804,6 @@ EXAMPLE: example superCommutative; shows examples
     if(typeof(#[3]) != "ideal")
     {
       ERROR("The argument 'Q' must be an ideal!");
-      return();
     }
     Q = #[3];
   }
@@ -820,7 +813,6 @@ EXAMPLE: example superCommutative; shows examples
     if(typeof(#[4]) != "int")
     {
       ERROR("The argument 'flag' must be an integer!");
-      return();
     }
     flag = #[4];
   }
@@ -840,6 +832,7 @@ EXAMPLE: example superCommutative; shows examples
     degBound = iSavedDegBoung;
 
     qring @EA = Q; // and it will be internally commutative as well!!!
+    option(qringNF);
 
     return(@EA);
   }
@@ -872,6 +865,7 @@ EXAMPLE: example superCommutative; shows examples
     degBound = iSavedDegBoung;
 
     qring @EA = Q; // and it will be internally commutative as well!!!
+    option(qringNF);
     return(@EA);
   }
 
@@ -921,7 +915,7 @@ EXAMPLE: example superCommutative; shows examples
   attrib(basering, "iAltVarStart", b);
   attrib(basering, "iAltVarEnd", e);
 
-//   "Alternating variables: [", AltVarStart(), ",", AltVarEnd(), "].";
+   //"Alternating variables: [", AltVarStart(), ",", AltVarEnd(), "].";
   return(basering);
 }
 example
@@ -1141,9 +1135,7 @@ EXAMPLE: example AltVarStart; shows examples
   {
     return(l[1]);
   }
-
   ERROR(l);
-  return();
 }
 example
 {
@@ -1180,9 +1172,7 @@ EXAMPLE: example AltVarEnd; shows examples
   {
     return(l[2]);
   }
-
   ERROR(l);
-  return();
 }
 example
 {

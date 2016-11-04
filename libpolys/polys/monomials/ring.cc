@@ -889,7 +889,7 @@ int rSumInternal(ring r1, ring r2, ring &sum, BOOLEAN vartest, BOOLEAN dp_dp)
   tmpR.N=k;
   tmpR.names=names;
   /* ordering *======================================================== */
-  tmpR.OrdSgn=1;
+  tmpR.OrdSgn=0;
   if ((dp_dp==2)
   && (r1->OrdSgn==1)
   && (r2->OrdSgn==1)
@@ -1341,7 +1341,6 @@ ring rCopy0(const ring r, BOOLEAN copy_qideal, BOOLEAN copy_ordering)
   //memset: res->ref=0; /* reference counter to the ring */
 
   res->N=rVar(r);      /* number of vars */
-  res->OrdSgn=r->OrdSgn; /* 1 for polynomial rings, -1 otherwise */
 
   res->firstBlockEnds=r->firstBlockEnds;
 #ifdef HAVE_PLURAL
@@ -1356,10 +1355,6 @@ ring rCopy0(const ring r, BOOLEAN copy_qideal, BOOLEAN copy_ordering)
   res->VectorOut=r->VectorOut;
   res->ShortOut=r->ShortOut;
   res->CanShortOut=r->CanShortOut;
-  res->LexOrder=r->LexOrder; // TRUE if the monomial ordering has polynomial and power series blocks
-  res->MixedOrder=r->MixedOrder; // TRUE for mixed (global/local) ordering, FALSE otherwise,
-  // 2 for diffenerent signs within one block
-  res->ComponentOrder=r->ComponentOrder;
 
   //memset: res->ExpL_Size=0;
   //memset: res->CmpL_Size=0;
@@ -1399,6 +1394,8 @@ ring rCopy0(const ring r, BOOLEAN copy_qideal, BOOLEAN copy_ordering)
 
   if (copy_ordering == TRUE)
   {
+    res->LexOrder=r->LexOrder; // TRUE if the monomial ordering has polynomial and power series blocks
+    res->MixedOrder=r->MixedOrder; // TRUE for mixed (global/local) ordering, FALSE otherwise,
     i=rBlocks(r);
     res->wvhdl   = (int **)omAlloc(i * sizeof(int *));
     res->order   = (int *) omAlloc(i * sizeof(int));
@@ -1464,8 +1461,7 @@ ring rCopy0AndAddA(const ring r,  int64vec *wv64, BOOLEAN copy_qideal, BOOLEAN c
 {
   if (r == NULL) return NULL;
   int i,j;
-  ring res=(ring)omAllocBin(sip_sring_bin);
-  memset(res,0,sizeof(ip_sring));
+  ring res=(ring)omAlloc0Bin(sip_sring_bin);
   //memcpy(res,r,sizeof(ip_sring));
   //memset: res->idroot=NULL; /* local objects */
   //ideal      minideal;
@@ -1483,7 +1479,6 @@ ring rCopy0AndAddA(const ring r,  int64vec *wv64, BOOLEAN copy_qideal, BOOLEAN c
   //memset: res->ref=0; /* reference counter to the ring */
 
   res->N=rVar(r);      /* number of vars */
-  res->OrdSgn=r->OrdSgn; /* 1 for polynomial rings, -1 otherwise */
 
   res->firstBlockEnds=r->firstBlockEnds;
 #ifdef HAVE_PLURAL
@@ -1500,8 +1495,6 @@ ring rCopy0AndAddA(const ring r,  int64vec *wv64, BOOLEAN copy_qideal, BOOLEAN c
   res->CanShortOut=r->CanShortOut;
   res->LexOrder=r->LexOrder; // TRUE if the monomial ordering has polynomial and power series blocks
   res->MixedOrder=r->MixedOrder; // TRUE for mixed (global/local) ordering, FALSE otherwise,
-  // 2 for diffenerent signs within one block
-  res->ComponentOrder=r->ComponentOrder;
 
   //memset: res->ExpL_Size=0;
   //memset: res->CmpL_Size=0;
@@ -1966,6 +1959,12 @@ BOOLEAN rDBTest(ring r, const char* fn, const int l)
 
 
   if (r->N == 0) return TRUE;
+
+  if ((r->OrdSgn!=1) && (r->OrdSgn!= -1))
+  {
+    dReportError("missing OrdSgn in %s:%d", fn, l);
+    return FALSE;
+  }
 
 //  omCheckAddrSize(r,sizeof(ip_sring));
 #if OM_CHECK > 0
@@ -3021,69 +3020,6 @@ static void rSetOutParams(ring r)
   assume( !( !r->CanShortOut && r->ShortOut ) );
 }
 
-/*2
-* sets r->MixedOrder and r->ComponentOrder for orderings with more than one block
-* block of variables (ip is the block number, o_r the number of the ordering)
-* o is the position of the orderingering in r
-*/
-static void rHighSet(ring r, int o_r, int o)
-{
-  switch(o_r)
-  {
-    case ringorder_lp:
-    case ringorder_dp:
-    case ringorder_Dp:
-    case ringorder_wp:
-    case ringorder_Wp:
-    case ringorder_rp:
-    case ringorder_a:
-    case ringorder_aa:
-    case ringorder_am:
-    case ringorder_a64:
-      if (r->OrdSgn==-1) r->MixedOrder=TRUE;
-      break;
-    case ringorder_ls:
-    case ringorder_rs:
-    case ringorder_ds:
-    case ringorder_Ds:
-    case ringorder_s:
-      break;
-    case ringorder_ws:
-    case ringorder_Ws:
-      if (r->wvhdl[o]!=NULL)
-      {
-        int i;
-        for(i=r->block1[o]-r->block0[o];i>=0;i--)
-          if (r->wvhdl[o][i]<0) { r->MixedOrder=2; break; }
-      }
-      break;
-    case ringorder_c:
-      r->ComponentOrder=1;
-      break;
-    case ringorder_C:
-    case ringorder_S:
-      r->ComponentOrder=TRUE;
-      break;
-    case ringorder_M:
-      r->LexOrder=TRUE;
-      break;
-    case ringorder_IS:
-    { // TODO: What is r->ComponentOrder???
-//      r->MixedOrder=TRUE;
-      if( r->block0[o] != 0 ) // Suffix has the component
-        r->ComponentOrder = r->block0[o];
-/*      else // Prefix has level...
-        r->ComponentOrder=-1;
-*/
-      // TODO: think about this a bit...!?
-      break;
-    }
-
-    default:
-      dReportError("wrong internal ordering:%d at %s, l:%d\n",o_r,__FILE__,__LINE__);
-  }
-}
-
 static void rSetFirstWv(ring r, int i, int* order, int* block1, int** wvhdl)
 {
   // cheat for ringorder_aa
@@ -3143,7 +3079,7 @@ static void rOptimizeLDeg(ring r)
   r->pLDegOrig = r->pLDeg;
 }
 
-// set pFDeg, pLDeg, MixOrder, ComponentOrder, etc
+// set pFDeg, pLDeg, requires OrdSgn already set
 static void rSetDegStuff(ring r)
 {
   int* order = r->order;
@@ -3159,8 +3095,6 @@ static void rSetDegStuff(ring r)
     wvhdl++;
   }
   r->LexOrder = FALSE;
-  r->MixedOrder = FALSE;
-  r->ComponentOrder = 1;
   r->pFDeg = p_Totaldegree;
   r->pLDeg = (r->OrdSgn == 1 ? pLDegb : pLDeg0);
 
@@ -3196,10 +3130,6 @@ static void rSetDegStuff(ring r)
     && (order[2]==0))
     )
   {
-    if ((order[0]!=ringorder_unspec)
-    && ((order[1]==ringorder_C)||(order[1]==ringorder_S)||
-        (order[1]==ringorder_s)))
-      r->ComponentOrder=-1;
     if (r->OrdSgn == -1) r->pLDeg = pLDeg0c;
     if ((order[0] == ringorder_lp)
     || (order[0] == ringorder_ls)
@@ -3239,9 +3169,6 @@ static void rSetDegStuff(ring r)
   && (order[1]!=ringorder_M)
   &&  (order[2]==0))
   {
-    if ((order[0]==ringorder_C)||(order[0]==ringorder_S)||
-        order[0]==ringorder_s)
-      r->ComponentOrder=-1;
     if ((order[1] == ringorder_lp)
     || (order[1] == ringorder_ls)
     || (order[1] == ringorder_rp)
@@ -3278,16 +3205,6 @@ static void rSetDegStuff(ring r)
     else
       rSetFirstWv(r, 0, order, block1, wvhdl);
 
-    /*the number of orderings:*/
-    int i = 0; while (order[++i] != 0);
-
-    do
-    {
-      i--;
-      rHighSet(r, order[i],i);
-    }
-    while (i != 0);
-
     if ((order[0]!=ringorder_c)
         && (order[0]!=ringorder_C)
         && (order[0]!=ringorder_S)
@@ -3323,7 +3240,6 @@ static void rSetDegStuff(ring r)
   // NOTE: this leads to wrong ecart during std
   // in Old/sre.tst
   rOptimizeLDeg(r); // also sets r->pLDegOrig
-
 }
 
 /*2
@@ -3390,7 +3306,7 @@ static void rSetOption(ring r)
     r->options |= Sy_bit(OPT_REDTAIL);
 }
 
-static void rCheckOrdSgn(ring r,int i/*current block*/);
+static void rCheckOrdSgn(ring r,int i/*last block*/);
 
 /* -------------------------------------------------------- */
 /*2
@@ -3443,7 +3359,6 @@ BOOLEAN rComplete(ring r, int force)
   r->BitsPerExp = bits;
   r->ExpPerLong = BIT_SIZEOF_LONG / bits;
   r->divmask=rGetDivMask(bits);
-  if (r->OrdSgn!=-1) r->OrdSgn=1; //rCheckOrdSgn will changed that, if needed
 
   // will be used for ordsgn:
   long *tmp_ordsgn=(long *)omAlloc0(3*(n+r->N)*sizeof(long));
@@ -3490,11 +3405,13 @@ BOOLEAN rComplete(ring r, int force)
       case ringorder_c:
         rO_Align(j, j_bits);
         rO_LexVars_neg(j, j_bits, 0,0, prev_ordsgn,tmp_ordsgn,v,BITS_PER_LONG, -1);
+        r->ComponentOrder=1;
         break;
 
       case ringorder_C:
         rO_Align(j, j_bits);
         rO_LexVars(j, j_bits, 0,0, prev_ordsgn,tmp_ordsgn,v,BITS_PER_LONG, -1);
+        r->ComponentOrder=-1;
         break;
 
       case ringorder_M:
@@ -3519,13 +3436,11 @@ BOOLEAN rComplete(ring r, int force)
       case ringorder_ls:
         rO_LexVars_neg(j, j_bits, r->block0[i],r->block1[i], prev_ordsgn,
                        tmp_ordsgn,v, bits, -1);
-        rCheckOrdSgn(r,i);
         break;
 
       case ringorder_rs:
         rO_LexVars_neg(j, j_bits, r->block1[i],r->block0[i], prev_ordsgn,
                        tmp_ordsgn,v, bits, -1);
-        rCheckOrdSgn(r,i);
         break;
 
       case ringorder_rp:
@@ -3579,7 +3494,6 @@ BOOLEAN rComplete(ring r, int force)
           rO_LexVars_neg(j, j_bits, r->block1[i],r->block0[i]+1,
                          prev_ordsgn,tmp_ordsgn,v,bits, r->block0[i]);
         }
-        rCheckOrdSgn(r,i);
         break;
 
       case ringorder_Ds:
@@ -3596,7 +3510,6 @@ BOOLEAN rComplete(ring r, int force)
           rO_LexVars(j, j_bits, r->block0[i],r->block1[i]-1, prev_ordsgn,
                      tmp_ordsgn,v, bits, r->block1[i]);
         }
-        rCheckOrdSgn(r,i);
         break;
 
       case ringorder_wp:
@@ -3615,7 +3528,6 @@ BOOLEAN rComplete(ring r, int force)
              rO_TDegree(j,j_bits,r->block0[i],r->block1[i],tmp_ordsgn,
                                      tmp_typ[typ_i]);
              typ_i++;
-             rCheckOrdSgn(r,i);
           }
         }
         if (r->block1[i]!=r->block0[i])
@@ -3641,7 +3553,6 @@ BOOLEAN rComplete(ring r, int force)
              rO_TDegree(j,j_bits,r->block0[i],r->block1[i],tmp_ordsgn,
                                      tmp_typ[typ_i]);
              typ_i++;
-             rCheckOrdSgn(r,i);
           }
         }
         if (r->block1[i]!=r->block0[i])
@@ -3660,7 +3571,6 @@ BOOLEAN rComplete(ring r, int force)
           rO_LexVars_neg(j, j_bits,r->block1[i],r->block0[i]+1, prev_ordsgn,
                          tmp_ordsgn, v,bits, r->block0[i]);
         }
-        rCheckOrdSgn(r,i);
         break;
 
       case ringorder_Ws:
@@ -3672,7 +3582,6 @@ BOOLEAN rComplete(ring r, int force)
           rO_LexVars(j, j_bits,r->block0[i],r->block1[i]-1, prev_ordsgn,
                      tmp_ordsgn,v, bits, r->block1[i]);
         }
-        rCheckOrdSgn(r,i);
         break;
 
       case ringorder_S:
@@ -3680,6 +3589,7 @@ BOOLEAN rComplete(ring r, int force)
         // TODO: for K[x]: it is 0...?!
         rO_Syzcomp(j, j_bits,prev_ordsgn, tmp_ordsgn,tmp_typ[typ_i]);
         need_to_add_comp=TRUE;
+        r->ComponentOrder=-1;
         typ_i++;
         break;
 
@@ -3687,6 +3597,7 @@ BOOLEAN rComplete(ring r, int force)
         assume(typ_i == 0 && j == 0);
         rO_Syz(j, j_bits, prev_ordsgn, tmp_ordsgn, tmp_typ[typ_i]); // set syz-limit?
         need_to_add_comp=TRUE;
+        r->ComponentOrder=-1;
         typ_i++;
         break;
 
@@ -3714,6 +3625,7 @@ BOOLEAN rComplete(ring r, int force)
         break;
     }
   }
+  rCheckOrdSgn(r,n-1);
 
   int j0=j; // save j
   int j_bits0=j_bits; // save jbits
@@ -3809,7 +3721,7 @@ BOOLEAN rComplete(ring r, int force)
   r->pOrdIndex=i;
 
   // ----------------------------
-  rSetDegStuff(r);
+  rSetDegStuff(r); // OrdSgn etc already set
   rSetOption(r);
   // ----------------------------
   // r->p_Setm
@@ -3838,10 +3750,11 @@ BOOLEAN rComplete(ring r, int force)
   return FALSE;
 }
 
-static void rCheckOrdSgn(ring r,int b/*current block*/)
-{ // set r->OrdSgn, return, if already checked
-  if (r->OrdSgn==-1) return;
+static void rCheckOrdSgn(ring r,int b/*last block*/)
+{ // set r->OrdSgn, r->MixedOrder
   // for each variable:
+  int nonpos=0;
+  int nonneg=0;
   for(int i=1;i<=r->N;i++)
   {
     int found=0;
@@ -3860,22 +3773,74 @@ static void rCheckOrdSgn(ring r,int b/*current block*/)
         || (r->order[j]==ringorder_rs))
         {
           r->OrdSgn=-1;
-          return;
+          nonpos++;
+          found=1;
         }
-        if((r->order[j]==ringorder_a)
+        else if((r->order[j]==ringorder_a)
         ||(r->order[j]==ringorder_aa))
         {
-          // <0: local/mixed ordering return
+          // <0: local/mixed ordering
           // >0: var(i) is okay, look at other vars
           // ==0: look at other blocks for var(i)
-          if(r->wvhdl[j][i-r->block0[j]]<0) { r->OrdSgn=-1; return;}
-          if(r->wvhdl[j][i-r->block0[j]]>0) { found=1; break;}
+          if(r->wvhdl[j][i-r->block0[j]]<0)
+          {
+            r->OrdSgn=-1;
+            nonpos++;
+            found=1;
+          }
+          else if(r->wvhdl[j][i-r->block0[j]]>0)
+          {
+            nonneg++;
+            found=1;
+          }
+        }
+        else if(r->order[j]==ringorder_M)
+        {
+          // <0: local/mixed ordering
+          // >0: var(i) is okay, look at other vars
+          // ==0: look at other blocks for var(i)
+          if(r->wvhdl[j][i-r->block0[j]]<0)
+          {
+            r->OrdSgn=-1;
+            nonpos++;
+            found=1;
+          }
+          else if(r->wvhdl[j][i-r->block0[j]]>0)
+          {
+            nonneg++;
+            found=1;
+          }
+          else
+          {
+            // very bad:
+            nonpos++;
+            nonneg++;
+            found=1;
+          }
+        }
+        else if ((r->order[j]==ringorder_lp)
+        || (r->order[j]==ringorder_dp)
+        || (r->order[j]==ringorder_Dp)
+        || (r->order[j]==ringorder_wp)
+        || (r->order[j]==ringorder_Wp)
+        || (r->order[j]==ringorder_rp))
+        {
+          found=1;
+          nonneg++;
         }
       }
     }
   }
-  // no local var found in 1..N:
-  //r->OrdSgn=1;
+  if (nonpos>0)
+  {
+    r->OrdSgn=-1;
+    if (nonneg>0) r->MixedOrder=1;
+  }
+  else
+  {
+    r->OrdSgn=1;
+    r->MixedOrder=0;
+  }
 }
 
 void rUnComplete(ring r)

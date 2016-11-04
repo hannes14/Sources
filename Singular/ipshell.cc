@@ -73,6 +73,8 @@
 
 #ifdef SINGULAR_4_1
 #include <Singular/number2.h>
+#endif
+#ifdef SINGULAR_4_2
 #include <coeffs/bigintmat.h>
 #endif
 leftv iiCurrArgs=NULL;
@@ -191,6 +193,8 @@ static void list1(const char* s, idhdl h,BOOLEAN c, BOOLEAN fullname)
     case PROC_CMD: if((IDPROC(h)->libname!=NULL)
                    && (strlen(IDPROC(h)->libname)>0))
                      Print(" from %s",IDPROC(h)->libname);
+                   if(IDPROC(h)->language==LANG_C)
+                     PrintS(" (C)");
                    if(IDPROC(h)->is_static)
                      PrintS(" (static)");
                    break;
@@ -222,7 +226,7 @@ static void list1(const char* s, idhdl h,BOOLEAN c, BOOLEAN fullname)
                      Print(" <%lx>",(long)(IDRING(h)));
 #endif
                    break;
-#ifdef SINGULAR_4_1
+#ifdef SINGULAR_4_2
     case CNUMBER_CMD:
                    {  number2 n=(number2)IDDATA(h);
                       Print(" (%s)",nCoeffName(n->cf));

@@ -292,6 +292,7 @@ static void* omTakeOutConsecutivePages(omBinPageRegion region, int pages)
 static omBinPageRegion omAllocNewBinPagesRegion(int min_pages)
 {
   omBinPageRegion region = omAllocFromSystem(sizeof(omBinPageRegion_t));
+  om_Info.InternalUsedBytesMalloc+=sizeof(omBinPageRegion_t);
   void* addr;
   int pages = (min_pages>om_Opts.PagesPerRegion ? min_pages : om_Opts.PagesPerRegion);
   size_t size = pages*SIZEOF_SYSTEM_PAGE;
@@ -334,6 +335,7 @@ static void omFreeBinPagesRegion(omBinPageRegion region)
   omUnregisterBinPages(region->addr, region->pages);
   omVfreeToSystem(region->addr, region->pages*SIZEOF_SYSTEM_PAGE);
   omFreeSizeToSystem(region, sizeof(omBinPageRegion_t));
+  om_Info.InternalUsedBytesMalloc-=sizeof(omBinPageRegion_t);
 }
 
 /*******************************************************************
@@ -345,13 +347,14 @@ static void omFreeBinPagesRegion(omBinPageRegion region)
 static void omBinPageIndexFault(unsigned long low_index, unsigned long high_index)
 {
   unsigned long index_diff = high_index - low_index;
-  long i;
   omAssume(low_index <= high_index &&
            (high_index > om_MaxBinPageIndex || low_index < om_MinBinPageIndex));
 
   if (om_BinPageIndicies == NULL)
   {
+    unsigned long i;
     om_BinPageIndicies = (unsigned long*) omAllocFromSystem((index_diff + 1)*SIZEOF_LONG);
+    om_Info.InternalUsedBytesMalloc+=(index_diff + 1)*SIZEOF_LONG;
     om_MaxBinPageIndex = high_index;
     om_MinBinPageIndex = low_index;
     for (i=0; i<=index_diff; i++) om_BinPageIndicies[i] = 0;
@@ -364,15 +367,18 @@ static void omBinPageIndexFault(unsigned long low_index, unsigned long high_inde
                                 high_index - om_MinBinPageIndex) + 1;
     om_BinPageIndicies  = (unsigned long*) omReallocSizeFromSystem(om_BinPageIndicies, old_length*SIZEOF_LONG,
                                                                    new_length*SIZEOF_LONG);
+    om_Info.InternalUsedBytesMalloc+= (new_length-old_length)*SIZEOF_LONG;
     if (low_index < om_MinBinPageIndex)
     {
+      long i;
       unsigned long offset = new_length - old_length;
       for (i=old_length - 1; i >= 0; i--) om_BinPageIndicies[i+offset] = om_BinPageIndicies[i];
-      for (i=0; i<offset; i++)  om_BinPageIndicies[i] = 0;
+      for (i=offset-1; i>=0; i--)  om_BinPageIndicies[i] = 0;
       om_MinBinPageIndex = low_index;
     }
     else
     {
+      unsigned long i;
       for (i=old_length; i<new_length; i++) om_BinPageIndicies[i] = 0;
       om_MaxBinPageIndex = high_index;
     }

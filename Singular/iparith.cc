@@ -26,7 +26,6 @@
 #include <polys/prCopy.h>
 #include <polys/matpol.h>
 #include <polys/monomials/maps.h>
-#include <polys/coeffrings.h>
 #include <polys/sparsmat.h>
 #include <polys/weight.h>
 #include <polys/ext_fields/transext.h>
@@ -95,7 +94,6 @@
 
 ring rCompose(const lists  L, const BOOLEAN check_comp=TRUE);
 
-
 // defaults for all commands: NO_PLURAL | NO_RING | ALLOW_ZERODIVISOR
 
 #ifdef HAVE_PLURAL
@@ -125,6 +123,8 @@ ring rCompose(const lists  L, const BOOLEAN check_comp=TRUE);
 
 // bit 4 for warning, if used at toplevel
 #define WARN_RING        16
+// bit 5: do no try automatic conversions
+#define NO_CONVERSION    32
 
 static BOOLEAN check_valid(const int p, const int op);
 
@@ -193,9 +193,9 @@ typedef struct
   struct sValCmd2 *psValCmd2;
   struct sValCmd3 *psValCmd3;
   struct sValCmdM *psValCmdM;
-  int nCmdUsed;      /**< number of commands used */
-  int nCmdAllocated; /**< number of commands-slots allocated */
-  int nLastIdentifier; /**< valid indentifieres are slot 1..nLastIdentifier */
+  unsigned nCmdUsed;      /**< number of commands used */
+  unsigned nCmdAllocated; /**< number of commands-slots allocated */
+  unsigned nLastIdentifier; /**< valid indentifieres are slot 1..nLastIdentifier */
 } SArithBase;
 
 /*---------------------------------------------------------------------*
@@ -241,7 +241,7 @@ poly pHeadProc(poly p)
 
 int iiTokType(int op)
 {
-  for (int i=0;i<sArithBase.nCmdUsed;i++)
+  for (unsigned i=0;i<sArithBase.nCmdUsed;i++)
   {
     if (sArithBase.sCmds[i].tokval==op)
       return sArithBase.sCmds[i].toktype;
@@ -431,39 +431,39 @@ static BOOLEAN jjCOMPARE_IV_I(leftv res, leftv u, leftv v)
   jjEQUAL_REST(res,u,v);
   return FALSE;
 }
+static BOOLEAN jjCOMPARE_MA(leftv res, leftv u, leftv v)
+{
+  //Print("in: >>%s<<\n",my_yylinebuf);
+  matrix a=(matrix)u->Data();
+  matrix b=(matrix)v->Data();
+  int r=mp_Compare(a,b,currRing);
+  switch  (iiOp)
+  {
+    case '<':
+      res->data  = (char *) (long)(r < 0);
+      break;
+    case '>':
+      res->data  = (char *) (long)(r > 0);
+      break;
+    case LE:
+      res->data  = (char *) (long)(r <= 0);
+      break;
+    case GE:
+      res->data  = (char *) (long)(r >= 0);
+      break;
+    case EQUAL_EQUAL:
+    case NOTEQUAL: /* negation handled by jjEQUAL_REST */
+      res->data  = (char *)(long) (r == 0);
+      break;
+  }
+  jjEQUAL_REST(res,u,v);
+  return FALSE;
+}
 static BOOLEAN jjCOMPARE_P(leftv res, leftv u, leftv v)
 {
   poly p=(poly)u->Data();
   poly q=(poly)v->Data();
-  int r=pCmp(p,q);
-  if (r==0)
-  {
-    number h=nSub(pGetCoeff(p),pGetCoeff(q));
-    /* compare lead coeffs */
-    r = -1+nIsZero(h)+2*nGreaterZero(h); /* -1: <, 0:==, 1: > */
-    nDelete(&h);
-  }
-  else if (p==NULL)
-  {
-    if (q==NULL)
-    {
-      /* compare 0, 0 */
-      r=0;
-    }
-    else if(pIsConstant(q))
-    {
-      /* compare 0, const */
-      r = 1-2*nGreaterZero(pGetCoeff(q)); /* -1: <, 1: > */
-    }
-  }
-  else if (q==NULL)
-  {
-    if (pIsConstant(p))
-    {
-      /* compare const, 0 */
-      r = -1+2*nGreaterZero(pGetCoeff(p)); /* -1: <, 1: > */
-    }
-  }
+  int r=p_Compare(p,q,currRing);
   switch  (iiOp)
   {
     case '<':
@@ -1290,7 +1290,7 @@ static BOOLEAN jjDIV_Ma(leftv res, leftv u, leftv v)
   int r=m->rows();
   int c=m->cols();
   matrix mm=mpNew(r,c);
-  int i,j;
+  unsigned i,j;
   for(i=r;i>0;i--)
   {
     for(j=c;j>0;j--)
@@ -1763,154 +1763,7 @@ static BOOLEAN jjALIGN_M(leftv res, leftv u, leftv v)
   res->data=M;
   return FALSE;
 }
-static BOOLEAN jjCHINREM_ID(leftv res, leftv u, leftv v)
-{
-  coeffs cf;
-  lists c=(lists)u->CopyD(); // list of ideal or bigint/int
-  lists pl=NULL;
-  intvec *p=NULL;
-  if (v->Typ()==LIST_CMD) pl=(lists)v->Data();
-  else                    p=(intvec*)v->Data();
-  int rl=c->nr+1;
-  ideal result;
-  ideal *x=(ideal *)omAlloc(rl*sizeof(ideal));
-  number *xx=NULL;
-  int i;
-  int return_type=c->m[0].Typ();
-  if ((return_type!=IDEAL_CMD)
-  && (return_type!=MODUL_CMD)
-  && (return_type!=MATRIX_CMD)
-  && (return_type!=POLY_CMD))
-  {
-    if((return_type!=BIGINT_CMD)&&(return_type!=INT_CMD))
-    {
-      WerrorS("poly/ideal/module/matrix expected");
-      omFree(x); // delete c
-      return TRUE;
-    }
-    else
-      return_type=BIGINT_CMD;
-  }
-  if (return_type==BIGINT_CMD)
-    cf=coeffs_BIGINT;
-  else
-  {
-    cf=currRing->cf;
-    if (nCoeff_is_Extension(cf) && (cf->extRing!=NULL))
-      cf=cf->extRing->cf;
-  }
-  nMapFunc nMap=n_SetMap(coeffs_BIGINT,cf);
-  if (return_type!=BIGINT_CMD)
-  {
-    for(i=rl-1;i>=0;i--)
-    {
-      if (c->m[i].Typ()!=return_type)
-      {
-        Werror("%s expected at pos %d",Tok2Cmdname(return_type),i+1);
-        omFree(x); // delete c
-        return TRUE;
-      }
-      if (return_type==POLY_CMD)
-      {
-        x[i]=idInit(1,1);
-        x[i]->m[0]=(poly)c->m[i].CopyD();
-      }
-      else
-      {
-        x[i]=(ideal)c->m[i].CopyD();
-      }
-      //c->m[i].Init();
-    }
-  }
-  else
-  {
-    if (nMap==NULL)
-    {
-      Werror("not implemented: map bigint -> %s", nCoeffString(cf));
-      return TRUE;
-    }
-    xx=(number *)omAlloc(rl*sizeof(number));
-    for(i=rl-1;i>=0;i--)
-    {
-      if (c->m[i].Typ()==INT_CMD)
-      {
-        xx[i]=n_Init(((int)(long)c->m[i].Data()),cf);
-      }
-      else if (c->m[i].Typ()==BIGINT_CMD)
-      {
-        xx[i]=nMap((number)c->m[i].Data(),coeffs_BIGINT,cf);
-      }
-      else
-      {
-        Werror("bigint expected at pos %d",i+1);
-        omFree(x); // delete c
-        omFree(xx); // delete c
-        return TRUE;
-      }
-    }
-  }
-  number *q=(number *)omAlloc(rl*sizeof(number));
-  if (p!=NULL)
-  {
-    for(i=rl-1;i>=0;i--)
-    {
-      q[i]=n_Init((*p)[i], cf);
-    }
-  }
-  else
-  {
-    for(i=rl-1;i>=0;i--)
-    {
-      if (pl->m[i].Typ()==INT_CMD)
-      {
-        q[i]=n_Init((int)(long)pl->m[i].Data(),cf);
-      }
-      else if (pl->m[i].Typ()==BIGINT_CMD)
-      {
-        q[i]=nMap((number)(pl->m[i].Data()),coeffs_BIGINT,cf);
-      }
-      else
-      {
-        Werror("bigint expected at pos %d",i+1);
-        for(i++;i<rl;i++)
-        {
-          n_Delete(&(q[i]),cf);
-        }
-        omFree(x); // delete c
-        omFree(q); // delete pl
-        if (xx!=NULL) omFree(xx); // delete c
-        return TRUE;
-      }
-    }
-  }
-  if (return_type==BIGINT_CMD)
-  {
-    CFArray i_v(rl);
-    number n=n_ChineseRemainderSym(xx,q,rl,TRUE,i_v,coeffs_BIGINT);
-    res->data=(char *)n;
-  }
-  else
-  {
-    result=id_ChineseRemainder(x,q,rl,currRing);
-    // deletes also x
-    c->Clean();
-    if ((return_type==POLY_CMD) &&(result!=NULL))
-    {
-      res->data=(char *)result->m[0];
-      result->m[0]=NULL;
-      idDelete(&result);
-    }
-    else
-      res->data=(char *)result;
-  }
-  for(i=rl-1;i>=0;i--)
-  {
-    n_Delete(&(q[i]),cf);
-  }
-  omFree(q);
-  res->rtyp=return_type;
-  return result==NULL;
-}
+static BOOLEAN jjCHINREM_ID(leftv res, leftv u, leftv v);
 static BOOLEAN jjCOEF(leftv res, leftv u, leftv v)
 {
   poly p=(poly)v->Data();
@@ -2054,18 +1907,18 @@ static BOOLEAN jjDIVISION(leftv res, leftv u, leftv v)
   ideal vi=(ideal)v->Data();
   int vl= IDELEMS(vi);
   ideal ui=(ideal)u->Data();
-  int ul= IDELEMS(ui);
+  unsigned ul= IDELEMS(ui);
   ideal R; matrix U;
   ideal m = idLift(vi,ui,&R, FALSE,hasFlag(v,FLAG_STD),TRUE,&U);
   if (m==NULL) return TRUE;
   // now make sure that all matices have the corect size:
   matrix T = id_Module2formatedMatrix(m,vl,ul,currRing);
   int i;
-  if (MATCOLS(U) != ul)
+  if (MATCOLS(U) != (int)ul)
   {
-    int mul=si_min(ul,MATCOLS(U));
+    unsigned mul=si_min(ul,MATCOLS(U));
     matrix UU=mpNew(ul,ul);
-    int j;
+    unsigned j;
     for(i=mul;i>0;i--)
     {
       for(j=mul;j>0;j--)
@@ -2267,9 +2120,9 @@ static BOOLEAN jjFAREY_ID(leftv res, leftv u, leftv v)
   ideal uu=(ideal)u->Data();
   number vv=(number)v->Data();
   res->data=(void*)id_Farey(uu,vv,currRing);
-  res->rtyp=u->Typ();
   return FALSE;
 }
+static BOOLEAN jjFAREY_LI(leftv res, leftv u, leftv v);
 static BOOLEAN jjFETCH(leftv res, leftv u, leftv v)
 {
   ring r=(ring)u->Data();
@@ -2329,20 +2182,20 @@ static BOOLEAN jjFETCH(leftv res, leftv u, leftv v)
       }
       else
       {
-        int i;
+        unsigned i;
         if (par_perm_size!=0)
-          for(i=si_min(rPar(r),rPar(currRing))-1;i>=0;i--) par_perm[i]=-(i+1);
+          for(i=si_min(rPar(r),rPar(currRing));i>0;i--) par_perm[i-1]=-i;
         for(i=si_min(r->N,currRing->N);i>0;i--) perm[i]=i;
       }
     }
     if ((iiOp==FETCH_CMD) &&(BVERBOSE(V_IMAP)))
     {
-      int i;
-      for(i=0;i<si_min(r->N,currRing->N);i++)
+      unsigned i;
+      for(i=0;i<(unsigned)si_min(r->N,currRing->N);i++)
       {
         Print("// var nr %d: %s -> %s\n",i,r->names[i],currRing->names[i]);
       }
-      for(i=0;i<si_min(rPar(r),rPar(currRing));i++) // possibly empty loop
+      for(i=0;i<(unsigned)si_min(rPar(r),rPar(currRing));i++) // possibly empty loop
       {
         Print("// par nr %d: %s -> %s\n",
               i,rParameter(r)[i],rParameter(currRing)[i]);
@@ -2794,9 +2647,9 @@ static BOOLEAN jjMONOM(leftv res, leftv v)
 {
   intvec *iv=(intvec *)v->Data();
   poly p=pOne();
-  int i,e;
+  int e;
   BOOLEAN err=FALSE;
-  for(i=si_min(currRing->N,iv->length()); i>0; i--)
+  for(unsigned i=si_min(currRing->N,iv->length()); i>0; i--)
   {
     e=(*iv)[i-1];
     if (e>=0) pSetExp(p,i,e);
@@ -3622,7 +3475,7 @@ static BOOLEAN jjWAITALL2(leftv res, leftv u, leftv v)
   int t = getRTimer()/TIMER_RESOLUTION;  // in seconds
   int i;
   int ret = -1;
-  for(int nfinished = 0; nfinished < Lforks->nr+1; nfinished++)
+  for(unsigned nfinished = 0; nfinished < ((unsigned)Lforks->nr)+1; nfinished++)
   {
     i = slStatusSsiL(Lforks, timeout);
     if(i > 0) /* Lforks[i] is ready */
@@ -3954,7 +3807,7 @@ static BOOLEAN jjDEFINED(leftv res, leftv v)
 static BOOLEAN jjDENOMINATOR(leftv res, leftv v)
 {
   number n = reinterpret_cast<number>(v->Data());
-  res->data = reinterpret_cast<void*>(n_GetDenom(n, currRing));
+  res->data = reinterpret_cast<void*>(n_GetDenom(n, currRing->cf));
   return FALSE;
 }
 
@@ -3963,7 +3816,7 @@ static BOOLEAN jjDENOMINATOR(leftv res, leftv v)
 static BOOLEAN jjNUMERATOR(leftv res, leftv v)
 {
   number n = reinterpret_cast<number>(v->Data());
-  res->data = reinterpret_cast<void*>(n_GetNumerator(n, currRing));
+  res->data = reinterpret_cast<void*>(n_GetNumerator(n, currRing->cf));
   return FALSE;
 }
 
@@ -3996,7 +3849,7 @@ static BOOLEAN jjDET_BI(leftv res, leftv v)
   }
   return FALSE;
 }
-#ifdef SINGULAR_4_1
+#ifdef SINGULAR_4_2
 static BOOLEAN jjDET_N2(leftv res, leftv v)
 {
   bigintmat * m=(bigintmat*)v->Data();
@@ -4010,9 +3863,11 @@ static BOOLEAN jjDET_N2(leftv res, leftv v)
   }
   else
   {
+    omFreeSize(r,sizeof(*r));
     Werror("det of %d x %d cmatrix",i,j);
     return TRUE;
   }
+  res->data=(void*)r;
   return FALSE;
 }
 #endif
@@ -4081,21 +3936,21 @@ static BOOLEAN jjDIM(leftv res, leftv v)
     }
     //Anne's Idea for std(4,2x) = 0 bug
     long dcurr = d;
-    for(i=0;i<IDELEMS(vv);i++)
+    for(unsigned ii=0;ii<(unsigned)IDELEMS(vv);ii++)
     {
-      if(vv->m[i] != NULL && !n_IsUnit(pGetCoeff(vv->m[i]),currRing->cf))
+      if(vv->m[ii] != NULL && !n_IsUnit(pGetCoeff(vv->m[ii]),currRing->cf))
       {
         ideal vc = idCopy(vv);
         poly c = pInit();
-        pSetCoeff0(c,nCopy(pGetCoeff(vv->m[i])));
+        pSetCoeff0(c,nCopy(pGetCoeff(vv->m[ii])));
         idInsertPoly(vc,c);
         idSkipZeroes(vc);
-        for(j = 0;j<IDELEMS(vc)-1;j++)
+        for(unsigned jj = 0;jj<(unsigned)IDELEMS(vc)-1;jj++)
         {
-          if((vc->m[j]!=NULL)
-          && (n_DivBy(pGetCoeff(vc->m[j]),pGetCoeff(c),currRing->cf)))
+          if((vc->m[jj]!=NULL)
+          && (n_DivBy(pGetCoeff(vc->m[jj]),pGetCoeff(c),currRing->cf)))
           {
-            pDelete(&vc->m[j]);
+            pDelete(&vc->m[jj]);
           }
         }
         idSkipZeroes(vc);
@@ -4615,6 +4470,10 @@ static BOOLEAN jjLU_DECOMP(leftv res, leftv v)
 }
 static BOOLEAN jjMEMORY(leftv res, leftv v)
 {
+  // clean out "_":
+  sLastPrinted.CleanUp();
+  memset(&sLastPrinted,0,sizeof(sleftv));
+  // collect all info:
   omUpdateInfo();
   switch(((int)(long)v->Data()))
   {
@@ -4747,7 +4606,7 @@ static BOOLEAN jjPAR1(leftv res, leftv v)
 static BOOLEAN jjPARDEG(leftv res, leftv v)
 {
   number nn=(number)v->Data();
-  res->data = (char *)(long)n_ParDeg(nn, currRing);
+  res->data = (char *)(long)n_ParDeg(nn, currRing->cf);
   return FALSE;
 }
 static BOOLEAN jjPARSTR1(leftv res, leftv v)
@@ -4855,8 +4714,7 @@ static BOOLEAN jjP2N(leftv res, leftv v)
 static BOOLEAN jjRESERVEDNAME(leftv res, leftv v)
 {
   char *s= (char *)v->Data();
-  int i = 1;
-  for(i=0; i<sArithBase.nCmdUsed; i++)
+  for(unsigned i=0; i<sArithBase.nCmdUsed; i++)
   {
     //Print("test %d, >>%s<<, tab:>>%s<<\n",i,s,sArithBase.sCmds[i].name);
     if (strcmp(s, sArithBase.sCmds[i].name) == 0)
@@ -5216,7 +5074,7 @@ static BOOLEAN jjTYPEOF(leftv res, leftv v)
     case INTMAT_CMD:
     case BIGINTMAT_CMD:
     case NUMBER_CMD:
-    #ifdef SINGULAR_4_1
+    #ifdef SINGULAR_4_2
     case CNUMBER_CMD:
     #endif
     case BIGINT_CMD:
@@ -5452,11 +5310,13 @@ static BOOLEAN jjidMinBase(leftv res, leftv v)
   res->data = (char *)idMinBase((ideal)v->Data());
   return FALSE;
 }
+#if 0 // unused
 static BOOLEAN jjsyMinBase(leftv res, leftv v)
 {
   res->data = (char *)syMinBase((ideal)v->Data());
   return FALSE;
 }
+#endif
 static BOOLEAN jjpMaxComp(leftv res, leftv v)
 {
   res->data = (char *)pMaxComp((poly)v->Data());
@@ -6362,11 +6222,11 @@ static BOOLEAN jjRANDOM_Im(leftv res, leftv u, leftv v, leftv w)
   res->data = (char *)iv;
   return FALSE;
 }
-#ifdef SINGULAR_4_1
+#ifdef SINGULAR_4_2
 static BOOLEAN jjRANDOM_CF(leftv res, leftv u, leftv v, leftv w)
 // <coeff>, par1, par2 -> number2
 {
-  coeffs cf=(coeffs)w->Data();
+  coeffs cf=(coeffs)u->Data();
   if ((cf==NULL) ||(cf->cfRandom==NULL))
   {
     Werror("no random function defined for coeff %d",cf->type);
@@ -7602,6 +7462,8 @@ static BOOLEAN jjREDUCE4(leftv res, leftv u)
   else
   {
     Werror("%s(`poly`,`ideal`,`int`,`intvec`) expected",Tok2Cmdname(iiOp));
+    Werror("%s(`ideal`,`matrix`,`ideal`,`int`) expected",Tok2Cmdname(iiOp));
+    Werror("%s(`poly`,`poly`,`ideal`,`int`) expected",Tok2Cmdname(iiOp));
     return TRUE;
   }
 }
@@ -7656,8 +7518,8 @@ static BOOLEAN jjREDUCE5(leftv res, leftv u)
 }
 static BOOLEAN jjRESERVED0(leftv, leftv)
 {
-  int i=1;
-  int nCount = (sArithBase.nCmdUsed-1)/3;
+  unsigned i=1;
+  unsigned nCount = (sArithBase.nCmdUsed-1)/3;
   if((3*nCount)<sArithBase.nCmdUsed) nCount++;
   //Print("CMDS: %d/%d\n", sArithBase.nCmdUsed,
   //      sArithBase.nCmdAllocated);
@@ -8021,7 +7883,7 @@ static BOOLEAN jjSTD_HILB_WP(leftv res, leftv INPUT)
 #ifdef SINGULAR_4_1
 static BOOLEAN jjRING_PL(leftv res, leftv a)
 {
-  Print("construct ring\n");
+  //Print("construct ring\n");
   if (a->Typ()!=CRING_CMD)
   {
     WerrorS("expected `Ring` [ `id` ... ]");
@@ -8116,45 +7978,46 @@ static BOOLEAN iiExprArith2TabIntern(leftv res, leftv a, int op, leftv b,
       while (dA2[i].cmd==op)
       {
         //Print("test %s %s\n",Tok2Cmdname(dA2[i].arg1),Tok2Cmdname(dA2[i].arg2));
-        if ((ai=iiTestConvert(at,dA2[i].arg1,dConvertTypes))!=0)
+        if ((dA2[i].valid_for & NO_CONVERSION)==0)
         {
-          if ((bi=iiTestConvert(bt,dA2[i].arg2,dConvertTypes))!=0)
+          if ((ai=iiTestConvert(at,dA2[i].arg1,dConvertTypes))!=0)
           {
-            res->rtyp=dA2[i].res;
-            if (currRing!=NULL)
+            if ((bi=iiTestConvert(bt,dA2[i].arg2,dConvertTypes))!=0)
             {
-              if (check_valid(dA2[i].valid_for,op)) break;
-            }
-            else
-            {
-              if (RingDependend(dA2[i].res))
+              res->rtyp=dA2[i].res;
+              if (currRing!=NULL)
               {
-                WerrorS("no ring active");
+                if (check_valid(dA2[i].valid_for,op)) break;
+              }
+              else
+              {
+                if (RingDependend(dA2[i].res))
+                {
+                  WerrorS("no ring active");
+                  break;
+                }
+              }
+              if (traceit&TRACE_CALL)
+                Print("call %s(%s,%s)\n",iiTwoOps(op),
+                Tok2Cmdname(dA2[i].arg1),Tok2Cmdname(dA2[i].arg2));
+              failed= ((iiConvert(at,dA2[i].arg1,ai,a,an))
+              || (iiConvert(bt,dA2[i].arg2,bi,b,bn))
+              || (call_failed=dA2[i].p(res,an,bn)));
+              // everything done, clean up temp. variables
+              if (failed)
+              {
+                // leave loop, goto error handling
                 break;
               }
-            }
-            if (traceit&TRACE_CALL)
-              Print("call %s(%s,%s)\n",iiTwoOps(op),
-              Tok2Cmdname(dA2[i].arg1),Tok2Cmdname(dA2[i].arg2));
-            failed= ((iiConvert(at,dA2[i].arg1,ai,a,an))
-            || (iiConvert(bt,dA2[i].arg2,bi,b,bn))
-            || (call_failed=dA2[i].p(res,an,bn)));
-            // everything done, clean up temp. variables
-            if (failed)
-            {
-              // leave loop, goto error handling
-              break;
-            }
-            else
-            {
-              // everything ok, clean up and return
-              an->CleanUp();
-              bn->CleanUp();
-              omFreeBin((ADDRESS)an, sleftv_bin);
-              omFreeBin((ADDRESS)bn, sleftv_bin);
-              a->CleanUp();
-              b->CleanUp();
-              return FALSE;
+              else
+              {
+                // everything ok, clean up and return
+                an->CleanUp();
+                bn->CleanUp();
+                omFreeBin((ADDRESS)an, sleftv_bin);
+                omFreeBin((ADDRESS)bn, sleftv_bin);
+                return FALSE;
+              }
             }
           }
         }
@@ -8213,10 +8076,10 @@ static BOOLEAN iiExprArith2TabIntern(leftv res, leftv a, int op, leftv b,
         }
       }
     }
+    a->CleanUp();
+    b->CleanUp();
     res->rtyp = UNKNOWN;
   }
-  a->CleanUp();
-  b->CleanUp();
   return TRUE;
 }
 BOOLEAN iiExprArith2Tab(leftv res, leftv a, int op,
@@ -8229,7 +8092,7 @@ BOOLEAN iiExprArith2Tab(leftv res, leftv a, int op,
   int bt=b->Typ();
   BOOLEAN bo=iiExprArith2TabIntern(res,a,op,b,TRUE,dA2,at,bt,dConvertTypes);
   a->next=b;
-  a->CleanUp();
+  a->CleanUp(); // to clean up the chain, content already done in iiExprArith2TabIntern
   return bo;
 }
 BOOLEAN iiExprArith2(leftv res, leftv a, int op, leftv b, BOOLEAN proccall)
@@ -8244,9 +8107,9 @@ BOOLEAN iiExprArith2(leftv res, leftv a, int op, leftv b, BOOLEAN proccall)
       //Print("siq:%d\n",siq);
       command d=(command)omAlloc0Bin(sip_command_bin);
       memcpy(&d->arg1,a,sizeof(sleftv));
-      //a->Init();
+      a->Init();
       memcpy(&d->arg2,b,sizeof(sleftv));
-      //b->Init();
+      b->Init();
       d->argc=2;
       d->op=op;
       res->data=(char *)d;
@@ -8344,43 +8207,46 @@ BOOLEAN iiExprArith1Tab(leftv res, leftv a, int op, const struct sValCmd1* dA1, 
       {
         int ai;
         //Print("test %s\n",Tok2Cmdname(dA1[i].arg));
-        if ((ai=iiTestConvert(at,dA1[i].arg,dConvertTypes))!=0)
+        if ((dA1[i].valid_for & NO_CONVERSION)==0)
         {
-          if (currRing!=NULL)
+          if ((ai=iiTestConvert(at,dA1[i].arg,dConvertTypes))!=0)
           {
-            if (check_valid(dA1[i].valid_for,op)) break;
-          }
-          else
-          {
-            if (RingDependend(dA1[i].res))
+            if (currRing!=NULL)
             {
-              WerrorS("no ring active");
+              if (check_valid(dA1[i].valid_for,op)) break;
+            }
+            else
+            {
+              if (RingDependend(dA1[i].res))
+              {
+                WerrorS("no ring active");
+                break;
+              }
+            }
+            if (traceit&TRACE_CALL)
+              Print("call %s(%s)\n",iiTwoOps(op),Tok2Cmdname(dA1[i].arg));
+            res->rtyp=dA1[i].res;
+            failed= ((iiConvert(at,dA1[i].arg,ai,a,an,dConvertTypes))
+            || (call_failed=dA1[i].p(res,an)));
+            // everything done, clean up temp. variables
+            if (failed)
+            {
+              // leave loop, goto error handling
               break;
             }
-          }
-          if (traceit&TRACE_CALL)
-            Print("call %s(%s)\n",iiTwoOps(op),Tok2Cmdname(dA1[i].arg));
-          res->rtyp=dA1[i].res;
-          failed= ((iiConvert(at,dA1[i].arg,ai,a,an,dConvertTypes))
-          || (call_failed=dA1[i].p(res,an)));
-          // everything done, clean up temp. variables
-          if (failed)
-          {
-            // leave loop, goto error handling
-            break;
-          }
-          else
-          {
-            if (an->Next() != NULL)
+            else
             {
-              res->next = (leftv)omAllocBin(sleftv_bin);
-              failed=iiExprArith1(res->next,an->next,op);
+              if (an->Next() != NULL)
+              {
+                res->next = (leftv)omAllocBin(sleftv_bin);
+                failed=iiExprArith1(res->next,an->next,op);
+              }
+              // everything ok, clean up and return
+              an->CleanUp();
+              omFreeBin((ADDRESS)an, sleftv_bin);
+              a->CleanUp();
+              return failed;
             }
-            // everything ok, clean up and return
-            an->CleanUp();
-            omFreeBin((ADDRESS)an, sleftv_bin);
-            a->CleanUp();
-            return failed;
           }
         }
         i++;
@@ -8431,7 +8297,7 @@ BOOLEAN iiExprArith1(leftv res, leftv a, int op)
       //Print("siq:%d\n",siq);
       command d=(command)omAlloc0Bin(sip_command_bin);
       memcpy(&d->arg1,a,sizeof(sleftv));
-      //a->Init();
+      a->Init();
       d->op=op;
       d->argc=1;
       res->data=(char *)d;
@@ -8527,45 +8393,48 @@ static BOOLEAN iiExprArith3TabIntern(leftv res, int op, leftv a, leftv b, leftv 
       //while ((dA3[i].cmd!=op)&&(dA3[i].cmd!=0)) i++;
       while (dA3[i].cmd==op)
       {
-        if ((ai=iiTestConvert(at,dA3[i].arg1,dConvertTypes))!=0)
+        if ((dA3[i].valid_for & NO_CONVERSION)==0)
         {
-          if ((bi=iiTestConvert(bt,dA3[i].arg2,dConvertTypes))!=0)
+          if ((ai=iiTestConvert(at,dA3[i].arg1,dConvertTypes))!=0)
           {
-            if ((ci=iiTestConvert(ct,dA3[i].arg3,dConvertTypes))!=0)
+            if ((bi=iiTestConvert(bt,dA3[i].arg2,dConvertTypes))!=0)
             {
-              res->rtyp=dA3[i].res;
-              if (currRing!=NULL)
+              if ((ci=iiTestConvert(ct,dA3[i].arg3,dConvertTypes))!=0)
               {
-                if (check_valid(dA3[i].valid_for,op)) break;
-              }
-              if (traceit&TRACE_CALL)
-                Print("call %s(%s,%s,%s)\n",
-                  iiTwoOps(op),Tok2Cmdname(dA3[i].arg1),
-                  Tok2Cmdname(dA3[i].arg2),Tok2Cmdname(dA3[i].arg3));
-              failed= ((iiConvert(at,dA3[i].arg1,ai,a,an,dConvertTypes))
-                || (iiConvert(bt,dA3[i].arg2,bi,b,bn,dConvertTypes))
-                || (iiConvert(ct,dA3[i].arg3,ci,c,cn,dConvertTypes))
-                || (call_failed=dA3[i].p(res,an,bn,cn)));
-              // everything done, clean up temp. variables
-              if (failed)
-              {
-                // leave loop, goto error handling
-                break;
-              }
-              else
-              {
-                // everything ok, clean up and return
-                an->CleanUp();
-                bn->CleanUp();
-                cn->CleanUp();
-                omFreeBin((ADDRESS)an, sleftv_bin);
-                omFreeBin((ADDRESS)bn, sleftv_bin);
-                omFreeBin((ADDRESS)cn, sleftv_bin);
-                a->CleanUp();
-                b->CleanUp();
-                c->CleanUp();
-        //Print("op: %d,result typ:%d\n",op,res->rtyp);
-                return FALSE;
+                res->rtyp=dA3[i].res;
+                if (currRing!=NULL)
+                {
+                  if (check_valid(dA3[i].valid_for,op)) break;
+                }
+                if (traceit&TRACE_CALL)
+                  Print("call %s(%s,%s,%s)\n",
+                    iiTwoOps(op),Tok2Cmdname(dA3[i].arg1),
+                    Tok2Cmdname(dA3[i].arg2),Tok2Cmdname(dA3[i].arg3));
+                failed= ((iiConvert(at,dA3[i].arg1,ai,a,an,dConvertTypes))
+                  || (iiConvert(bt,dA3[i].arg2,bi,b,bn,dConvertTypes))
+                  || (iiConvert(ct,dA3[i].arg3,ci,c,cn,dConvertTypes))
+                  || (call_failed=dA3[i].p(res,an,bn,cn)));
+                // everything done, clean up temp. variables
+                if (failed)
+                {
+                  // leave loop, goto error handling
+                  break;
+                }
+                else
+                {
+                  // everything ok, clean up and return
+                  an->CleanUp();
+                  bn->CleanUp();
+                  cn->CleanUp();
+                  omFreeBin((ADDRESS)an, sleftv_bin);
+                  omFreeBin((ADDRESS)bn, sleftv_bin);
+                  omFreeBin((ADDRESS)cn, sleftv_bin);
+                  //Print("op: %d,result typ:%d\n",op,res->rtyp);
+                  a->CleanUp();
+                  b->CleanUp();
+                  c->CleanUp();
+                  return FALSE;
+                }
               }
             }
           }
@@ -8628,7 +8497,7 @@ static BOOLEAN iiExprArith3TabIntern(leftv res, int op, leftv a, leftv b, leftv 
   a->CleanUp();
   b->CleanUp();
   c->CleanUp();
-        //Print("op: %d,result typ:%d\n",op,res->rtyp);
+  //Print("op: %d,result typ:%d\n",op,res->rtyp);
   return TRUE;
 }
 BOOLEAN iiExprArith3(leftv res, int op, leftv a, leftv b, leftv c)
@@ -8643,11 +8512,11 @@ BOOLEAN iiExprArith3(leftv res, int op, leftv a, leftv b, leftv c)
       //Print("siq:%d\n",siq);
       command d=(command)omAlloc0Bin(sip_command_bin);
       memcpy(&d->arg1,a,sizeof(sleftv));
-      //a->Init();
+      a->Init();
       memcpy(&d->arg2,b,sizeof(sleftv));
-      //b->Init();
+      b->Init();
       memcpy(&d->arg3,c,sizeof(sleftv));
-      //c->Init();
+      c->Init();
       d->op=op;
       d->argc=3;
       res->data=(char *)d;
@@ -8680,7 +8549,7 @@ BOOLEAN iiExprArith3(leftv res, int op, leftv a, leftv b, leftv c)
   a->CleanUp();
   b->CleanUp();
   c->CleanUp();
-        //Print("op: %d,result typ:%d\n",op,res->rtyp);
+  //Print("op: %d,result typ:%d\n",op,res->rtyp);
   return TRUE;
 }
 BOOLEAN iiExprArith3Tab(leftv res, leftv a, int op,
@@ -8697,13 +8566,14 @@ BOOLEAN iiExprArith3Tab(leftv res, leftv a, int op,
   BOOLEAN bo=iiExprArith3TabIntern(res,op,a,b,c,dA3,at,bt,ct,dConvertTypes);
   b->next=c;
   a->next=b;
-  a->CleanUp();
+  a->CleanUp(); // to cleanup the chain, content already done
   return bo;
 }
 /*==================== operations with many arg. ===============================*/
 /* must be ordered: first operations for chars (infix ops),
  * then alphabetically */
 
+#if 0 // unused
 static BOOLEAN jjANY2LIST(leftv res, leftv v, int cnt)
 {
   // cnt = 0: all
@@ -8718,6 +8588,7 @@ static BOOLEAN jjANY2LIST(leftv res, leftv v, int cnt)
   v->next = next;             // writeback next-pointer
   return failed;
 }
+#endif
 
 BOOLEAN iiExprArithM(leftv res, leftv a, int op)
 {
@@ -8965,11 +8836,8 @@ const char * Tok2Cmdname(int tok)
   //if (tok==OBJECT) return "object";
   //if (tok==PRINT_EXPR) return "print_expr";
   if (tok==IDHDL) return "identifier";
-  #ifdef SINGULAR_4_1
-  //if (tok==CRING_CMD) return "Ring";
-  #endif
   if (tok>MAX_TOK) return getBlackboxName(tok);
-  int i;
+  unsigned i;
   for(i=0; i<sArithBase.nCmdUsed; i++)
     //while (sArithBase.sCmds[i].tokval!=0)
   {
@@ -9136,7 +9004,7 @@ int iiArithFindCmd(const char *szName)
 char *iiArithGetCmd( int nPos )
 {
   if(nPos<0) return NULL;
-  if(nPos<sArithBase.nCmdUsed)
+  if(nPos<(int)sArithBase.nCmdUsed)
     return sArithBase.sCmds[nPos].name;
   return NULL;
 }
@@ -9147,7 +9015,7 @@ int iiArithRemoveCmd(const char *szName)
   if(szName==NULL) return -1;
 
   nIndex = iiArithFindCmd(szName);
-  if(nIndex<0 || nIndex>=sArithBase.nCmdUsed)
+  if(nIndex<0 || nIndex>=(int)sArithBase.nCmdUsed)
   {
     Print("'%s' not found (%d)\n", szName, nIndex);
     return -1;
@@ -9181,7 +9049,7 @@ int iiArithAddCmd(
   if(nPos>=0)
   {
     // no checks: we rely on a correct generated code in iparith.inc
-    assume(nPos < sArithBase.nCmdAllocated);
+    assume((unsigned)nPos < sArithBase.nCmdAllocated);
     assume(szName!=NULL);
     sArithBase.sCmds[nPos].name    = omStrDup(szName);
     sArithBase.sCmds[nPos].alias   = nAlias;
@@ -9264,6 +9132,269 @@ static BOOLEAN check_valid(const int p, const int op)
     {
       WarnS("considering the image in Q[...]");
     }
+  }
+  return FALSE;
+}
+// --------------------------------------------------------------------
+static BOOLEAN jjCHINREM_ID(leftv res, leftv u, leftv v)
+{
+  coeffs cf;
+  lists c=(lists)u->CopyD(); // list of ideal or bigint/int
+  int rl=c->nr+1;
+  int return_type=c->m[0].Typ();
+  if ((return_type!=IDEAL_CMD)
+  && (return_type!=MODUL_CMD)
+  && (return_type!=MATRIX_CMD)
+  && (return_type!=POLY_CMD))
+  {
+    if((return_type==BIGINT_CMD)
+    ||(return_type==INT_CMD))
+      return_type=BIGINT_CMD;
+    else if (return_type==LIST_CMD)
+    {
+      // create a tmp list of the correct size
+      lists res_l=(lists)omAllocBin(slists_bin);
+      res_l->Init(rl /*c->nr+1*/);
+      BOOLEAN bo=FALSE;
+      int tab_pos=iiTabIndex(dArithTab2,JJTAB2LEN,CHINREM_CMD);
+      for (unsigned i=0;i<=(unsigned)c->nr;i++)
+      {
+        sleftv tmp;
+        tmp.Copy(v);
+        bo=iiExprArith2TabIntern(&res_l->m[i],&c->m[i],CHINREM_CMD,&tmp,TRUE,dArith2+tab_pos,c->m[i].rtyp,tmp.rtyp,dConvertTypes);
+        if (bo) { Werror("chinrem failed for list entry %d",i+1); break;}
+      }
+      c->Clean();
+      res->data=res_l;
+      res->rtyp=LIST_CMD;
+      return bo;
+    }
+    else
+    {
+      c->Clean();
+      WerrorS("poly/ideal/module/matrix/list expected");
+      return TRUE;
+    }
+  }
+  if (return_type==BIGINT_CMD)
+    cf=coeffs_BIGINT;
+  else
+  {
+    cf=currRing->cf;
+    if (nCoeff_is_Extension(cf) && (cf->extRing!=NULL))
+      cf=cf->extRing->cf;
+  }
+  lists pl=NULL;
+  intvec *p=NULL;
+  if (v->Typ()==LIST_CMD) pl=(lists)v->Data();
+  else                    p=(intvec*)v->Data();
+  ideal result;
+  ideal *x=(ideal *)omAlloc(rl*sizeof(ideal));
+  number *xx=NULL;
+  nMapFunc nMap=n_SetMap(coeffs_BIGINT,cf);
+  int i;
+  if (return_type!=BIGINT_CMD)
+  {
+    for(i=rl-1;i>=0;i--)
+    {
+      if (c->m[i].Typ()!=return_type)
+      {
+        Werror("%s expected at pos %d",Tok2Cmdname(return_type),i+1);
+        omFree(x); // delete c
+        return TRUE;
+      }
+      if (return_type==POLY_CMD)
+      {
+        x[i]=idInit(1,1);
+        x[i]->m[0]=(poly)c->m[i].CopyD();
+      }
+      else
+      {
+        x[i]=(ideal)c->m[i].CopyD();
+      }
+      //c->m[i].Init();
+    }
+  }
+  else
+  {
+    if (nMap==NULL)
+    {
+      Werror("not implemented: map bigint -> %s", nCoeffString(cf));
+      return TRUE;
+    }
+    xx=(number *)omAlloc(rl*sizeof(number));
+    for(i=rl-1;i>=0;i--)
+    {
+      if (c->m[i].Typ()==INT_CMD)
+      {
+        xx[i]=n_Init(((int)(long)c->m[i].Data()),cf);
+      }
+      else if (c->m[i].Typ()==BIGINT_CMD)
+      {
+        xx[i]=nMap((number)c->m[i].Data(),coeffs_BIGINT,cf);
+      }
+      else
+      {
+        Werror("bigint expected at pos %d",i+1);
+        omFree(x); // delete c
+        omFree(xx); // delete c
+        return TRUE;
+      }
+    }
+  }
+  number *q=(number *)omAlloc(rl*sizeof(number));
+  if (p!=NULL)
+  {
+    for(i=rl-1;i>=0;i--)
+    {
+      q[i]=n_Init((*p)[i], cf);
+    }
+  }
+  else
+  {
+    for(i=rl-1;i>=0;i--)
+    {
+      if (pl->m[i].Typ()==INT_CMD)
+      {
+        q[i]=n_Init((int)(long)pl->m[i].Data(),cf);
+      }
+      else if (pl->m[i].Typ()==BIGINT_CMD)
+      {
+        q[i]=nMap((number)(pl->m[i].Data()),coeffs_BIGINT,cf);
+      }
+      else
+      {
+        Werror("bigint expected at pos %d",i+1);
+        for(i++;i<rl;i++)
+        {
+          n_Delete(&(q[i]),cf);
+        }
+        omFree(x); // delete c
+        omFree(q); // delete pl
+        if (xx!=NULL) omFree(xx); // delete c
+        return TRUE;
+      }
+    }
+  }
+  if (return_type==BIGINT_CMD)
+  {
+    CFArray i_v(rl);
+    number n=n_ChineseRemainderSym(xx,q,rl,TRUE,i_v,coeffs_BIGINT);
+    res->data=(char *)n;
+  }
+  else
+  {
+    result=id_ChineseRemainder(x,q,rl,currRing); // deletes also x
+    c->Clean();
+    if ((return_type==POLY_CMD) &&(result!=NULL))
+    {
+      res->data=(char *)result->m[0];
+      result->m[0]=NULL;
+      idDelete(&result);
+    }
+    else
+      res->data=(char *)result;
+  }
+  for(i=rl-1;i>=0;i--)
+  {
+    n_Delete(&(q[i]),cf);
+  }
+  omFree(q);
+  res->rtyp=return_type;
+  return result==NULL;
+}
+static BOOLEAN jjFAREY_LI(leftv res, leftv u, leftv v)
+{
+  lists c=(lists)u->CopyD();
+  lists res_l=(lists)omAllocBin(slists_bin);
+  res_l->Init(c->nr+1);
+  BOOLEAN bo=FALSE;
+  int tab_pos=iiTabIndex(dArithTab2,JJTAB2LEN,FAREY_CMD);
+  for (unsigned i=0;i<=(unsigned)c->nr;i++)
+  {
+    sleftv tmp;
+    tmp.Copy(v);
+    bo=iiExprArith2TabIntern(&res_l->m[i],&c->m[i],FAREY_CMD,&tmp,TRUE,dArith2+tab_pos,c->m[i].rtyp,tmp.rtyp,dConvertTypes);
+    if (bo) { Werror("farey failed for list entry %d",i+1); break;}
+  }
+  c->Clean();
+  res->data=res_l;
+  return bo;
+}
+// --------------------------------------------------------------------
+static int jjCOMPARE_ALL(const void * aa, const void * bb)
+{
+  leftv a=(leftv)aa;
+  int at=a->Typ();
+  leftv b=(leftv)bb;
+  int bt=b->Typ();;
+  if (at < bt) return -1;
+  if (at > bt) return 1;
+  int tab_pos=iiTabIndex(dArithTab2,JJTAB2LEN,'<');
+  sleftv tmp;
+  memset(&tmp,0,sizeof(sleftv));
+  iiOp='<';
+  BOOLEAN bo=iiExprArith2TabIntern(&tmp,a,'<',b,FALSE,dArith2+tab_pos,at,bt,dConvertTypes);
+  if (bo)
+  {
+    Werror(" no `<` for %s",Tok2Cmdname(at));
+    unsigned long ad=(unsigned long)a->Data();
+    unsigned long bd=(unsigned long)b->Data();
+    if (ad<bd) return -1;
+    else if (ad==bd) return 0;
+    else return 1;
+  }
+  else if (tmp.data==NULL) /* not < */
+  {
+    iiOp=EQUAL_EQUAL;
+    tab_pos=iiTabIndex(dArithTab2,JJTAB2LEN,EQUAL_EQUAL);
+    bo=iiExprArith2TabIntern(&tmp,a,EQUAL_EQUAL,b,FALSE,dArith2+tab_pos,at,bt,dConvertTypes);
+    if (bo)
+    {
+      Werror(" no `==` for %s",Tok2Cmdname(at));
+      unsigned long ad=(unsigned long)a->Data();
+      unsigned long bd=(unsigned long)b->Data();
+      if (ad<bd) return -1;
+      else if (ad==bd) return 0;
+      else return 1;
+    }
+    else if (tmp.data==NULL) /* not <,== */ return 1;
+    else return 0;
+  }
+  else return -1;
+}
+BOOLEAN jjSORTLIST(leftv, leftv arg)
+{
+  lists l=(lists)arg->Data();
+  if (l->nr>0)
+  {
+    qsort(l->m,l->nr+1,sizeof(sleftv),jjCOMPARE_ALL);
+  }
+  return FALSE;
+}
+BOOLEAN jjUNIQLIST(leftv, leftv arg)
+{
+  lists l=(lists)arg->Data();
+  if (l->nr>0)
+  {
+    qsort(l->m,l->nr+1,sizeof(sleftv),jjCOMPARE_ALL);
+    int i, j, len;
+    len=l->nr;
+    i=0;
+    while(i<len)
+    {
+      if(jjCOMPARE_ALL(&(l->m[i]),&(l->m[i+1]))==0)
+      {
+        l->m[i].CleanUp();
+        for(j=i; j<len;j++) l->m[j]=l->m[j+1];
+        memset(&(l->m[len]),0,sizeof(sleftv));
+        l->m[len].rtyp=DEF_CMD;
+        len--;
+      }
+      else
+        i++;
+    }
+    //Print("new len:%d\n",len);
   }
   return FALSE;
 }

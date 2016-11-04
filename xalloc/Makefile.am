@@ -18,6 +18,7 @@ libomalloc_la_CPPFLAGS  = ${AM_CPPFLAGS}
 
 omTables_CPPFLAGS = ${AM_CPPFLAGS}
 
-CLEANFILES = $(BUILT_SOURCES)
-DISTCLEANFILES = omConfig.h
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = omalloc.pc
 
+CLEANFILES = $(BUILT_SOURCES)

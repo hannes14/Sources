@@ -467,24 +467,28 @@ number npConvFactoryNSingN( const CanonicalForm n, const coeffs r)
   }
 }
 
-static char* npCoeffString(const coeffs r)
+static char* npCoeffName(const coeffs cf)
 {
+  static char npCoeffName_buf[15];
 #ifdef SINGULAR_4_1
-  char *s=(char*)omAlloc(14);
-  snprintf(s,14,"ZZ/%d",r->ch);
+  snprintf(npCoeffName_buf,14,"ZZ/%d",cf->ch);
 #else
-  char *s=(char*)omAlloc(11);
-  snprintf(s,11,"%d",r->ch);
+  snprintf(npCoeffName_buf,11,"%d",cf->ch);
 #endif
-  return s;
+  return npCoeffName_buf;
 }
 
-static void npWriteFd(number n, FILE* f, const coeffs r)
+static char* npCoeffString(const coeffs cf)
+{
+  return omStrDup(npCoeffName(cf));
+}
+
+static void npWriteFd(number n, FILE* f, const coeffs)
 {
   fprintf(f,"%d ",(int)(long)n);
 }
 
-static number npReadFd(s_buff f, const coeffs r)
+static number npReadFd(s_buff f, const coeffs)
 {
   // read int
   int dd;
@@ -517,6 +521,8 @@ BOOLEAN npInitChar(coeffs r, void* p)
   r->cfKillChar=npKillChar;
   r->nCoeffIsEqual=npCoeffsEqual;
   r->cfCoeffString=npCoeffString;
+  r->cfCoeffName=npCoeffName;
+  r->cfCoeffWrite=npCoeffWrite;
 
   r->cfMult  = npMult;
   r->cfSub   = npSub;
@@ -567,7 +573,6 @@ BOOLEAN npInitChar(coeffs r, void* p)
 
   r->cfRandom = npRandom;
 #endif
-  r->cfCoeffWrite=npCoeffWrite;
 #ifdef LDEBUG
   // debug stuff
   r->cfDBTest=npDBTest;

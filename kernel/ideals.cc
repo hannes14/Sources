@@ -1448,12 +1448,12 @@ ideal idElimination (ideal h1,poly delVar,intvec *hilb)
       if (pGetExp(delVar,j+1)!=0) wv[0][j]=1;
     BOOLEAN wp=FALSE;
     for (j=0;j<rVar(origR);j++)
-      if (pWeight(j+1,origR)!=1) { wp=TRUE;break; }
+      if (p_Weight(j+1,origR)!=1) { wp=TRUE;break; }
     if (wp)
     {
       wv[1]=(int*)omAlloc0((rVar(origR) + 1)*sizeof(int));
       for (j=0;j<rVar(origR);j++)
-        wv[1][j]=pWeight(j+1,origR);
+        wv[1][j]=p_Weight(j+1,origR);
       ord[1] = ringorder_wp;
     }
     else
@@ -2540,42 +2540,6 @@ void idKeepFirstK(ideal id, const int k)
    IDELEMS(id) = kk;
 }
 
-/*
-* compare the leading terms of a and b
-*/
-static int tCompare(const poly a, const poly b)
-{
-  if (b == NULL) return(a != NULL);
-  if (a == NULL) return(-1);
-
-  /* a != NULL && b != NULL */
-  int r = pLmCmp(a, b);
-  if (r != 0) return(r);
-  number h = nSub(pGetCoeff(a), pGetCoeff(b));
-  r = -1 + nIsZero(h) + 2*nGreaterZero(h);   /* -1: <, 0:==, 1: > */
-  nDelete(&h);
-  return(r);
-}
-
-/*
-* compare a and b (rev-lex on terms)
-*/
-static int pCompare(const poly a, const poly b)
-{
-  int r = tCompare(a, b);
-  if (r != 0) return(r);
-
-  poly aa = a;
-  poly bb = b;
-  while (r == 0 && aa != NULL && bb != NULL)
-  {
-    pIter(aa);
-    pIter(bb);
-    r = tCompare(aa, bb);
-  }
-  return(r);
-}
-
 typedef struct
 {
   poly p;
@@ -2584,8 +2548,7 @@ typedef struct
 
 int pCompare_qsort(const void *a, const void *b)
 {
-  int res = pCompare(((poly_sort *)a)->p, ((poly_sort *)b)->p);
-  return(res);
+  return (p_Compare(((poly_sort *)a)->p, ((poly_sort *)b)->p,currRing));
 }
 
 void idSort_qsort(poly_sort *id_sort, int idsize)

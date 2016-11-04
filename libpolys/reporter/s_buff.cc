@@ -25,7 +25,7 @@
 
 //typedef struct s_buff_s * s_buff;
 
-#define S_BUFF_LEN 4096
+#define S_BUFF_LEN (4096-SIZEOF_LONG)
 
 s_buff s_open(int fd)
 {
@@ -41,22 +41,14 @@ s_buff s_open_by_name(const char *n)
   return s_open(fd);
 }
 
-int    s_free(s_buff &F)
-{
-  if (F!=NULL)
-  {
-    omFreeSize(F->buff,S_BUFF_LEN);
-    omFreeSize(F,sizeof(*F));
-    F=NULL;
-  }
-  return 0;
-}
-
 int    s_close(s_buff &F)
 {
   if (F!=NULL)
   {
     int r=close(F->fd);
+    omFreeSize(F->buff,S_BUFF_LEN);
+    omFreeSize(F,sizeof(*F));
+    F=NULL;
     return r;
   }
   return 0;

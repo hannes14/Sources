@@ -467,14 +467,16 @@ static number nlMapLongR(number from, const coeffs src, const coeffs dst)
 #endif
   dest = res->z;
 
+  void* (*allocfunc) (size_t);
+  mp_get_memory_functions (&allocfunc,NULL, NULL);
   if (e<0)
   {
     al = dest->_mp_size = size;
     if (al<2) al = 2;
-    dd = (mp_ptr)omAlloc(sizeof(mp_limb_t)*al);
+    dd = (mp_ptr)allocfunc(sizeof(mp_limb_t)*al);
     for (i=0;i<size;i++) dd[i] = qp[i];
     bl = 1-e;
-    nn = (mp_ptr)omAlloc0(sizeof(mp_limb_t)*bl);
+    nn = (mp_ptr)allocfunc(sizeof(mp_limb_t)*bl);
     nn[bl-1] = 1;
     ndest = res->n;
     ndest->_mp_d = nn;
@@ -485,7 +487,7 @@ static number nlMapLongR(number from, const coeffs src, const coeffs dst)
   {
     al = dest->_mp_size = size+e;
     if (al<2) al = 2;
-    dd = (mp_ptr)omAlloc(sizeof(mp_limb_t)*al);
+    dd = (mp_ptr)allocfunc(sizeof(mp_limb_t)*al);
     for (i=0;i<size;i++) dd[i+e] = qp[i];
     for (i=0;i<e;i++) dd[i] = 0;
     res->s = 3;
@@ -576,7 +578,7 @@ int nlSize(number a, const coeffs)
   if (a==INT_TO_SR(0))
      return 0; /* rational 0*/
   if (SR_HDL(a) & SR_INT)
-     return 1; /* immidiate int */
+     return 1; /* immediate int */
   int s=a->z[0]._mp_alloc;
 //  while ((s>0) &&(a->z._mp_d[s]==0L)) s--;
 //#if SIZEOF_LONG == 8
@@ -948,7 +950,7 @@ int nlDivComp(number a, number b, const coeffs r)
   return 0;
 }
 
-number  nlGetUnit (number n, const coeffs r)
+number  nlGetUnit (number, const coeffs)
 {
   return INT_TO_SR(1);
 }
@@ -1420,7 +1422,7 @@ number nlNormalizeHelper(number a, number b, const coeffs r)
 
 // Map q \in QQ or ZZ \to Zp or an extension of it
 // src = Q or Z, dst = Zp (or an extension of Zp)
-number nlModP(number q, const coeffs Q, const coeffs Zp)
+number nlModP(number q, const coeffs /*Q*/, const coeffs Zp)
 {
   const int p = n_GetChar(Zp);
   assume( p > 0 );
@@ -1702,8 +1704,8 @@ number _nlAdd_aNoImm_OR_bNoImm(number a, number b)
           return INT_TO_SR(1);
         }
         mpz_init_set(u->n,b->n);
+        u->s = 0;
         if (GCD_NORM_COND(b,u)) { nlNormalize_Gcd(u); }
-        else u->s = 0;
         break;
       }
       case 3:
@@ -1753,8 +1755,8 @@ number _nlAdd_aNoImm_OR_bNoImm(number a, number b)
                FREE_RNUMBER(u);
                return INT_TO_SR(1);
             }
+            u->s = 0;
             if (GCD_NORM_COND(b,u)) { nlNormalize_Gcd(u); }
-            else u->s = 0;
             break;
           }
           case 3: /* a:1 b:3 */
@@ -1774,8 +1776,8 @@ number _nlAdd_aNoImm_OR_bNoImm(number a, number b)
               return INT_TO_SR(1);
             }
             mpz_init_set(u->n,a->n);
+            u->s = 0;
             if (GCD_NORM_COND(a,u)) { nlNormalize_Gcd(u); }
-            else u->s = 0;
             break;
           }
         } /*switch (b->s) */
@@ -1803,8 +1805,8 @@ number _nlAdd_aNoImm_OR_bNoImm(number a, number b)
               return INT_TO_SR(1);
             }
             mpz_init_set(u->n,b->n);
+            u->s = 0;
             if (GCD_NORM_COND(b,u)) { nlNormalize_Gcd(u); }
-            else u->s = 0;
             break;
           }
           case 3:
@@ -1872,8 +1874,9 @@ void _nlInpAdd_aNoImm_OR_bNoImm(number &a, number b)
         mpz_clear(x);
         // result cannot be 0, if coeffs are normalized
         mpz_init_set(u->n,b->n);
+        u->s=0;
         if (GCD_NORM_COND(b,u)) { nlNormalize_Gcd(u); }
-        else { u->s = 0; u=nlShort1(u); }
+        else { u=nlShort1(u); }
         break;
       }
       case 3:
@@ -1912,8 +1915,9 @@ void _nlInpAdd_aNoImm_OR_bNoImm(number &a, number b)
             mpz_clear(x);
             mpz_clear(y);
             mpz_mul(a->n,a->n,b->n);
+            a->s=0;
             if (GCD_NORM_COND(b,a)) { nlNormalize_Gcd(a); }
-            else { a->s = 0;a=nlShort1(a);}
+            else { a=nlShort1(a);}
             break;
           }
           case 3: /* a:1 b:3 */
@@ -1923,8 +1927,9 @@ void _nlInpAdd_aNoImm_OR_bNoImm(number &a, number b)
             mpz_mul(x,b->z,a->n);
             mpz_add(a->z,a->z,x);
             mpz_clear(x);
+            a->s=0;
             if (GCD_NORM_COND(b,a)) { nlNormalize_Gcd(a); }
-            else { a->s = 0; a=nlShort1(a);}
+            else { a=nlShort1(a);}
             break;
           }
         } /*switch (b->s) */
@@ -1943,8 +1948,9 @@ void _nlInpAdd_aNoImm_OR_bNoImm(number &a, number b)
             mpz_add(a->z,b->z,x);
             mpz_clear(x);
             mpz_init_set(a->n,b->n);
+            a->s=0;
             if (GCD_NORM_COND(b,a)) { nlNormalize_Gcd(a); }
-            else { a->s = 0; a=nlShort1(a);}
+            else { a=nlShort1(a);}
             break;
           }
           case 3:
@@ -1993,8 +1999,8 @@ number _nlSub_aNoImm_OR_bNoImm(number a, number b)
           return INT_TO_SR(1);
         }
         mpz_init_set(u->n,b->n);
+        u->s=0;
         if (GCD_NORM_COND(b,u)) { nlNormalize_Gcd(u); }
-        else u->s = 0;
         break;
       }
       case 3:
@@ -2040,8 +2046,8 @@ number _nlSub_aNoImm_OR_bNoImm(number a, number b)
           return INT_TO_SR(1);
         }
         mpz_init_set(u->n,a->n);
+        u->s=0;
         if (GCD_NORM_COND(a,u)) { nlNormalize_Gcd(u); }
-        else u->s = 0;
         break;
       }
       case 3:
@@ -2096,8 +2102,8 @@ number _nlSub_aNoImm_OR_bNoImm(number a, number b)
               FREE_RNUMBER(u);
               return INT_TO_SR(1);
             }
+            u->s=0;
             if (GCD_NORM_COND(a,u)) { nlNormalize_Gcd(u); }
-            else u->s = 0;
             break;
           }
           case 3: /* a:1, b:3 */
@@ -2120,8 +2126,8 @@ number _nlSub_aNoImm_OR_bNoImm(number a, number b)
               return INT_TO_SR(1);
             }
             mpz_init_set(u->n,a->n);
+            u->s=0;
             if (GCD_NORM_COND(a,u)) { nlNormalize_Gcd(u); }
-            else u->s = 0;
             break;
           }
         }
@@ -2152,8 +2158,8 @@ number _nlSub_aNoImm_OR_bNoImm(number a, number b)
               return INT_TO_SR(1);
             }
             mpz_init_set(u->n,b->n);
+            u->s=0;
             if (GCD_NORM_COND(b,u)) { nlNormalize_Gcd(u); }
-            else u->s = 0;
             break;
           }
           case 3: /* a:3 , b:3 */
@@ -2293,7 +2299,7 @@ number _nlMult_aNoImm_OR_bNoImm(number a, number b)
 /*2
 * copy a to b for mapping
 */
-number nlCopyMap(number a, const coeffs src, const coeffs dst)
+number nlCopyMap(number a, const coeffs /*src*/, const coeffs /*dst*/)
 {
   if ((SR_HDL(a) & SR_INT)||(a==NULL))
   {
@@ -2302,7 +2308,7 @@ number nlCopyMap(number a, const coeffs src, const coeffs dst)
   return _nlCopy_NoImm(a);
 }
 
-nMapFunc nlSetMap(const coeffs src, const coeffs dst)
+nMapFunc nlSetMap(const coeffs src, const coeffs /*dst*/)
 {
   if (src->rep==n_rep_gap_rat)  /*Q, coeffs_BIGINT */
   {

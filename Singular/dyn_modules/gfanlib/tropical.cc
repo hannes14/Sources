@@ -302,12 +302,12 @@ gfan::ZCone maximalGroebnerCone(const ideal &I, const ring &r)
     g = (poly) I->m[i];
     if (g != NULL && pNext(g) != NULL)
     {
-      pGetExpV(g,leadexpv);
+      p_GetExpV(g,leadexpv,r);
       leadexpw = intStar2ZVector(n, leadexpv);
       pIter(g);
       while (g != NULL)
       {
-        pGetExpV(g,tailexpv);
+        p_GetExpV(g,tailexpv,r);
         tailexpw = intStar2ZVector(n, tailexpv);
         inequalities.appendRow(leadexpw-tailexpw);
         pIter(g);
@@ -440,51 +440,14 @@ BOOLEAN initial(leftv res, leftv args)
 
 void tropical_setup(SModulFunctions* p)
 {
-  p->iiAddCproc("","groebnerCone",FALSE,groebnerCone);
-  p->iiAddCproc("","maximalGroebnerCone",FALSE,maximalGroebnerCone);
-  p->iiAddCproc("","homogeneitySpace",FALSE,homogeneitySpace);
-  p->iiAddCproc("","lowerHomogeneitySpace",FALSE,lowerHomogeneitySpace);
-  p->iiAddCproc("","initial",FALSE,initial);
-  p->iiAddCproc("","tropicalVariety",FALSE,tropicalVariety);
-  p->iiAddCproc("","groebnerFan",FALSE,groebnerFan);
-  p->iiAddCproc("","groebnerComplex",FALSE,groebnerComplex);
-#ifndef NDEBUG
-  // p->iiAddCproc("","tropicalNeighbours",FALSE,tropicalNeighbours);
-  // p->iiAddCproc("","initial0",FALSE,initial0);
-  p->iiAddCproc("","pReduceDebug",FALSE,pReduceDebug);
-  // p->iiAddCproc("","ppreduceInitially0",FALSE,ppreduceInitially0);
-  // p->iiAddCproc("","ppreduceInitially1",FALSE,ppreduceInitially1);
-  // p->iiAddCproc("","ppreduceInitially2",FALSE,ppreduceInitially2);
-  p->iiAddCproc("","ptNormalize",FALSE,ptNormalize);
-  p->iiAddCproc("","ppreduceInitially3",FALSE,ppreduceInitially3);
-  // p->iiAddCproc("","ppreduceInitially4",FALSE,ppreduceInitially4);
-  // p->iiAddCproc("","ttpReduce",FALSE,ttpReduce);
-  // p->iiAddCproc("","ttreduceInitially0",FALSE,ttreduceInitially0);
-  // p->iiAddCproc("","ttreduceInitially1",FALSE,ttreduceInitially1);
-  // p->iiAddCproc("","ttreduceInitially2",FALSE,ttreduceInitially2);
-  // p->iiAddCproc("","ttreduceInitially3",FALSE,ttreduceInitially3);
-  // p->iiAddCproc("","ttreduceInitially4",FALSE,ttreduceInitially4);
-  // p->iiAddCproc("","checkForMonomial",FALSE,checkForMonomial);
-  // p->iiAddCproc("","dwr0",FALSE,dwr0);
-  // p->iiAddCproc("","witness0",FALSE,witness0);
-  // p->iiAddCproc("","tropicalVariety00",FALSE,tropicalVariety00);
-  // p->iiAddCproc("","tropicalVariety01",FALSE,tropicalVariety01);
-  // p->iiAddCproc("","tropicalCurve0",FALSE,tropicalCurve0);
-  // p->iiAddCproc("","tropicalCurve1",FALSE,tropicalCurve1);
-  p->iiAddCproc("","reduceInitiallyDebug",FALSE,reduceInitiallyDebug);
-  p->iiAddCproc("","computeWitnessDebug",FALSE,computeWitnessDebug);
-  p->iiAddCproc("","computeFlipDebug",FALSE,computeFlipDebug);
-  p->iiAddCproc("","flipConeDebug",FALSE,flipConeDebug);
-  // p->iiAddCproc("","groebnerNeighboursDebug",FALSE,groebnerNeighboursDebug);
-  // p->iiAddCproc("","tropicalNeighboursDebug",FALSE,tropicalNeighboursDebug);
-  p->iiAddCproc("","tropicalStarDebug",FALSE,tropicalStarDebug);
-  p->iiAddCproc("","tropicalStartingPoint",FALSE,tropicalStartingPoint);
-  p->iiAddCproc("","positiveTropicalStartingPoint",FALSE,positiveTropicalStartingPoint);
-  p->iiAddCproc("","nonNegativeTropicalStartingPoint",FALSE,nonNegativeTropicalStartingPoint);
-  p->iiAddCproc("","negativeTropicalStartingPoint",FALSE,negativeTropicalStartingPoint);
-  p->iiAddCproc("","nonPositiveTropicalStartingPoint",FALSE,nonPositiveTropicalStartingPoint);
-  p->iiAddCproc("","tropicalStartingCone",FALSE,tropicalStartingCone);
-#endif //NDEBUG
+  p->iiAddCproc("tropical.lib","groebnerCone",FALSE,groebnerCone);
+  p->iiAddCproc("tropical.lib","maximalGroebnerCone",FALSE,maximalGroebnerCone);
+  p->iiAddCproc("tropical.lib","homogeneitySpace",FALSE,homogeneitySpace);
+  // p->iiAddCproc("","lowerHomogeneitySpace",FALSE,lowerHomogeneitySpace);
+  p->iiAddCproc("tropical.lib","initial",FALSE,initial);
+  p->iiAddCproc("tropical.lib","tropicalVariety",FALSE,tropicalVariety);
+  p->iiAddCproc("tropical.lib","groebnerFan",FALSE,groebnerFan);
+  p->iiAddCproc("tropical.lib","groebnerComplex",FALSE,groebnerComplex);
   // p->iiAddCproc("","ppreduceInitially",FALSE,ppreduceInitially);
   // p->iiAddCproc("","ttreduceInitially",FALSE,ttreduceInitially);
 }

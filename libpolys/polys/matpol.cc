@@ -31,7 +31,6 @@
 #include "monomials/ring.h"
 #include "monomials/p_polys.h"
 
-#include "coeffrings.h"
 #include "simpleideals.h"
 #include "matpol.h"
 #include "prCopy.h"
@@ -49,18 +48,18 @@ matrix mpNew(int r, int c)
 {
   int rr=r;
   if (rr<=0) rr=1;
-  if ( (((int)(MAX_INT_VAL/sizeof(poly))) / rr) <= c)
-  {
-    Werror("internal error: creating matrix[%d][%d]",r,c);
-    return NULL;
-  }
+  //if ( (((int)(MAX_INT_VAL/sizeof(poly))) / rr) <= c)
+  //{
+  //  Werror("internal error: creating matrix[%d][%d]",r,c);
+  //  return NULL;
+  //}
   matrix rc = (matrix)omAllocBin(sip_sideal_bin);
   rc->nrows = r;
   rc->ncols = c;
   rc->rank = r;
   if ((c != 0)&&(r!=0))
   {
-    int s=r*c*sizeof(poly);
+    size_t s=r*c*sizeof(poly);
     rc->m = (poly*)omAlloc0(s);
     //if (rc->m==NULL)
     //{
@@ -575,36 +574,44 @@ void mp_Coef2(poly v, poly mon, matrix *c, matrix *m, const ring R)
   }
 }
 
+int mp_Compare(matrix a, matrix b, const ring R)
+{
+  if (MATCOLS(a)<MATCOLS(b)) return -1;
+  else if (MATCOLS(a)>MATCOLS(b)) return 1;
+  if (MATROWS(a)<MATROWS(b)) return -1;
+  else if (MATROWS(a)<MATROWS(b)) return 1;
+
+  unsigned ii=MATCOLS(a)*MATROWS(a)-1;
+  unsigned j=0;
+  int r=0;
+  while (j<=ii)
+  {
+    r=p_Compare(a->m[j],b->m[j],R);
+    if (r!=0) return r;
+    j++;
+  }
+  return r;
+}
 
 BOOLEAN mp_Equal(matrix a, matrix b, const ring R)
 {
   if ((MATCOLS(a)!=MATCOLS(b)) || (MATROWS(a)!=MATROWS(b)))
     return FALSE;
-  int i=MATCOLS(a)*MATROWS(b)-1;
+  int i=MATCOLS(a)*MATROWS(a)-1;
   while (i>=0)
   {
     if (a->m[i]==NULL)
     {
       if (b->m[i]!=NULL) return FALSE;
     }
-    else
-      if (b->m[i]==NULL) return FALSE;
-      else if (p_Cmp(a->m[i],b->m[i], R)!=0) return FALSE;
+    else if (b->m[i]==NULL) return FALSE;
+    else if (p_Cmp(a->m[i],b->m[i], R)!=0) return FALSE;
     i--;
   }
-  i=MATCOLS(a)*MATROWS(b)-1;
+  i=MATCOLS(a)*MATROWS(a)-1;
   while (i>=0)
   {
-#if 0
-    poly tt=p_Sub(p_Copy(a->m[i], R),p_Copy(b->m[i], R), R);
-    if (tt!=NULL)
-    {
-      p_Delete(&tt, R);
-      return FALSE;
-    }
-#else
     if(!p_EqualPolys(a->m[i],b->m[i], R)) return FALSE;
-#endif
     i--;
   }
   return TRUE;

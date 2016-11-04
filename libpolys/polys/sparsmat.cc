@@ -20,7 +20,6 @@
 #include <misc/intvec.h>
 
 #include <coeffs/numbers.h>
-#include "coeffrings.h"
 
 #include "monomials/ring.h"
 #include "monomials/p_polys.h"
@@ -2750,7 +2749,7 @@ void sparse_number_mat::smSelectPR()
         if (a->pos == rpiv)
         {
           ap->n = a->n;
-          a->m = n_InpNeg(a->m,_R);
+          a->m = n_InpNeg(a->m,_R->cf);
           b = b->n = a;
           b->pos = i;
           break;
@@ -2760,7 +2759,7 @@ void sparse_number_mat::smSelectPR()
     else if (a->pos == rpiv)
     {
       m_act[i] = a->n;
-      a->m = n_InpNeg(a->m,_R);
+      a->m = n_InpNeg(a->m,_R->cf);
       b = b->n = a;
       b->pos = i;
     }

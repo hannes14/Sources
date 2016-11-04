@@ -316,6 +316,35 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
       return TRUE;
     }
     else
+/*===== nc_hilb ===============================================*/
+   // Hilbert series of non-commutative monomial algebras
+    if(strcmp(sys_cmd,"nc_hilb") == 0)
+    {
+      ideal i;
+      int lV;
+      bool ig = FALSE;
+      if((h != NULL)&&(h->Typ() == IDEAL_CMD))
+        i = (ideal)h->Data();
+      else
+      {
+        WerrorS("ideal expected");
+        return TRUE;
+      }
+      h = h->next;
+      if((h != NULL)&&(h->Typ() == INT_CMD))
+        lV = (int)(long)h->Data();
+      else
+      {
+        WerrorS("int expected");
+        return TRUE;
+      }
+      h = h->next;
+      if(h != NULL)
+        ig = TRUE;
+      HilbertSeries_OrbitData(i,lV,ig);
+      return(FALSE);
+    }
+    else
 /*==================== sh ==================================*/
     if(strcmp(sys_cmd,"sh")==0)
     {
@@ -333,64 +362,35 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
       return FALSE;
     }
     else
-    #if 0
-    if(strcmp(sys_cmd,"power1")==0)
+/*========reduce procedure like the global one but with jet bounds=======*/
+    if(strcmp(sys_cmd,"reduce_bound")==0)
     {
-      res->rtyp=POLY_CMD;
-      poly f=(poly)h->CopyD();
-      poly g=pPower(f,2000);
-      res->data=(void *)g;
+      poly p;
+      ideal pid=NULL;
+      const short t1[]={3,POLY_CMD,IDEAL_CMD,INT_CMD};
+      const short t2[]={3,IDEAL_CMD,IDEAL_CMD,INT_CMD};
+      const short t3[]={3,VECTOR_CMD,MODUL_CMD,INT_CMD};
+      const short t4[]={3,MODUL_CMD,MODUL_CMD,INT_CMD};
+      if ((iiCheckTypes(h,t1,0))||((iiCheckTypes(h,t3,0))))
+      {
+        p = (poly)h->CopyD();
+      }
+      else if  ((iiCheckTypes(h,t2,0))||(iiCheckTypes(h,t4,1)))
+      {
+        pid = (ideal)h->CopyD();
+      }
+      else return TRUE;
+      //int htype;
+      res->rtyp= h->Typ(); /*htype*/
+      ideal q = (ideal)h->next->CopyD();
+      int bound = (int)(long)h->next->next->Data();
+      if (pid==NULL) /*(htype == POLY_CMD || htype == VECTOR_CMD)*/
+        res->data = (char *)kNFBound(q,currRing->qideal,p,bound);
+      else /*(htype == IDEAL_CMD || htype == MODUL_CMD)*/
+        res->data = (char *)kNFBound(q,currRing->qideal,pid,bound);
       return FALSE;
     }
     else
-    if(strcmp(sys_cmd,"power2")==0)
-    {
-      res->rtyp=POLY_CMD;
-      poly f=(poly)h->Data();
-      poly g=pOne();
-      for(int i=0;i<2000;i++)
-        g=pMult(g,pCopy(f));
-      res->data=(void *)g;
-      return FALSE;
-    }
-    if(strcmp(sys_cmd,"power3")==0)
-    {
-      res->rtyp=POLY_CMD;
-      poly f=(poly)h->Data();
-      poly p2=pMult(pCopy(f),pCopy(f));
-      poly p4=pMult(pCopy(p2),pCopy(p2));
-      poly p8=pMult(pCopy(p4),pCopy(p4));
-      poly p16=pMult(pCopy(p8),pCopy(p8));
-      poly p32=pMult(pCopy(p16),pCopy(p16));
-      poly p64=pMult(pCopy(p32),pCopy(p32));
-      poly p128=pMult(pCopy(p64),pCopy(p64));
-      poly p256=pMult(pCopy(p128),pCopy(p128));
-      poly p512=pMult(pCopy(p256),pCopy(p256));
-      poly p1024=pMult(pCopy(p512),pCopy(p512));
-      poly p1536=pMult(p1024,p512);
-      poly p1792=pMult(p1536,p256);
-      poly p1920=pMult(p1792,p128);
-      poly p1984=pMult(p1920,p64);
-      poly p2000=pMult(p1984,p16);
-      res->data=(void *)p2000;
-      pDelete(&p2);
-      pDelete(&p4);
-      pDelete(&p8);
-      //pDelete(&p16);
-      pDelete(&p32);
-      //pDelete(&p64);
-      //pDelete(&p128);
-      //pDelete(&p256);
-      //pDelete(&p512);
-      //pDelete(&p1024);
-      //pDelete(&p1536);
-      //pDelete(&p1792);
-      //pDelete(&p1920);
-      //pDelete(&p1984);
-      return FALSE;
-    }
-    else
-    #endif
 /*==================== uname ==================================*/
     if(strcmp(sys_cmd,"uname")==0)
     {
@@ -3074,7 +3074,7 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
       }
       else
   #endif
-  /*==================== sca?AltVar ==================================*/
+    /*==================== sca:AltVar ==================================*/
   #ifdef HAVE_PLURAL
       if ( (strcmp(sys_cmd, "AltVarStart") == 0) || (strcmp(sys_cmd, "AltVarEnd") == 0) )
       {
@@ -3190,7 +3190,7 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
         return FALSE;
       }
       else
-  /*==================== RatSpoly, noncomm rational coeffs =================*/
+        /*==================== RatSpoly, noncomm rational coeffs =================*/
       if (strcmp(sys_cmd, "ratSpoly") == 0)
       {
         poly p,q;
@@ -3321,12 +3321,10 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
       {
         if (h==NULL)
         {
-#ifdef HAVE_PLURAL
           Print("EZGCD:%d (use EZGCD for gcd of polynomials in char 0)\n",isOn(SW_USE_EZGCD));
           Print("EZGCD_P:%d (use EZGCD_P for gcd of polynomials in char p)\n",isOn(SW_USE_EZGCD_P));
           Print("CRGCD:%d (use chinese Remainder for gcd of polynomials in char 0)\n",isOn(SW_USE_CHINREM_GCD));
           Print("QGCD:%d (use QGCD for gcd of polynomials in alg. ext.)\n",isOn(SW_USE_QGCD));
-#endif
           Print("homog:%d (use homog. test for factorization of polynomials)\n",singular_homog_flag);
           return FALSE;
         }
@@ -3804,6 +3802,85 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
     }
     else
 #endif
+/*==================== sort =================*/
+    if(strcmp(sys_cmd,"sort")==0)
+    {
+      extern BOOLEAN jjSORTLIST(leftv,leftv);
+      if (h->Typ()==LIST_CMD)
+        return jjSORTLIST(res,h);
+      else
+        return TRUE;
+    }
+    else
+/*==================== uniq =================*/
+    if(strcmp(sys_cmd,"uniq")==0)
+    {
+      extern BOOLEAN jjUNIQLIST(leftv, leftv);
+      if (h->Typ()==LIST_CMD)
+        return jjUNIQLIST(res,h);
+      else
+        return TRUE;
+    }
+    else
+/*==================== power* ==================================*/
+    #if 0
+    if(strcmp(sys_cmd,"power1")==0)
+    {
+      res->rtyp=POLY_CMD;
+      poly f=(poly)h->CopyD();
+      poly g=pPower(f,2000);
+      res->data=(void *)g;
+      return FALSE;
+    }
+    else
+    if(strcmp(sys_cmd,"power2")==0)
+    {
+      res->rtyp=POLY_CMD;
+      poly f=(poly)h->Data();
+      poly g=pOne();
+      for(int i=0;i<2000;i++)
+        g=pMult(g,pCopy(f));
+      res->data=(void *)g;
+      return FALSE;
+    }
+    if(strcmp(sys_cmd,"power3")==0)
+    {
+      res->rtyp=POLY_CMD;
+      poly f=(poly)h->Data();
+      poly p2=pMult(pCopy(f),pCopy(f));
+      poly p4=pMult(pCopy(p2),pCopy(p2));
+      poly p8=pMult(pCopy(p4),pCopy(p4));
+      poly p16=pMult(pCopy(p8),pCopy(p8));
+      poly p32=pMult(pCopy(p16),pCopy(p16));
+      poly p64=pMult(pCopy(p32),pCopy(p32));
+      poly p128=pMult(pCopy(p64),pCopy(p64));
+      poly p256=pMult(pCopy(p128),pCopy(p128));
+      poly p512=pMult(pCopy(p256),pCopy(p256));
+      poly p1024=pMult(pCopy(p512),pCopy(p512));
+      poly p1536=pMult(p1024,p512);
+      poly p1792=pMult(p1536,p256);
+      poly p1920=pMult(p1792,p128);
+      poly p1984=pMult(p1920,p64);
+      poly p2000=pMult(p1984,p16);
+      res->data=(void *)p2000;
+      pDelete(&p2);
+      pDelete(&p4);
+      pDelete(&p8);
+      //pDelete(&p16);
+      pDelete(&p32);
+      //pDelete(&p64);
+      //pDelete(&p128);
+      //pDelete(&p256);
+      //pDelete(&p512);
+      //pDelete(&p1024);
+      //pDelete(&p1536);
+      //pDelete(&p1792);
+      //pDelete(&p1920);
+      //pDelete(&p1984);
+      return FALSE;
+    }
+    else
+    #endif
 /*==================== Error =================*/
       Werror( "(extended) system(\"%s\",...) %s", sys_cmd, feNotImplemented );
   }

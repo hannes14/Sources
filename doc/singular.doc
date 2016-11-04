@@ -246,13 +246,6 @@ See also @ref{Non-commutative libraries}.
 @xref{Non-commutative libraries}.
 @end ifset
 
-@strong{Binary libraries:}
-@menu
-* convex geometry::
-* toric geometry::
-@end menu
-
-
 @c ----------------------------------------------------------
 @node standard_lib, General purpose, SINGULAR libraries, SINGULAR libraries
 @section standard_lib
@@ -922,7 +915,7 @@ of autonomy degrees.
 @subsection findifs_lib
 @c lib findifs.lib
 @c ----------------------------------------------------------------------------
-@node Teaching, Tropical Geometry, System and Control theory, SINGULAR libraries
+@node Teaching
 @section Teaching
 @cindex Teaching
 
@@ -980,19 +973,24 @@ but not for serious computations.
 @c lib rootsur.lib
 
 @c ----------------------------------------------------------------------------
-@node Tropical Geometry, Miscellaneous libraries, Teaching, SINGULAR libraries
+@node Tropical Geometry
 @section Tropical Geometry
 @cindex Tropical Geometry
 
 @menu
+* gfan_lib:: A gfanlib interface for Singular
 * polymake_lib:: interface to polymake and TOPCOM
 * realizationMatroids_lib:: Realizability for Tropical Fan Curves
 * tropical_lib:: interface to gfan
 @end menu
 @c ----------------------------------------------------------
+@node gfan_lib
+@subsection gfan_lib
+@c lib gfan.lib
+@c ----------------------------------------------------------
 @node polymake_lib
 @subsection polymake_lib
-@c lib polymake.lib no_ex
+@c lib polymake.lib
 
 @c ----------------------------------------------------------
 @node realizationMatroids_lib
@@ -1002,17 +1000,27 @@ but not for serious computations.
 @node tropical_lib
 @subsection tropical_lib
 
-@c lib tropical.lib no_ex
+@c lib tropical.lib
 
 @c ----------------------------------------------------------------------------
-@node  Miscellaneous libraries,Experimental libraries,Tropical Geometry, SINGULAR libraries
+@node  Miscellaneous libraries
 @section  Miscellaneous libraries
 @cindex  Miscellaneous libraries
 
 @menu
+* arr_lib:: algorithms for arrangements of hyperplanes
+* customstd_lib:: additional variants of std
 * phindex_lib::
 * polybori_lib::
 @end menu
+@c ----------------------------------------------------------
+@node arr_lib
+@subsection arr_lib
+@c lib arr.lib
+@c ---------------------------------------------------------
+@node customstd_lib
+@subsection customstd_lib
+@c lib customstd.lib
 @c ----------------------------------------------------------
 @node phindex_lib
 @subsection phindex_lib
@@ -1026,7 +1034,7 @@ but not for serious computations.
 @c lib polybori.lib tag:pyobject
 
 @c ----------------------------------------------------------------------------
-@node Experimental libraries,,Miscellaneous libraries, SINGULAR libraries
+@node Experimental libraries
 @section Experimental libraries
 @cindex Experimental libraries
 
@@ -1039,10 +1047,12 @@ see @ref{Libraries}.
 Comments should be send to the author of the library directly.
 
 @menu
-* arr_lib:: algorithms for arrangements of hyperplanes
 * brillnoether_lib:: Riemann-Roch spaces of divisors on curves
 * chern_lib:: Symbolic Computations with Chern classes
 * cimonom_lib:: complete intersection for toric ideals
+* classify_aeq_lib:: Simple Space Curve singularities in characteristic 0
+* classifyMapGerms_lib:: standard basis of the tangent space at the orbit of an algebraic group action
+* curveInv_lib:: invariants of curves
 * deRham_lib:: Computation of deRham cohomology
 * divisors_lib:: Divisors and P-Divisors
 * ffmodstd_lib::  Groebner bases in polynomial rings over algebraic function fields
@@ -1054,6 +1064,7 @@ Comments should be send to the author of the library directly.
 * hess_lib:: Riemann-Roch space of divisors on function fields and curves
 * modwalk_lib:: Groebner basis convertion
 * multigrading_lib:: Multigradings and related computations
+* ncHilb_lib:: Hilbert functio for non-commutative rings
 * nfmodstd_lib:: Groebner bases of ideals in rings over algebraic number fields
 * nfmodsyz_lib:: Syzygy modules of submodules of free modules over algebraic number fields
 * realclassify_lib:: Classification of real singularities
@@ -1061,10 +1072,6 @@ Comments should be send to the author of the library directly.
 * swalk_lib:: Sagbi Walk Conversion Algorithm
 @end menu
 @c * schubert_lib:: Intersection Theory
-@c ----------------------------------------------------------
-@node arr_lib
-@subsection arr_lib
-@c lib arr.lib
 @c ----------------------------------------------------------
 @node brillnoether_lib
 @subsection brillnoether_lib
@@ -1077,6 +1084,18 @@ Comments should be send to the author of the library directly.
 @node cimonom_lib
 @subsection cimonom_lib
 @c lib cimonom.lib
+@c ----------------------------------------------------------
+@node classify_aeq_lib
+@subsection classify_aeq_lib
+@c lib classify_aeq.lib
+@c ----------------------------------------------------------
+@node classifyMapGerms_lib
+@subsection classifyMapGerms_lib
+@c lib classifyMapGerms.lib
+@c ----------------------------------------------------------
+@node curveInv_lib
+@subsection curveInv_lib
+@c lib curveInv.lib
 @c ----------------------------------------------------------
 @node divisors_lib
 @subsection divisors_lib
@@ -1138,6 +1157,10 @@ Todos/Issues:
 
 @c lib multigrading.lib
 @c ----------------------------------------------------------
+@node ncHilb_lib
+@subsection ncHilb_lib
+@c lib ncHilb.lib
+@c ----------------------------------------------------------
 @node nfmodstd_lib
 @subsection nfmodstd_lib
 @c lib nfmodstd.lib
@@ -1166,85 +1189,8 @@ Todos/Issues:
 @node deRham_lib
 @subsection deRham_lib
 @c lib deRham.lib
-@c ----------------------------------------------------------
-@node convex geometry, toric geometry, , SINGULAR libraries
-@section convex geometry
-@cindex convex geometry
-
-@menu
-* gfanlib_so:: A gfanlib interface for Singular
-* polymake_so:: A polymake interface for Singular
-@end menu
-
- ---------------------------------------------------------
-@node gfanlib_so,polymake_so, ,convex geometry
-@subsection gfanlib_so
-
-@include gfanlib.tex
-
 @c ---------------------------------------------------------
-@node polymake_so, ,gfanlib_so ,convex geometry
-@subsection polymake_so
 
-@include polymake.tex
-
-@c ---------------------------------------------------------
-@node toric geometry, , convex geometry, SINGULAR libraries
-@section toric geometry
-@cindex toric geometry
-
-@menu
-* customstd_so:: additional variants of std
-@end menu
-
-@c ---------------------------------------------------------
-@node customstd_so
-@subsection customstd_so
-@cindex customstd.so
-@menu
-* satstd::saturation wrt. variables
-@end menu
-
-@c --------------------------------------
-@node satstd
-@subsubsection satstd
-@cindex satstd
-@cindex Saturation
-
-@table @code
-@item @strong{Syntax:}
-@code{satstd(} ideal I @code{)}
-@*@code{satstd(} ideal I, ideal J @code{)}
-@item @strong{Type:}
-ideal
-@item @strong{Assume:}
-J is generated by variables
-@item @strong{Purpose:}
-@tex
-Starts a standard basis computation in which elements are freely divided by the generators of J.
-Hence returns a standard basis of an ideal between I and the saturation $I:J^\infty$.
-In particular, if I is saturated with respect to J, returns a standard basis of I.
-@end tex
-@ifinfo
-Starts a standard basis computation in which elements are freely divided by the generators of J.
-Hence returns a standard basis of an ideal between I and the saturation I:J^infinity.
-In particular, if I is saturated with respect to J, returns a standard basis of I.
-@end ifinfo
-
-If J is unspecified, it is assumed to be the ideal generated by all variables in the base ring.
-@item @strong{Example:}
-@smallexample
-@c example
-LIB "customstd.so";
-ring r = 0,(x,y,z),dp;
-ideal I = x2+x,y2+y,z2;
-satstd(I,ideal(x));
-satstd(I,ideal(x,y));
-satstd(I,ideal(z));
-satstd(I);
-@c example
-@end smallexample
-@end table
 @c ----------------------------------------------------------
 @node Release Notes, Index, SINGULAR libraries, Top
 @chapter Release Notes

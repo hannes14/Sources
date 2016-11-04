@@ -140,7 +140,7 @@ static int fe_out_char(int c)
   fputc(c,fe_echo);
   return c;
 }
-void fe_init (void)
+static void fe_init (void)
 {
   fe_is_initialized=TRUE;
   if ((!fe_use_fgets) && (isatty (STDIN_FILENO)))
@@ -157,7 +157,17 @@ void fe_init (void)
     else
     {
       fe_stdout_is_tty=0;
-      fe_echo = fopen( ttyname(fileno(stdin)), "w" );
+      char *tty_name=ttyname(fileno(stdin));
+      if (tty_name!=NULL)
+        fe_echo = fopen( tty_name, "w" );
+      else
+        fe_echo = NULL;
+      if (fe_echo==NULL)
+      {
+        fe_echo=stdout;
+        printf("stdin is a tty, but ttyname fails\n");
+        return;
+      }
     }
     /* Save the terminal attributes so we can restore them later. */
     {
@@ -793,10 +803,10 @@ int fe_init_dyn_rl()
     if (fe_using_history==NULL) { res=13; break; }
     fe_read_history=dynl_sym(fe_rl_hdl,"read_history");
     if (fe_read_history==NULL) { res=14; break; }
-    return 0;
+    break;
   }
-  dynl_close(fe_rl_hdl);
-  if (res==0)
+  if (res!=0) dynl_close(fe_rl_hdl);
+  else
   {
     char *p;
     /* more init stuff: */
