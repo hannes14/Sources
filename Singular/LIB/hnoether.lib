@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-version="version hnoether.lib 4.0.0.0 Jun_2013 "; // $Id$
+version="version hnoether.lib 4.0.3.5 Nov_2016 "; // $Id$
 
 category="Singularities";
 info="
@@ -772,7 +772,7 @@ EXAMPLES: example develop;         shows an example
         if (defined(HNDebugOn)) {e," -> ",eps,"*",p,"^",l;}
         delt = koeff(f,(M div e)*p^l,(N div e)*p^l*(eps-1)) / (-1*eps*c);
 
-        if (!hasZpCoefficient(basering)) and (delt != 0)) {
+        if ((!hasZpCoefficient(basering)) and (delt != 0)) {
  //- coeff. field is not Z/pZ => we`ve to correct delta by taking (p^l)th root-
           if (delt == generat) {exponent=1;}
           else {
