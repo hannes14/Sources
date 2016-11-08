@@ -25,6 +25,7 @@ PROCEDURES:
  optionIsSet(opt)         check if as a string given option is set or not.
  hasFieldCoefficient      check if the coefficient ring is considered a field
  hasGFCoefficient         check if the coefficient ring is GF(p,k)
+ hasZpCoefficient         check if the coefficient ring is ZZ/p
  hasNumericCoeffs(rng)    check for use of floating point numbers
  hasCommutativeVars(rng)  non-commutive or commnuative polynomial ring
  hasGlobalOrdering(rng)   global versus mixed/local monomial ordering
@@ -1076,9 +1077,31 @@ EXAMPLE: example hasGFCoefficient; shows an example
 example
 {
   ring r1 = integer,x,dp;
-  hasGF(r1);
+  hasGFCoefficient(r1);
   ring r2 = (4,a),x,dp;
-  hasGF(r2);
+  hasGFCoefficient(r2);
+}
+
+proc hasZpCoefficient(def rng )
+"USAGE: hasZpCoefficient ( rng );
+RETURN:  1 if the coeffcients form ZZ/p, 0 otherwise.
+KEYWORDS: ring coefficients
+EXAMPLE: example hasZpCoefficient; shows an example
+"
+{
+  //return((charstr(rng)!=string(char(rng))) &&
+  //(npars(rng)==1) &&
+  //(find(charstr(rng),string(char(rng)))!=1) &&
+  //(charstr(basering)<>"real")&&
+  //(charstr(basering)<>"complex") );
+  return(attrib(rng,"cf_class")==1);
+}
+example
+{
+  ring r1 = integer,x,dp;
+  hasZpCoefficient(r1);
+  ring r2 = 7,x,dp;
+  hasZpCoefficient(r2);
 }
 
 proc hasGlobalOrdering (def rng)
