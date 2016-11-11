@@ -1653,6 +1653,17 @@ static BOOLEAN jjMAP(leftv res, leftv u, leftv v)
   omFreeBin((ADDRESS)sl, sleftv_bin);
   return FALSE;
 }
+#ifdef SINGULAR_4_1
+static BOOLEAN jjRING_1(leftv res, leftv u, leftv v)
+{
+  u->next=(leftv)omAlloc(sizeof(sleftv));
+  memcpy(u->next,v,sizeof(sleftv));
+  memset(v,0,sizeof(sleftv));
+  BOOLEAN bo=iiExprArithM(res,u,'[');
+  u->next=NULL;
+  return bo;
+}
+#endif
 static BOOLEAN jjCHINREM_BI(leftv res, leftv u, leftv v)
 {
   intvec *c=(intvec*)u->Data();
@@ -5637,6 +5648,20 @@ static BOOLEAN jjPROC3(leftv res, leftv u, leftv v, leftv w)
   memset(w,0,sizeof(sleftv));
   return jjPROC(res,u,v);
 }
+#ifdef SINGULAR_4_1
+static BOOLEAN jjRING_2(leftv res, leftv u, leftv v, leftv w)
+{
+  u->next=(leftv)omAlloc(sizeof(sleftv));
+  memcpy(u->next,v,sizeof(sleftv));
+  memset(v,0,sizeof(sleftv));
+  u->next->next=(leftv)omAlloc(sizeof(sleftv));
+  memcpy(u->next->next,w,sizeof(sleftv));
+  memset(w,0,sizeof(sleftv));
+  BOOLEAN bo=iiExprArithM(res,u,'[');
+  u->next=NULL;
+  return bo;
+}
+#endif
 static BOOLEAN jjBAREISS3(leftv res, leftv u, leftv v, leftv w)
 {
   intvec *iv;
@@ -7328,13 +7353,39 @@ static BOOLEAN jjKLAMMER_PL(leftv res, leftv u)
   }
   leftv v=u->next;
   BOOLEAN b;
-  if(v==NULL)
+  if(v==NULL)  // p()
     b=iiExprArith1(res,u,iiOp);
-  else
+  else if ((v->next==NULL) // p(1)
+  || (u->Typ()!=UNKNOWN))  // p(1,2), p proc or map
   {
     u->next=NULL;
     b=iiExprArith2(res,u,iiOp,v);
     u->next=v;
+  }
+  else // p(1,2), p undefined
+  {
+    int l=u->listLength();
+    char * nn = (char *)omAlloc(strlen(u->name) + 12*l);
+    sprintf(nn,"%s(%d",u->name,(int)(long)v->Data());
+    char *s=nn;
+    do
+    {
+      while (*s!='\0') s++;
+      v=v->next;
+      if (v->Typ()!=INT_CMD)
+      {
+        Werror("`int` expected while building `%s`",nn);
+        omFree((ADDRESS)nn);
+        return TRUE;
+      }
+      sprintf(s,",%d",(int)(long)v->Data());
+    } while (v->next!=NULL);
+    while (*s!='\0') s++;
+    nn=strcat(nn,")");
+    char *n=omStrDup(nn);
+    omFree((ADDRESS)nn);
+    syMake(res,n);
+    b=FALSE;
   }
   return b;
 }
@@ -7887,7 +7938,7 @@ static BOOLEAN jjRING_PL(leftv res, leftv a)
   //Print("construct ring\n");
   if (a->Typ()!=CRING_CMD)
   {
-    WerrorS("expected `Ring` [ `id` ... ]");
+    WerrorS("expected `cring` [ `id` ... ]");
     return TRUE;
   }
   assume(a->next!=NULL);

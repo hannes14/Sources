@@ -471,16 +471,17 @@ elemexpr:
           }
         | elemexpr '(' exprlist ')'
           {
-            if ($1.rtyp==UNKNOWN)
-            { // for x(i)(j)
-              if(iiExprArith2(&$$,&$1,'(',&$3)) YYERROR;
-            }
-            else
+            if ($1.next==NULL)
             {
               $1.next=(leftv)omAllocBin(sleftv_bin);
               memcpy($1.next,&$3,sizeof(sleftv));
               if(iiExprArithM(&$$,&$1,'(')) YYERROR;
             }
+            else if ($1.rtyp==UNKNOWN)
+            { // for x(i)(j)
+              if(iiExprArith2(&$$,&$1,'(',&$3)) YYERROR;
+            }
+            else YYERROR;
           }
         | '[' exprlist ']'
           {
@@ -652,6 +653,7 @@ elemexpr:
           {
             if (iiARROW(&$$,$1,$3)) YYERROR;
           }
+        | '(' exprlist ')'    { $$ = $2; }
         ;
 
 exprlist:
@@ -678,7 +680,6 @@ expr:   expr_arithmetic
             $$ = $1;
           }
         | elemexpr       { $$ = $1; }
-        | '(' exprlist ')'    { $$ = $2; }
         | expr '[' expr ',' expr ']'
           {
             if(iiExprArith3(&$$,'[',&$1,&$3,&$5)) YYERROR;
@@ -1325,20 +1326,20 @@ ringcmd:
             yyInRingConstruction = FALSE;
             if (iiAssignCR(&$2,&$4)) YYERROR;
           }
-	| ringcmd1 elemexpr cmdeq elemexpr '[' exprlist ']'
-	{
-	  #ifdef SINGULAR_4_1
-	  yyInRingConstruction = FALSE;
-	  sleftv tmp;
-	  $4.next=(leftv)omAlloc(sizeof(sleftv));
-	  memcpy($4.next,&$6,sizeof(sleftv));
-	  memset(&$6,0,sizeof(sleftv));
-	  if (iiExprArithM(&tmp,&$4,'[')) YYERROR;
+        | ringcmd1 elemexpr cmdeq elemexpr '[' exprlist ']'
+        {
+          #ifdef SINGULAR_4_1
+          yyInRingConstruction = FALSE;
+          sleftv tmp;
+          $4.next=(leftv)omAlloc(sizeof(sleftv));
+          memcpy($4.next,&$6,sizeof(sleftv));
+          memset(&$6,0,sizeof(sleftv));
+          if (iiExprArithM(&tmp,&$4,'[')) YYERROR;
           if (iiAssignCR(&$2,&tmp)) YYERROR;
-	  #else
-	  YYERROR;
-	  #endif
-	}
+          #else
+          YYERROR;
+          #endif
+        }
         ;
 
 scriptcmd:
