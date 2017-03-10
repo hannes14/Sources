@@ -163,12 +163,14 @@ BOOLEAN jjNUMBER2_OP2(leftv res, leftv a, leftv b)
     {
       an->CleanUp();
       omFreeBin((ADDRESS)an, sleftv_bin);
+      Werror("`%s` %s `%s` failed",Tok2Cmdname(at),iiTwoOps(op),Tok2Cmdname(bt));
       Werror("cannot convert second operand (%s) to Number",b->Name());
       return TRUE;
     }
   }
   else
   {
+    Werror("`%s` %s `%s` failed",Tok2Cmdname(at),iiTwoOps(op),Tok2Cmdname(bt));
     Werror("cannot convert first operand (%s) to Number",a->Name());
     return TRUE;
   }

@@ -7224,7 +7224,7 @@ static BOOLEAN jjBRACKET_PL(leftv res, leftv u)
   }
   v->next=w;
   u->next=v;
-  #ifdef SINGULAR_4_1
+  #ifdef SINGULAR_4_2
   // construct new rings:
   while (u!=NULL)
   {

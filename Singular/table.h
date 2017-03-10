@@ -923,7 +923,7 @@ cmdnames cmds[] =
 #ifdef SINGULAR_4_2
   { "Matrix",     0, CMATRIX_CMD ,       ROOT_DECL_LIST},
   { "Number",     0, CNUMBER_CMD ,       ROOT_DECL_LIST},
-  { "parent",     0, PARENT_CMD ,        CMD_1},
+  { "Parent",     0, PARENT_CMD ,        CMD_1},
   { "Poly",       0, CPOLY_CMD ,         ROOT_DECL_LIST},
 #endif
   { "coef",        0, COEF_CMD ,          CMD_M},
