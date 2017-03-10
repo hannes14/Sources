@@ -5,7 +5,7 @@ SOURCES = singularWishlist.cc singularWishlist.h gfanlib_exceptions.h callgfanli
 MY_CPPFLAGS = -I${srcdir} -I${top_srcdir} -I${top_builddir} \
 -I${top_srcdir}/libpolys -I${top_builddir}/libpolys \
 ${FACTORY_INCLUDES} ${RESOURCES_INCLUDES} ${OMALLOC_INCLUDES} \
-${FLINT_CFLAGS} ${NTL_CFLAGS} ${GMP_CFLAGS}
+${FLINT_CFLAGS} ${NTL_CFLAGS} ${GMP_CFLAGS} ${PTHREAD_CFLAGS}
 
 if SI_BUILTIN_GFANLIB
 if HAVE_GFANLIB
@@ -27,13 +27,20 @@ endif
 gfanlib_la_SOURCES  = $(SOURCES)
 
 gfanlib_la_CPPFLAGS = ${MY_CPPFLAGS} ${P_PROCS_CPPFLAGS_COMMON} ${CDDGMPCPPFLAGS}
-gfanlib_la_LDFLAGS  = ${P_PROCS_MODULE_LDFLAGS}
+gfanlib_la_LDFLAGS  = ${P_PROCS_MODULE_LDFLAGS} $(SINGULAR_LDFLAGS)
 
 # forcefully enable exceptions for polymake
 CXXFLAGS+= $(FEXCEPTIONSFRTTI_CXXFLAGS)
 
+gfanlib_la_LIBADD   =
+if SING_WIN
+if !SI_BUILTIN_GFANLIB
+ gfanlib_la_LIBADD   += ${top_builddir}/Singular/libSingular.la
+endif
+endif
+
 if HAVE_GFANLIB
- gfanlib_la_LIBADD   = ${abs_top_builddir}/gfanlib/libgfan.la ${CDDGMPLDFLAGS}
+ gfanlib_la_LIBADD   += ${abs_top_builddir}/gfanlib/libgfan.la ${CDDGMPLDFLAGS}
 endif
 
 #AM_COLOR_TESTS=always

@@ -53,7 +53,7 @@ static void * iiBI2P(void *data)
   nMapFunc nMap=n_SetMap(coeffs_BIGINT,currRing->cf);
   if (nMap==NULL)
   {
-    Werror("no conversion from bigint to %s", nCoeffString(currRing->cf));
+    Werror("no conversion from bigint to %s", nCoeffName(currRing->cf));
     return NULL;
   }
   number n=nMap((number)data,coeffs_BIGINT,currRing->cf);
@@ -74,7 +74,7 @@ static void * iiBI2V(void *data)
   nMapFunc nMap=n_SetMap(coeffs_BIGINT,currRing->cf);
   if (nMap==NULL)
   {
-    Werror("no conversion from bigint to %s", nCoeffString(currRing->cf));
+    Werror("no conversion from bigint to %s", nCoeffName(currRing->cf));
     return NULL;
   }
   number n=nMap((number)data,coeffs_BIGINT,currRing->cf);
@@ -97,7 +97,7 @@ static void * iiBI2Id(void *data)
   nMapFunc nMap=n_SetMap(coeffs_BIGINT,currRing->cf);
   if (nMap==NULL)
   {
-    Werror("no conversion from bigint to %s", nCoeffString(currRing->cf));
+    Werror("no conversion from bigint to %s", nCoeffName(currRing->cf));
     return NULL;
   }
   number n=nMap((number)data,coeffs_BIGINT,currRing->cf);
@@ -210,7 +210,7 @@ static void * iiBI2N(void *data)
   nMapFunc nMap=n_SetMap(coeffs_BIGINT,currRing->cf);
   if (nMap==NULL)
   {
-    Werror("no conversion from bigint to %s", nCoeffString(currRing->cf));
+    Werror("no conversion from bigint to %s", nCoeffName(currRing->cf));
     return NULL;
   }
   number n=nMap((number)data,coeffs_BIGINT,currRing->cf);
@@ -229,7 +229,7 @@ static void * iiBI2NN(void *data)
   nMapFunc nMap=n_SetMap(coeffs_BIGINT,currRing->cf);
   if (nMap==NULL)
   {
-    Werror("no conversion from bigint to %s",currRing->cf->cfCoeffString(currRing->cf));
+    Werror("no conversion from bigint to %s",currRing->cf->cfCoeffName(currRing->cf));
     return NULL;
   }
   number n=nMap((number)data,coeffs_BIGINT,currRing->cf);
@@ -249,7 +249,7 @@ static void * iiBI2CP(void *data)
   nMapFunc nMap=n_SetMap(coeffs_BIGINT,currRing->cf);
   if (nMap==NULL)
   {
-    Werror("no conversion from bigint to %s",currRing->cf->cfCoeffString(currRing->cf));
+    Werror("no conversion from bigint to %s",currRing->cf->cfCoeffName(currRing->cf));
     return NULL;
   }
   number n=nMap((number)data,coeffs_BIGINT,currRing->cf);
@@ -375,7 +375,7 @@ static void iiR2L_l(leftv out, leftv in)
 
 static void iiL2R(leftv out, leftv in)
 {
-  int add_row_shift = 0;
+  //int add_row_shift = 0;
   lists l=(lists)in->Data();
   intvec *ww=NULL;
   if (l->nr>=0) ww=(intvec *)atGet(&(l->m[0]),"isHomog",INTVEC_CMD);
@@ -453,7 +453,7 @@ BOOLEAN iiConvert (int inputType, int outputType, int index, leftv input, leftv 
             StringSetS("");
             number n=(pGetCoeff((poly)input->data));
             n_Write(n, currRing->cf);
-            (pGetCoeff((poly)input->data))=n;
+            (pGetCoeff((poly)input->data))=n; // n_Write may have changed n
             output->name=StringEndS();
           }
         }
@@ -463,18 +463,19 @@ BOOLEAN iiConvert (int inputType, int outputType, int index, leftv input, leftv 
         StringSetS("");
         number n=(number)input->data;
         n_Write(n, currRing->cf);
-        input->data=(void*)n;
+        input->data=(void*)n; // n_Write may have changed n
         output->name=StringEndS();
       }
       else
       {
         /* no need to preserve name: use it */
         output->name=input->name;
-        memset(input,0,sizeof(*input));
+        input->name=NULL;
       }
     }
     output->next=input->next;
     input->next=NULL;
+    if (!errorreported) input->CleanUp();
     return errorreported;
   }
   if (index!=0) /* iiTestConvert does not returned 'failure' */
@@ -511,7 +512,22 @@ BOOLEAN iiConvert (int inputType, int outputType, int index, leftv input, leftv 
       if (errorreported) return TRUE;
       output->next=input->next;
       input->next=NULL;
-  //if (outputType==MATRIX_CMD) Print("convert %d -> matrix\n",inputType);
+      if ((input->rtyp!=IDHDL) && (input->attribute!=NULL))
+      {
+        input->attribute->killAll(currRing);
+        input->attribute=NULL;
+      }
+      if (input->e!=NULL)
+      {
+        Subexpr h;
+        while (input->e!=NULL)
+        {
+          h=input->e->next;
+          omFreeBin((ADDRESS)input->e, sSubexpr_bin);
+          input->e=h;
+        }
+      }
+      //input->Init(); // seems that input (rtyp?) is still needed
       return FALSE;
     }
   }

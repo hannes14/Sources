@@ -453,6 +453,12 @@ int redRing (LObject* h,kStrategy strat)
     {
       // over ZZ: cleanup coefficients by complete reduction with monomials
       postReduceByMon(h, strat);
+      if(h->p == NULL)
+      {
+        if (h->lcm!=NULL) pLmDelete(h->lcm);
+        h->Clear();
+        return 0;
+      }
       if(nIsZero(pGetCoeff(h->p))) return 2;
       j = kFindDivisibleByInT(strat, h);
       if(j < 0)
@@ -1475,7 +1481,7 @@ int redHoney (LObject* h, kStrategy strat)
     ii = j;
     /*
      * the polynomial to reduce with (up to the moment) is;
-     * pi with ecart ei
+     * pi with ecart ei (T[ii])
      */
     i = j;
     if (TEST_OPT_LENGTH)
@@ -1536,7 +1542,7 @@ int redHoney (LObject* h, kStrategy strat)
     {
       PrintS("red:");
       h->wrp();
-      PrintS(" with ");
+      Print("\nwith T[%d]:",ii);
       strat->T[ii].wrp();
     }
 #endif
@@ -1653,8 +1659,10 @@ int redHoney (LObject* h, kStrategy strat)
 
 poly redNF (poly h,int &max_ind,int nonorm,kStrategy strat)
 {
+#define REDNF_CANONICALIZE 60
   if (h==NULL) return NULL;
   int j;
+  int cnt=REDNF_CANONICALIZE;
   max_ind=strat->sl;
 
   if (0 > strat->sl)
@@ -1739,6 +1747,12 @@ poly redNF (poly h,int &max_ind,int nonorm,kStrategy strat)
         number coef;
         coef=kBucketPolyRed(P.bucket,strat->S[j],pLength(strat->S[j]),strat->kNoether);
         nDelete(&coef);
+      }
+      cnt--;
+      if (cnt==0)
+      {
+        kBucketCanonicalize(P.bucket);
+        cnt=REDNF_CANONICALIZE;
       }
       h = kBucketGetLm(P.bucket);   // FRAGE OLIVER
       if (h==NULL)
@@ -2147,7 +2161,7 @@ ideal bba (ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
         strat->P.pCleardenom();
         if ((TEST_OPT_REDSB)||(TEST_OPT_REDTAIL))
         {
-          strat->P.p = redtailBba(&(strat->P),pos-1,strat, withT);
+          strat->P.p = redtailBba(&(strat->P),pos-1,strat, withT,!TEST_OPT_CONTENTSB);
           strat->P.pCleardenom();
         }
       }
@@ -2297,9 +2311,7 @@ ideal bba (ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
   else if (TEST_OPT_PROT) PrintLn();
   if (!errorreported)
   {
-    if(nCoeff_is_Ring_Z(currRing->cf))
-      finalReduceByMon(strat);
-    if(rField_is_Ring(currRing))
+    if(rField_is_Ring_Z(currRing))
     {
       for(int i = 0;i<=strat->sl;i++)
       {
@@ -2308,7 +2320,17 @@ ideal bba (ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
           strat->S[i] = pNeg(strat->S[i]);
         }
       }
+      finalReduceByMon(strat);
+      for(int i = 0;i<=strat->sl;i++)
+      {
+        if(!nGreaterZero(pGetCoeff(strat->S[i])))
+        {
+          strat->S[i] = pNeg(strat->S[i]);
+        }
+      }
     }
+    else if (rField_is_Ring(currRing))
+      finalReduceByMon(strat);
   }
   /* release temp data-------------------------------- */
   exitBuchMora(strat);
@@ -4240,11 +4262,13 @@ ideal bbaShift(ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat, int upto
       // the default value for atT = -1 as in bba
       /*   strat->P.GetP(); */
       // because shifts are counted with .p structure // done before, but ?
+      int atR=strat->tl+1; // enterTShift introduces T[tl+1], T[tl+2]...
+                           // with T[tl+1]=P.p
       enterTShift(strat->P,strat,-1,uptodeg, lV);
-      enterpairsShift(strat->P.p,strat->sl,strat->P.ecart,pos,strat, strat->tl,uptodeg,lV);
+      enterpairsShift(strat->P.p,strat->sl,strat->P.ecart,pos,strat, atR,uptodeg,lV);
       //      enterpairsShift(vw,strat->sl,strat->P.ecart,pos,strat, strat->tl,uptodeg,lV);
       // posInS only depends on the leading term
-      strat->enterS(strat->P, pos, strat, strat->tl);
+      strat->enterS(strat->P, pos, strat, atR);
 
       if (hilb!=NULL) khCheck(Q,w,hilb,hilbeledeg,hilbcount,strat);
 //      Print("[%d]",hilbeledeg);
@@ -4424,7 +4448,7 @@ int redFirstShift (LObject* h,kStrategy strat)
 #ifdef KDEBUG
     if (TEST_OPT_DEBUG)
     {
-      PrintS(" to ");
+      PrintS("\nto ");
       wrp(h->p);
       PrintLn();
     }

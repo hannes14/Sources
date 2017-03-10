@@ -71,10 +71,8 @@
 
 #include <kernel/maps/gen_maps.h>
 
-#ifdef SINGULAR_4_1
-#include <Singular/number2.h>
-#endif
 #ifdef SINGULAR_4_2
+#include <Singular/number2.h>
 #include <coeffs/bigintmat.h>
 #endif
 leftv iiCurrArgs=NULL;
@@ -479,14 +477,10 @@ void list_cmd(int typ, const char* what, const char *prefix,BOOLEAN iterate, BOO
     if ((all
       && (IDTYP(h)!=PROC_CMD)
       &&(IDTYP(h)!=PACKAGE_CMD)
-      #ifdef SINGULAR_4_1
       &&(IDTYP(h)!=CRING_CMD)
-      #endif
       )
     || (typ == IDTYP(h))
-    #ifdef SINGULAR_4_1
     || ((IDTYP(h)==CRING_CMD) && (typ==RING_CMD))
-    #endif
     )
     {
       list1(prefix,h,start==currRingHdl, fullname);
@@ -603,7 +597,7 @@ BOOLEAN iiWRITE(leftv,leftv v)
   {
     const char *s;
     if ((l!=NULL)&&(l->name!=NULL)) s=l->name;
-    else                            s=sNoName;
+    else                            s=sNoName_fe;
     Werror("cannot write to %s",s);
   }
   vf.CleanUp();
@@ -1182,8 +1176,14 @@ BOOLEAN iiDefaultParameter(leftv p)
   tmp.data=at->CopyA();
   return iiAssign(p,&tmp);
 }
-BOOLEAN iiBranchTo(leftv, leftv args)
+BOOLEAN iiBranchTo(leftv res, leftv args)
 {
+  // must be inside a proc, as we simultae an proc_end at the end
+  if (myynest==0)
+  {
+    WerrorS("branchTo can only occur in a proc");
+    return TRUE;
+  }
   // <string1...stringN>,<proc>
   // known: args!=NULL, l>=1
   int l=args->listLength();
@@ -1191,6 +1191,7 @@ BOOLEAN iiBranchTo(leftv, leftv args)
   if (iiCurrArgs!=NULL) ll=iiCurrArgs->listLength();
   if (ll!=(l-1)) return FALSE;
   leftv h=args;
+  // set up the table for type test:
   short *t=(short*)omAlloc(l*sizeof(short));
   t[0]=l-1;
   int b;
@@ -1216,22 +1217,23 @@ BOOLEAN iiBranchTo(leftv, leftv args)
   if (h->Typ()!=PROC_CMD)
   {
     omFree(t);
-    Werror("last arg (%d) is not a proc",i);
+    Werror("last arg (%d) is not a proc(%d), nest=%d",i,h->Typ(),myynest);
     return TRUE;
   }
   b=iiCheckTypes(iiCurrArgs,t,0);
   omFree(t);
   if (b && (h->rtyp==IDHDL) && (h->e==NULL))
   {
-    BOOLEAN err;
-    //Print("branchTo: %s\n",h->Name());
+    // get the proc:
     iiCurrProc=(idhdl)h->data;
     procinfo * pi=IDPROC(iiCurrProc);
+    // already loaded ?
     if( pi->data.s.body==NULL )
     {
       iiGetLibProcBuffer(pi);
       if (pi->data.s.body==NULL) return TRUE;
     }
+    // set currPackHdl/currPack
     if ((pi->pack!=NULL)&&(currPack!=pi->pack))
     {
       currPack=pi->pack;
@@ -1239,16 +1241,38 @@ BOOLEAN iiBranchTo(leftv, leftv args)
       currPackHdl=packFindHdl(currPack);
       //Print("set pack=%s\n",IDID(currPackHdl));
     }
-    err=iiAllStart(pi,pi->data.s.body,BT_proc,pi->data.s.body_lineno-(iiCurrArgs==NULL));
-    exitBuffer(BT_proc);
+    // see iiAllStart:
+    BITSET save1=si_opt_1;
+    BITSET save2=si_opt_2;
+    newBuffer( omStrDup(pi->data.s.body), BT_proc,
+               pi, pi->data.s.body_lineno-(iiCurrArgs==NULL) );
+    BOOLEAN err=yyparse();
+    si_opt_1=save1;
+    si_opt_2=save2;
+    // now save the return-expr.
+    sLastPrinted.CleanUp(currRing);
+    memcpy(&sLastPrinted,&iiRETURNEXPR,sizeof(sleftv));
+    iiRETURNEXPR.Init();
+    // warning about args.:
     if (iiCurrArgs!=NULL)
     {
-      if (!err) Warn("too many arguments for %s",IDID(iiCurrProc));
+      if (err==0) Warn("too many arguments for %s",IDID(iiCurrProc));
       iiCurrArgs->CleanUp();
       omFreeBin((ADDRESS)iiCurrArgs, sleftv_bin);
       iiCurrArgs=NULL;
     }
-    return 2-err;
+    // similate proc_end:
+    // - leave input
+    void myychangebuffer();
+    myychangebuffer();
+    // - set the current buffer to its end (this is a pointer in a buffer,
+    //   not a file ptr) "branchTo" is only valid in proc)
+    currentVoice->fptr=strlen(currentVoice->buffer);
+    // - kill local vars
+    killlocals(myynest);
+    // - return
+    newBuffer(omStrDup("\n;return(_);\n"),BT_execute);
+    return (err!=0);
   }
   return FALSE;
 }
@@ -1414,10 +1438,8 @@ BOOLEAN iiExport (leftv v, int toLev)
 /*assume root!=idroot*/
 BOOLEAN iiExport (leftv v, int toLev, package pack)
 {
-#ifdef SINGULAR_4_1
 //  if ((pack==basePack)&&(pack!=currPack))
 //  { Warn("'exportto' to Top is depreciated in >>%s<<",my_yylinebuf);}
-#endif
   BOOLEAN nok=FALSE;
   leftv rv=v;
   while (v!=NULL)
@@ -1551,7 +1573,7 @@ idhdl rDefault(const char *s)
   /*weights: entries for 3 blocks: NULL*/
   r->wvhdl = (int **)omAlloc0(3 * sizeof(int_ptr));
   /*order: dp,C,0*/
-  r->order = (int *) omAlloc(3 * sizeof(int *));
+  r->order = (rRingOrder_t *) omAlloc(3 * sizeof(rRingOrder_t *));
   r->block0 = (int *)omAlloc0(3 * sizeof(int *));
   r->block1 = (int *)omAlloc0(3 * sizeof(int *));
   /* ringorder dp for the first block: var 1..3 */
@@ -1561,7 +1583,7 @@ idhdl rDefault(const char *s)
   /* ringorder C for the second block: no vars */
   r->order[1]  = ringorder_C;
   /* the last block: everything is 0 */
-  r->order[2]  = 0;
+  r->order[2]  = (rRingOrder_t)0;
 
   /* complete ring intializations */
   rComplete(r);
@@ -1683,7 +1705,6 @@ void rDecomposeCF(leftv h,const ring r,const ring R)
   }
   // ----------------------------------------
 }
-#ifdef SINGULAR_4_1
 static void rDecomposeC_41(leftv h,const coeffs C)
 /* field is R or C */
 {
@@ -1718,7 +1739,6 @@ static void rDecomposeC_41(leftv h,const coeffs C)
   }
   // ----------------------------------------
 }
-#endif
 static void rDecomposeC(leftv h,const ring R)
 /* field is R or C */
 {
@@ -1754,7 +1774,6 @@ static void rDecomposeC(leftv h,const ring R)
   // ----------------------------------------
 }
 
-#ifdef SINGULAR_4_1
 #ifdef HAVE_RINGS
 void rDecomposeRing_41(leftv h,const coeffs C)
 /* field is R or C */
@@ -1782,7 +1801,6 @@ void rDecomposeRing_41(leftv h,const coeffs C)
   L->m[1].rtyp=LIST_CMD;
   L->m[1].data=(void *)LL;
 }
-#endif
 #endif
 
 void rDecomposeRing(leftv h,const ring R)
@@ -1817,7 +1835,6 @@ void rDecomposeRing(leftv h,const ring R)
 }
 
 
-#ifdef SINGULAR_4_1
 BOOLEAN rDecompose_CF(leftv res,const coeffs C)
 {
   assume( C != NULL );
@@ -1888,9 +1905,7 @@ BOOLEAN rDecompose_CF(leftv res,const coeffs C)
   // ----------------------------------------
   return FALSE;
 }
-#endif
 
-#ifdef SINGULAR_4_1
 lists rDecompose_list_cf(const ring r)
 {
   assume( r != NULL );
@@ -1899,8 +1914,7 @@ lists rDecompose_list_cf(const ring r)
 
   // sanity check: require currRing==r for rings with polynomial data
   if ( (r!=currRing) && (
-           (nCoeff_is_algExt(C) && (C != currRing->cf))
-        || (r->qideal != NULL)
+        (r->qideal != NULL)
 #ifdef HAVE_PLURAL
         || (rIsPluralRing(r))
 #endif
@@ -2022,7 +2036,6 @@ lists rDecompose_list_cf(const ring r)
 #endif
   return L;
 }
-#endif
 
 lists rDecompose(const ring r)
 {
@@ -2495,13 +2508,13 @@ static inline BOOLEAN rComposeOrder(const lists  L, const BOOLEAN check_comp, ri
     if (bitmask!=0) n--;
 
     // initialize fields of R
-    R->order=(int *)omAlloc0(n*sizeof(int));
+    R->order=(rRingOrder_t *)omAlloc0(n*sizeof(rRingOrder_t));
     R->block0=(int *)omAlloc0(n*sizeof(int));
     R->block1=(int *)omAlloc0(n*sizeof(int));
     R->wvhdl=(int**)omAlloc0(n*sizeof(int_ptr));
     // init order, so that rBlocks works correctly
     for (j_in_R= n-2; j_in_R>=0; j_in_R--)
-      R->order[j_in_R] = (int) ringorder_unspec;
+      R->order[j_in_R] = ringorder_unspec;
     // orderings
     for(j_in_R=0,j_in_L=0;j_in_R<n-1;j_in_R++,j_in_L++)
     {
@@ -2688,7 +2701,7 @@ static inline BOOLEAN rComposeOrder(const lists  L, const BOOLEAN check_comp, ri
       }
       if (!comp_order)
       {
-        R->order=(int*)omRealloc0Size(R->order,n*sizeof(int),(n+1)*sizeof(int));
+        R->order=(rRingOrder_t*)omRealloc0Size(R->order,n*sizeof(rRingOrder_t),(n+1)*sizeof(rRingOrder_t));
         R->block0=(int*)omRealloc0Size(R->block0,n*sizeof(int),(n+1)*sizeof(int));
         R->block1=(int*)omRealloc0Size(R->block1,n*sizeof(int),(n+1)*sizeof(int));
         R->wvhdl=(int**)omRealloc0Size(R->wvhdl,n*sizeof(int_ptr),(n+1)*sizeof(int_ptr));
@@ -2730,15 +2743,12 @@ ring rCompose(const lists  L, const BOOLEAN check_comp)
 
   // ------------------------------------------------------------------
   // 0: char:
-#ifdef SINGULAR_4_1
   if (L->m[0].Typ()==CRING_CMD)
   {
     R->cf=(coeffs)L->m[0].Data();
     R->cf->ref++;
   }
-  else
-#endif
-  if (L->m[0].Typ()==INT_CMD)
+  else if (L->m[0].Typ()==INT_CMD)
   {
     int ch = (int)(long)L->m[0].Data();
     assume( ch >= 0 );
@@ -2960,14 +2970,14 @@ rCompose_err:
     if (R->names!=NULL)
     {
       i=R->N-1;
-      while (i>=0) { if (R->names[i]!=NULL) omFree(R->names[i]); i--; }
+      while (i>=0) { omfree(R->names[i]); i--; }
       omFree(R->names);
     }
   }
-  if (R->order!=NULL) omFree(R->order);
-  if (R->block0!=NULL) omFree(R->block0);
-  if (R->block1!=NULL) omFree(R->block1);
-  if (R->wvhdl!=NULL) omFree(R->wvhdl);
+  omfree(R->order);
+  omfree(R->block0);
+  omfree(R->block1);
+  omfree(R->wvhdl);
   omFree(R);
   return NULL;
 }
@@ -5224,7 +5234,7 @@ BOOLEAN rSleftvOrdering2Ordering(sleftv *ord, ring R)
   }
 
   // initialize fields of R
-  R->order=(int *)omAlloc0(n*sizeof(int));
+  R->order=(rRingOrder_t *)omAlloc0(n*sizeof(rRingOrder_t));
   R->block0=(int *)omAlloc0(n*sizeof(int));
   R->block1=(int *)omAlloc0(n*sizeof(int));
   R->wvhdl=(int**)omAlloc0(n*sizeof(int_ptr));
@@ -5233,7 +5243,7 @@ BOOLEAN rSleftvOrdering2Ordering(sleftv *ord, ring R)
 
   // init order, so that rBlocks works correctly
   for (j=0; j < n-1; j++)
-    R->order[j] = (int) ringorder_unspec;
+    R->order[j] = ringorder_unspec;
   // set last _C order, if no c/C order was given
   if (i == 0) R->order[n-2] = ringorder_C;
 
@@ -5253,7 +5263,7 @@ BOOLEAN rSleftvOrdering2Ordering(sleftv *ord, ring R)
        *  iv[1]: ordering
        *  iv[2..end]: weights
        */
-      R->order[n] = (*iv)[1];
+      R->order[n] = (rRingOrder_t)((*iv)[1]);
       typ=1;
       switch ((*iv)[1])
       {
@@ -5527,7 +5537,6 @@ ring rInit(leftv pn, leftv rv, leftv ord)
   assume( pn != NULL );
   const int P = pn->listLength();
 
-  #ifdef SINGULAR_4_1
   if (pn->Typ()==CRING_CMD)
   {
     cf=(coeffs)pn->CopyD();
@@ -5558,9 +5567,7 @@ ring rInit(leftv pn, leftv rv, leftv ord)
     }
     assume( cf != NULL );
   }
-  else
-  #endif
-  if (pn->Typ()==INT_CMD)
+  else if (pn->Typ()==INT_CMD)
   {
     int ch = (int)(long)pn->Data();
     leftv pnn=pn;
@@ -6052,11 +6059,6 @@ void rKill(ring r)
 #ifdef RDEBUG
     if (traceit &TRACE_SHOW_RINGS) Print("kill ring %lx\n",(long)r);
 #endif
-    if (r->qideal!=NULL)
-    {
-      id_Delete(&r->qideal, r);
-      r->qideal = NULL;
-    }
     int j;
     for (j=0;j<myynest;j++)
     {
@@ -6424,7 +6426,6 @@ BOOLEAN iiAssignCR(leftv r, leftv arg)
     else
       return TRUE;
   }
-  #ifdef SINGULAR_4_1
   else if (t==CRING_CMD)
   {
     sleftv tmp;
@@ -6437,7 +6438,6 @@ BOOLEAN iiAssignCR(leftv r, leftv arg)
     //Print("from %s(%d)\n",Tok2Cmdname(arg->Typ()),arg->Typ());
     return FALSE;
   }
-  #endif
   //Print("create %s\n",r->Name());
   //Print("from %s(%d)\n",Tok2Cmdname(arg->Typ()),arg->Typ());
   return TRUE;// not handled -> error for now

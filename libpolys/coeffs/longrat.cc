@@ -72,7 +72,6 @@ const char *   nlRead (const char *s, number *a, const coeffs r);
 void     nlWrite(number a, const coeffs r);
 
 void     nlCoeffWrite(const coeffs r, BOOLEAN details);
-number   nlChineseRemainder(number *x, number *q,int rl, const coeffs C);
 number   nlFarey(number nN, number nP, const coeffs CF);
 
 #ifdef LDEBUG
@@ -210,7 +209,6 @@ number nlMapGMP(number from, const coeffs /*src*/, const coeffs /*dst*/)
   z->debug=123456;
 #endif
   mpz_init_set(z->z,(mpz_ptr) from);
-  //mpz_init_set_ui(&z->n,1);
   z->s = 3;
   z=nlShort3(z);
   return z;
@@ -674,7 +672,7 @@ number nlInvers(number a, const coeffs r)
     n->s=1;
     if (((long)a)>0L)
     {
-      mpz_init_set_si(n->z,1L);
+      mpz_init_set_ui(n->z,1L);
       mpz_init_set_si(n->n,(long)SR_TO_INT(a));
     }
     else
@@ -719,7 +717,7 @@ number nlInvers(number a, const coeffs r)
               }
               else
               {
-                mpz_init_set_si(n->z,1L);
+                mpz_init_set_ui(n->z,1L);
               }
               break;
     }
@@ -753,7 +751,13 @@ number   nlExactDiv(number a, number b, const coeffs r)
     long bb=SR_TO_INT(b);
     return INT_TO_SR(aa/bb);
   }
+  number aa=NULL;
   number bb=NULL;
+  if (SR_HDL(a) & SR_INT)
+  {
+    aa=nlRInit(SR_TO_INT(a));
+    a=aa;
+  }
   if (SR_HDL(b) & SR_INT)
   {
     bb=nlRInit(SR_TO_INT(b));
@@ -766,7 +770,17 @@ number   nlExactDiv(number a, number b, const coeffs r)
   mpz_init(u->z);
   /* u=a/b */
   u->s = 3;
+  assume(a->s==3);
+  assume(b->s==3);
   mpz_divexact(u->z,a->z,b->z);
+  if (aa!=NULL)
+  {
+    mpz_clear(aa->z);
+#if defined(LDEBUG)
+    aa->debug=654324;
+#endif
+    FREE_RNUMBER(aa); // omFreeBin((void *)aa, rnumber_bin);
+  }
   if (bb!=NULL)
   {
     mpz_clear(bb->z);
@@ -950,9 +964,10 @@ int nlDivComp(number a, number b, const coeffs r)
   return 0;
 }
 
-number  nlGetUnit (number, const coeffs)
+number  nlGetUnit (number n, const coeffs cf)
 {
-  return INT_TO_SR(1);
+  if (nlGreaterZero(n,cf)) return INT_TO_SR(1);
+  else                     return INT_TO_SR(-1);
 }
 
 coeffs nlQuot1(number c, const coeffs r)
@@ -1401,8 +1416,8 @@ number nlNormalizeHelper(number a, number b, const coeffs r)
   if (mpz_cmp_si(gcd,1L)!=0)
   {
     mpz_t bt;
-    mpz_init_set(bt,b->n);
-    mpz_divexact(bt,bt,gcd);
+    mpz_init(bt);
+    mpz_divexact(bt,b->n,gcd);
     if (SR_HDL(a) & SR_INT)
       mpz_mul_si(result->z,bt,SR_TO_INT(a));
     else
@@ -1565,8 +1580,8 @@ BOOLEAN _nlEqual_aNoImm_OR_bNoImm(number a, number b)
     if ((((long)a) < 0L) && (!mpz_isNeg(b->z)))
       return FALSE;
     mpz_t  bb;
-    mpz_init_set(bb,b->n);
-    mpz_mul_si(bb,bb,(long)SR_TO_INT(a));
+    mpz_init(bb);
+    mpz_mul_si(bb,b->n,(long)SR_TO_INT(a));
     bo=(mpz_cmp(bb,b->z)==0);
     mpz_clear(bb);
     return bo;
@@ -2461,7 +2476,7 @@ LINLINE BOOLEAN nlIsZero (number a, const coeffs)
   }
   return FALSE;
   #else
-  return (a==INT_TO_SR(0));
+  return (a==NULL)|| (a==INT_TO_SR(0));
   #endif
 }
 
@@ -2743,7 +2758,7 @@ number nlQuotRem (number a, number b, number * r, const coeffs R)
       *r = INT_TO_SR(rr);
     if (SR_TO_INT(b)<0)
     {
-      mpz_mul_si(qq, qq, -1);
+      mpz_neg(qq, qq);
     }
     return nlInitMPZ(qq,R);
   }
@@ -2914,9 +2929,9 @@ number nlExtGcd(number a, number b, number *s, number *t, const coeffs)
 void    nlCoeffWrite  (const coeffs r, BOOLEAN /*details*/)
 {
   if (r->is_field)
-  PrintS("//   characteristic : 0\n");
+  PrintS("QQ");
   else
-  PrintS("//   coeff. ring is : Integers\n");
+  PrintS("ZZ");
 }
 
 int n_SwitchChinRem=0;
@@ -2941,24 +2956,28 @@ number   nlChineseRemainderSym(number *x, number *q,int rl, BOOLEAN sym, CFArray
   if (sym)
   {
     number p=CF->convFactoryNSingN(qnew,CF);
-    number p2=nlIntDiv(p,nlInit(2, CF),CF);
-    if (nlGreater(n,p2,CF))
+    number p2;
+    if (getCoeffType(CF) == n_Q) p2=nlIntDiv(p,nlInit(2, CF),CF);
+    else                         p2=CF->cfDiv(p,CF->cfInit(2, CF),CF);
+    if (CF->cfGreater(n,p2,CF))
     {
-       number n2=nlSub(n,p,CF);
-       nlDelete(&n,CF);
+       number n2=CF->cfSub(n,p,CF);
+       CF->cfDelete(&n,CF);
        n=n2;
     }
-    nlDelete(&p2,CF);
-    nlDelete(&p,CF);
+    CF->cfDelete(&p2,CF);
+    CF->cfDelete(&p,CF);
   }
-  nlNormalize(n,CF);
+  CF->cfNormalize(n,CF);
   return n;
 }
-number   nlChineseRemainder(number *x, number *q,int rl, const coeffs C)
+#if 0
+number nlChineseRemainder(number *x, number *q,int rl, const coeffs C)
 {
   CFArray inv(rl);
   return nlChineseRemainderSym(x,q,rl,TRUE,inv,C);
 }
+#endif
 
 static void nlClearContent(ICoeffsEnumerator& numberCollectionEnumerator, number& c, const coeffs cf)
 {
@@ -3154,13 +3173,8 @@ char * nlCoeffName(const coeffs r)
 static char* nlCoeffString(const coeffs r)
 {
   //return omStrDup(nlCoeffName(r));
-#ifdef SINGULAR_4_1
   if (r->cfDiv==nlDiv) return omStrDup("QQ");
   else                 return omStrDup("ZZ");
-#else
-  if (r->cfDiv==nlDiv) return omStrDup("0");
-  else                 return omStrDup("integer");
-#endif
 }
 
 static void nlWriteFd(number n,FILE* f, const coeffs)
@@ -3312,8 +3326,6 @@ BOOLEAN nlInitChar(coeffs r, void*p)
   r->is_domain=TRUE;
   r->rep=n_rep_gap_rat;
 
-  //const int ch = (int)(long)(p);
-
   r->nCoeffIsEqual=nlCoeffIsEqual;
   //r->cfKillChar = ndKillChar; /* dummy */
   r->cfCoeffString=nlCoeffString;
@@ -3325,6 +3337,7 @@ BOOLEAN nlInitChar(coeffs r, void*p)
   r->cfMult  = nlMult;
   r->cfSub   = nlSub;
   r->cfAdd   = nlAdd;
+  r->cfExactDiv= nlExactDiv;
   if (p==NULL) /* Q */
   {
     r->is_field=TRUE;
@@ -3347,7 +3360,6 @@ BOOLEAN nlInitChar(coeffs r, void*p)
     r->cfXExtGcd=nlXExtGcd;
     r->cfQuotRem=nlQuotRem;
   }
-  r->cfExactDiv= nlExactDiv;
   r->cfInit = nlInit;
   r->cfSize  = nlSize;
   r->cfInt  = nlInt;

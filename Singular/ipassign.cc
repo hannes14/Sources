@@ -1064,14 +1064,15 @@ static BOOLEAN jiA_DEF(leftv res, leftv, Subexpr)
   res->data=(void *)0;
   return FALSE;
 }
-#ifdef SINGULAR_4_1
-static BOOLEAN jiA_CRING(leftv res, leftv a, Subexpr e)
+static BOOLEAN jiA_CRING(leftv res, leftv a, Subexpr)
 {
+  coeffs r=(coeffs)a->Data();
+  if (r==NULL) return TRUE;
+  if (res->data!=NULL) nKillChar((coeffs)res->data);
   res->data=(void *)a->CopyD(CRING_CMD);
   jiAssignAttr(res,a);
   return FALSE;
 }
-#endif
 
 /*=================== table =================*/
 #define IPASSIGN
@@ -1987,7 +1988,6 @@ BOOLEAN iiAssign(leftv l, leftv r, BOOLEAN toplevel)
         IDMAP((idhdl)l->data)->preimage = omStrDup (r->Fullname());
         /* advance the expressionlist to get the next element after the ring */
         hh = r->next;
-        //r=hh;
       }
       else
       {

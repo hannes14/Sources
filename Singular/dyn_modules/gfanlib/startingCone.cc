@@ -339,14 +339,13 @@ static gfan::ZCone linealitySpaceOfGroebnerFan(const ideal I, const ring r)
 ring createTraversalStartingRing(const ring s, const gfan::ZMatrix &startingPoints, const tropicalStrategy& currentStrategy)
 {
   // copy r except qideal (which should be 0) and ordering
-  ring s0 = rCopy0(s);
+  ring s0 = rCopy0(s,FALSE,FALSE);
   int n = rVar(s);
-  deleteOrdering(s0);
   bool ok;
 
   // adjust weight and create new ordering
   int h = startingPoints.getHeight();
-  s0->order = (int*) omAlloc0((h+3)*sizeof(int));
+  s0->order = (rRingOrder_t*) omAlloc0((h+3)*sizeof(rRingOrder_t));
   s0->block0 = (int*) omAlloc0((h+3)*sizeof(int));
   s0->block1 = (int*) omAlloc0((h+3)*sizeof(int));
   s0->wvhdl = (int**) omAlloc0((h+3)*sizeof(int**));

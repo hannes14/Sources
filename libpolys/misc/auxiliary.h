@@ -27,20 +27,16 @@
 
 // ---------------- Singular standard types etc.
 /* SI_INTEGER_VARIANT: 1: from longrat.cc
- *                     2: GMP
- *                     3: rintegers.cc */
+ *                     2: GMP (in rintegers.cc)
+ *                     3: CF (in rintegers.cc) */
 #define SI_INTEGER_VARIANT 2
 
 /* SI_BIGINT_VARIANT: 1: from longrat.cc
  *                    2: given by SI_INTEGER_VARIANT */
 #define SI_BIGINT_VARIANT 1
 
-
-/* preparation for versio 4.1.0: cring (4_1), cpoly, cnumber, cmatrix (4_2) */
-#ifndef SINGULAR_4_1
-#define SINGULAR_4_1
-#undef SINGULAR_4_2
-#endif /* SINGULAR_4_1 */
+/* preparation for versio 4.2.0: cpoly, cnumber, cmatrix (4_2) */
+#define SINGULAR_4_2 1
 
 #ifndef SIZEOF_LONG
 

@@ -1504,6 +1504,42 @@ poly p_Div_nn(poly p, const number n, const ring r)
   return(result);
 }
 
+poly p_Div_mm(poly p, const poly m, const ring r)
+{
+  p_Test(p, r);
+  p_Test(m, r);
+  poly result = p;
+  poly prev = NULL;
+  number n=pGetCoeff(m);
+  while (p!=NULL)
+  {
+    number nc = n_Div(pGetCoeff(p),n,r->cf);
+    n_Normalize(nc,r->cf);
+    if (!n_IsZero(nc,r->cf))
+    {
+      p_SetCoeff(p,nc,r);
+      prev=p;
+      p_ExpVectorSub(p,m,r);
+      pIter(p);
+    }
+    else
+    {
+      if (prev==NULL)
+      {
+        p_LmDelete(&result,r);
+        p=result;
+      }
+      else
+      {
+        p_LmDelete(&pNext(prev),r);
+        p=pNext(prev);
+      }
+    }
+  }
+  p_Test(result,r);
+  return(result);
+}
+
 /*2
 * divides a by the monomial b, ignores monomials which are not divisible
 * assumes that b is not NULL, destroyes b
@@ -1513,7 +1549,6 @@ poly p_DivideM(poly a, poly b, const ring r)
   if (a==NULL) { p_Delete(&b,r); return NULL; }
   poly result=a;
   poly prev=NULL;
-  int i;
 #ifdef HAVE_RINGS
   number inv=pGetCoeff(b);
 #else
@@ -1524,10 +1559,7 @@ poly p_DivideM(poly a, poly b, const ring r)
   {
     if (p_DivisibleBy(b,a,r))
     {
-      for(i=(int)r->N; i; i--)
-         p_SubExp(a,i, p_GetExp(b,i,r),r);
-      p_SubComp(a, p_GetComp(b,r),r);
-      p_Setm(a,r);
+      p_ExpVectorSub(a,b,r);
       prev=a;
       pIter(a);
     }
@@ -2880,10 +2912,16 @@ void p_Cleardenom_n(poly ph,const ring r,number &c)
 
   if( pNext(p) == NULL )
   {
-    c=n_Invers(pGetCoeff(p), C);
-    p_SetCoeff(p, n_Init(1, C), r);
+    if(!TEST_OPT_CONTENTSB)
+    {
+      c=n_Invers(pGetCoeff(p), C);
+      p_SetCoeff(p, n_Init(1, C), r);
+    }
+    else
+    {
+      c=n_Init(1,C);
+    }
 
-    assume( n_GreaterZero(pGetCoeff(ph),C) );
     if(!n_GreaterZero(pGetCoeff(ph),C))
     {
       ph = p_Neg(ph,r);
@@ -2892,6 +2930,7 @@ void p_Cleardenom_n(poly ph,const ring r,number &c)
 
     return;
   }
+  if (TEST_OPT_CONTENTSB) { c=n_Init(1,C); return; }
 
   assume( pNext(p) != NULL );
 
@@ -3886,7 +3925,7 @@ poly n_PermNumber(const number z, const int *par_perm, const int , const ring sr
     if( !DENIS1((fraction)z) )
     {
       if (!p_IsConstant(DEN((fraction)z),srcExtRing))
-        WarnS("Not defined: Cannot map a rational fraction and make a polynomial out of it! Ignoring the denumerator.");
+        WarnS("Not defined: Cannot map a rational fraction and make a polynomial out of it! Ignoring the denominator.");
     }
   }
   else
@@ -4274,22 +4313,7 @@ int p_MinDeg(poly p,intvec *w, const ring R)
 }
 
 /***************************************************************/
-
-poly p_Series(int n,poly p,poly u, intvec *w, const ring R)
-{
-  short *ww=iv2array(w,R);
-  if(p!=NULL)
-  {
-    if(u==NULL)
-      p=p_JetW(p,n,ww,R);
-    else
-      p=p_JetW(p_Mult_q(p,p_Invers(n-p_MinDeg(p,w,R),u,w,R),R),n,ww,R);
-  }
-  omFreeSize((ADDRESS)ww,(rVar(R)+1)*sizeof(short));
-  return p;
-}
-
-poly p_Invers(int n,poly u,intvec *w, const ring R)
+static poly p_Invers(int n,poly u,intvec *w, const ring R)
 {
   if(n<0)
     return NULL;
@@ -4315,6 +4339,21 @@ poly p_Invers(int n,poly u,intvec *w, const ring R)
   p_Delete(&v1,R);
   omFreeSize((ADDRESS)ww,(rVar(R)+1)*sizeof(short));
   return v;
+}
+
+
+poly p_Series(int n,poly p,poly u, intvec *w, const ring R)
+{
+  short *ww=iv2array(w,R);
+  if(p!=NULL)
+  {
+    if(u==NULL)
+      p=p_JetW(p,n,ww,R);
+    else
+      p=p_JetW(p_Mult_q(p,p_Invers(n-p_MinDeg(p,w,R),u,w,R),R),n,ww,R);
+  }
+  omFreeSize((ADDRESS)ww,(rVar(R)+1)*sizeof(short));
+  return p;
 }
 
 BOOLEAN p_EqualPolys(poly p1,poly p2, const ring r)
@@ -4744,3 +4783,40 @@ int p_Compare(const poly a, const poly b, const ring R)
   return(r);
 }
 
+poly p_GcdMon(poly f, poly g, const ring r)
+{
+  assume(f!=NULL);
+  assume(g!=NULL);
+  assume(pNext(f)==NULL);
+  poly G=p_Head(f,r);
+  poly h=g;
+  int *mf=(int*)omAlloc((r->N+1)*sizeof(int));
+  p_GetExpV(f,mf,r);
+  int *mh=(int*)omAlloc((r->N+1)*sizeof(int));
+  BOOLEAN const_mon;
+  BOOLEAN one_coeff=n_IsOne(pGetCoeff(G),r->cf);
+  loop
+  {
+    if (h==NULL) break;
+    if(!one_coeff)
+    {
+      number n=n_SubringGcd(pGetCoeff(G),pGetCoeff(h),r->cf);
+      one_coeff=n_IsOne(n,r->cf);
+      p_SetCoeff(G,n,r);
+    }
+    p_GetExpV(h,mh,r);
+    const_mon=TRUE;
+    for(unsigned j=r->N;j!=0;j--)
+    {
+      if (mh[j]<mf[j]) mf[j]=mh[j];
+      if (mf[j]>0) const_mon=FALSE;
+    }
+    if (one_coeff && const_mon) break;
+    pIter(h);
+  }
+  mf[0]=0;
+  p_SetExpV(G,mf,r); // included is p_SetComp, p_Setm
+  omFreeSize(mf,(r->N+1)*sizeof(int));
+  omFreeSize(mh,(r->N+1)*sizeof(int));
+  return G;
+}

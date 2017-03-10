@@ -60,8 +60,6 @@
 #include <polys/monomials/maps.h>
 #include <polys/matpol.h>
 
-// #include <kernel/longalg.h>
-#include <polys/prCopy.h>
 #include <polys/weight.h>
 
 #include <coeffs/bigintmat.h>
@@ -100,6 +98,7 @@
 #include "attrib.h"
 
 #include "links/silink.h"
+#include "links/ssiLink.h"
 #include "walk.h"
 #include <Singular/newstruct.h>
 #include <Singular/blackbox.h>
@@ -287,6 +286,26 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
       return FALSE;
     }
     else
+/*==================== alarm ==================================*/
+  #ifdef unix
+      if(strcmp(sys_cmd,"alarm")==0)
+      {
+        if ((h!=NULL) &&(h->Typ()==INT_CMD))
+        {
+          // standard variant -> SIGALARM (standard: abort)
+          //alarm((unsigned)h->next->Data());
+          // process time (user +system): SIGVTALARM
+          struct itimerval t,o;
+          memset(&t,0,sizeof(t));
+          t.it_value.tv_sec     =(unsigned)((unsigned long)h->Data());
+          setitimer(ITIMER_VIRTUAL,&t,&o);
+          return FALSE;
+        }
+        else
+          WerrorS("int expected");
+      }
+      else
+  #endif
 /*==================== cpu ==================================*/
     if(strcmp(sys_cmd,"cpu")==0)
     {
@@ -316,18 +335,32 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
       return TRUE;
     }
     else
+  /*==================== neworder =============================*/
+    if(strcmp(sys_cmd,"neworder")==0)
+    {
+      if ((h!=NULL) &&(h->Typ()==IDEAL_CMD))
+      {
+        res->rtyp=STRING_CMD;
+        res->data=(void *)singclap_neworder((ideal)h->Data(), currRing);
+        return FALSE;
+      }
+      else
+        WerrorS("ideal expected");
+    }
+    else
 /*===== nc_hilb ===============================================*/
    // Hilbert series of non-commutative monomial algebras
     if(strcmp(sys_cmd,"nc_hilb") == 0)
     {
-      ideal i;
-      int lV;
+      ideal i; int lV;
       bool ig = FALSE;
+      bool mgrad = FALSE;
+      bool autop = FALSE;
       if((h != NULL)&&(h->Typ() == IDEAL_CMD))
         i = (ideal)h->Data();
       else
       {
-        WerrorS("ideal expected");
+        WerrorS("nc_Hilb:ideal expected");
         return TRUE;
       }
       h = h->next;
@@ -335,13 +368,26 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
         lV = (int)(long)h->Data();
       else
       {
-        WerrorS("int expected");
+        WerrorS("nc_Hilb:int expected");
         return TRUE;
       }
       h = h->next;
+      while((h != NULL)&&(h->Typ() == INT_CMD))
+      {
+        if((int)(long)h->Data() == 1)
+          ig = TRUE;
+        else if((int)(long)h->Data() == 2)
+          mgrad = TRUE;
+        else if((int)(long)h->Data() == 3)
+           autop = TRUE;
+        h = h->next;
+      }
       if(h != NULL)
-        ig = TRUE;
-      HilbertSeries_OrbitData(i,lV,ig);
+      {
+        WerrorS("nc_Hilb:int 1,2 or 3 are expected");
+        return TRUE;
+      }
+      HilbertSeries_OrbitData(i, lV, ig, mgrad, autop);
       return(FALSE);
     }
     else
@@ -879,7 +925,6 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
 /*==================== reserved link =================*/
     if (strcmp(sys_cmd,"reservedLink")==0)
     {
-      extern si_link ssiCommandLink();
       res->rtyp=LINK_CMD;
       si_link p=ssiCommandLink();
       res->data=(void*)p;
@@ -2602,26 +2647,6 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
       }
       else
   #endif
-  /*==================== alarm ==================================*/
-  #ifdef unix
-      if(strcmp(sys_cmd,"alarm")==0)
-      {
-        if ((h!=NULL) &&(h->Typ()==INT_CMD))
-        {
-          // standard variant -> SIGALARM (standard: abort)
-          //alarm((unsigned)h->next->Data());
-          // process time (user +system): SIGVTALARM
-          struct itimerval t,o;
-          memset(&t,0,sizeof(t));
-          t.it_value.tv_sec     =(unsigned)((unsigned long)h->Data());
-          setitimer(ITIMER_VIRTUAL,&t,&o);
-          return FALSE;
-        }
-        else
-          WerrorS("int expected");
-      }
-      else
-  #endif
   /*==================== red =============================*/
   #if 0
       if(strcmp(sys_cmd,"red")==0)
@@ -3599,19 +3624,6 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
       }
     }
     else
-  /*==================== neworder =============================*/
-    if(strcmp(sys_cmd,"neworder")==0)
-    {
-      if ((h!=NULL) &&(h->Typ()==IDEAL_CMD))
-      {
-        res->rtyp=STRING_CMD;
-        res->data=(void *)singclap_neworder((ideal)h->Data(), currRing);
-        return FALSE;
-      }
-      else
-        WerrorS("ideal expected");
-    }
-    else
   /*==================== Approx_Step  =================*/
   #ifdef HAVE_PLURAL
     if (strcmp(sys_cmd, "astep") == 0)
@@ -3779,7 +3791,7 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
     }
     else
 /*==================== LU for bigintmat =================*/
-#ifdef SINGULAR_4_1
+#ifdef SINGULAR_4_2
     if(strcmp(sys_cmd,"LU")==0)
     {
       if ((h!=NULL) && (h->Typ()==CMATRIX_CMD))
@@ -3817,6 +3829,20 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
       extern BOOLEAN jjUNIQLIST(leftv, leftv);
       if (h->Typ()==LIST_CMD)
         return jjUNIQLIST(res,h);
+      else
+        return TRUE;
+    }
+    else
+/*==================== tensor =================*/
+    if(strcmp(sys_cmd,"tensor")==0)
+    {
+      const short t[]={2,MODUL_CMD,MODUL_CMD};
+      if (iiCheckTypes(h,t,1))
+      {
+        res->data=(void*)mp_Tensor((ideal)h->Data(),(ideal)h->next->Data(),currRing);
+        res->rtyp=MODUL_CMD;
+        return FALSE;
+      }
       else
         return TRUE;
     }

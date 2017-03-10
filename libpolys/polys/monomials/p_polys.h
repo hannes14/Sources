@@ -1373,8 +1373,8 @@ static inline void p_ExpVectorSub(poly p1, poly p2, const ring r)
 
   p_MemSub_LengthGeneral(p1->exp, p2->exp, r->ExpL_Size);
   p_MemSub_NegWeightAdjust(p1, r);
-
 }
+
 // ExpVector(p1) += ExpVector(p2) - ExpVector(p3)
 static inline void p_ExpVectorAddSub(poly p1, poly p2, poly p3, const ring r)
 {
@@ -1513,9 +1513,9 @@ static inline int p_LtCmp(poly p, poly q, const ring r)
       qc = n_InpNeg(qc,r->cf);
     if(n_Greater(pc,qc,r->cf))
       res = 1;
-    if(n_Greater(qc,pc,r->cf))
+    else if(n_Greater(qc,pc,r->cf))
       res = -1;
-    if(n_Equal(pc,qc,r->cf))
+    else if(n_Equal(pc,qc,r->cf))
       res = 0;
     n_Delete(&pc,r->cf);
     n_Delete(&qc,r->cf);
@@ -1550,7 +1550,7 @@ static inline int p_LtCmpOrdSgnDiffM(poly p, poly q, const ring r)
 {
   if(r->OrdSgn == 1)
   {
-    return(p_LtCmp(p,q,r) != -1);
+    return(p_LtCmp(p,q,r) == 1);
   }
   else
   {
@@ -2008,9 +2008,6 @@ poly p_PermPoly (poly p, const int * perm,const ring OldRing, const ring dst,
 
 /*----------------------------------------------------*/
 poly p_Series(int n,poly p,poly u, intvec *w, const ring R);
-poly p_Invers(int n,poly u,intvec *w, const ring R);
-
-
 
 /*----------------------------------------------------*/
 int   p_Var(poly mi, const ring r);
@@ -2023,5 +2020,11 @@ void p_Shift (poly * p,int i, const ring r);
 /*----------------------------------------------------*/
 
 int p_Compare(const poly a, const poly b, const ring R);
+
+/// polynomial gcd for f=mon
+poly p_GcdMon(poly f, poly g, const ring r);
+
+/// divide polynomial by monomial
+poly p_Div_mm(poly p, const poly m, const ring r);
 #endif // P_POLYS_H
 

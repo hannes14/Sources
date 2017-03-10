@@ -1,5 +1,5 @@
-AC_INIT([singular], [4.0.3], [singular@mathematik.uni-kl.de])
-AC_DEFINE([VERSION_DATE],["Jan 2016"],[release date])
+AC_INIT([singular], [4.1.0], [singular@mathematik.uni-kl.de])
+AC_DEFINE([VERSION_DATE],["Nov 2016"],[release date])
 
 _AC_SRCDIRS(["$ac_dir"])
 
@@ -49,7 +49,7 @@ if test -z "$DOXYGEN";
 fi
 AM_CONDITIONAL([HAVE_DOXYGEN], [test -n "$DOXYGEN"])
 
-LT_INIT
+LT_INIT([win32-dll])
 
 link_all_deplibs=yes
 link_all_deplibs_CXX=yes
@@ -106,12 +106,7 @@ AC_FUNC_MALLOC
 AC_CHECK_SIZEOF(long,4)
 SING_CHECK_CPU
 
-#check for host:
-AC_CANONICAL_HOST
-
-case $host_os in
-  *cygwin* ) AX_APPEND_LINK_FLAGS([-Wl,-Bdynamic]);;
-esac
+SING_WIN_FLAGS
 
 PKG_REQUIRE="$PKG_REQUIRE"
 AC_SUBST(PKG_REQUIRE)
@@ -128,6 +123,8 @@ SING_CHECK_GFANLIB
 SING_CHECK_POLYMAKE
 
 SING_CHECK_PLURAL
+
+SING_CHECK_PYTHON_MODULE
 
 SING_BUILTIN_MODULES
 
@@ -204,11 +201,6 @@ AX_NORMALIZE_PATH([config_datadir],['/'])
 AC_DEFINE_UNQUOTED([DATA_DIR],"$config_datadir",[datadir])
 AC_SUBST(DATA_DIR, "$config_datadir")
 
-AX_RECURSIVE_EVAL([[$]docdir], [config_docdir])
-AX_NORMALIZE_PATH([config_docdir],['/'])
-AC_DEFINE_UNQUOTED([DOC_DIR],"$config_docdir",[docdir])
-AC_SUBST(DOC_DIR, "$config_docdir")
-
 SING_SHOW_FLAGS([Compiler/linker flags: ])
 
 
@@ -246,6 +238,7 @@ AC_CONFIG_FILES([Singular/dyn_modules/Order/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/syzextra/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/gfanlib/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/polymake/Makefile])
+AC_CONFIG_FILES([Singular/dyn_modules/python/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/customstd/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/pyobject/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/singmathic/Makefile])

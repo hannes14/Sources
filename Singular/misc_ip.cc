@@ -782,9 +782,9 @@ char * versionString(/*const bool bShowDetails = false*/ )
                S_UNAME, VERSION, // SINGULAR_VERSION,
                SINGULAR_VERSION, sizeof(void*)*8,
 #ifdef MAKE_DISTRIBUTION
-	       VERSION_DATE, GIT_VERSION);
+               VERSION_DATE, GIT_VERSION);
 #else
-	       singular_date, GIT_VERSION);
+               singular_date, GIT_VERSION);
 #endif
   StringAppendS("\nwith\n\t");
 
@@ -1029,7 +1029,9 @@ void checkall()
       {
         if (IDTYP(hh)==PACKAGE_CMD)
         {
-          idhdl h2=IDPACKAGE(hh)->idroot;
+          idhdl h2=NULL;
+          if (IDPACKAGE(hh)!=NULL)
+            h2=IDPACKAGE(hh)->idroot;
           if (IDPACKAGE(hh)!=basePack)
           {
             while (h2!=NULL)
@@ -1191,7 +1193,6 @@ static BOOLEAN ii_pAE_init(leftv res,leftv a)
   }
 }
 #endif
-#ifdef SINGULAR_4_1
 #ifdef HAVE_FLINT
 static n_coeffType n_FlintZn=n_unknown;
 static BOOLEAN ii_FlintZn_init(leftv res,leftv a)
@@ -1213,7 +1214,6 @@ static BOOLEAN ii_FlintZn_init(leftv res,leftv a)
     return FALSE;
   }
 }
-#endif
 #endif
 /*2
 * initialize components of Singular
@@ -1254,8 +1254,8 @@ void siInit(char *name)
   currPack=basePack;
   idhdl h;
   h=enterid("Top", 0, PACKAGE_CMD, &IDROOT, TRUE);
-  IDPACKAGE(h)->language = LANG_TOP;
   IDPACKAGE(h)=basePack;
+  IDPACKAGE(h)->language = LANG_TOP;
   currPackHdl=h;
   basePackHdl=h;
   }
@@ -1311,7 +1311,6 @@ void siInit(char *name)
 
 // default coeffs
   {
-#ifdef SINGULAR_4_1
     idhdl h;
     h=enterid(omStrDup("QQ"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
     IDDATA(h)=(char*)nInitChar(n_Q,NULL);
@@ -1321,7 +1320,6 @@ void siInit(char *name)
     //IDDATA(h)=(char*)nInitChar(n_R,NULL);
     //h=enterid(omStrDup("CC"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
     //IDDATA(h)=(char*)nInitChar(n_long_C,NULL);
-#endif
     n_coeffType t;
 #ifdef SINGULAR_4_2
     t=nRegister(n_unknown,n_AEInitChar);
@@ -1342,7 +1340,6 @@ void siInit(char *name)
       iiAddCproc("kernel","pAE",FALSE,ii_pAE_init);
     }
 #endif
-#ifdef SINGULAR_4_1
     #ifdef HAVE_FLINT
     t=nRegister(n_unknown,flintQ_InitChar);
     if (t!=n_unknown)
@@ -1356,7 +1353,6 @@ void siInit(char *name)
       iiAddCproc("kernel","flintZ",FALSE,ii_FlintZn_init);
     }
     #endif
-#endif
   }
 // setting routines for PLURAL QRINGS:
 // allowing to use libpolys without libSingular(kStd)

@@ -12,7 +12,7 @@ dnl #
 #
 # - initialisation.
 #
-AC_INIT([factory], [4.0.3])
+AC_INIT([factory], [4.1.0])
 AC_CONFIG_SRCDIR(canonicalform.cc)
 AC_CONFIG_MACRO_DIR([../m4])
 AC_CONFIG_AUX_DIR([../build-aux])
@@ -44,7 +44,7 @@ AC_PROG_LN_S
 AC_PROG_INSTALL
 ## AC_DISABLE_STATIC
 AC_PROG_YACC
-LT_INIT
+LT_INIT([win32-dll])
 AC_PROG_MAKE_SET
 AC_CHECK_PROG(AR, ar, ar, where-is-your-ar)
 AC_CHECK_PROG(M4, m4, m4, where-is-your-m4)
@@ -54,14 +54,17 @@ AC_C_CONST
 AC_C_INLINE
 
 
+SING_WIN_FLAGS
+
+
 #
 # - check withs and enables.
 #
 AC_ARG_ENABLE(
   cf-inline,
-  [AS_HELP_STRING([--enable-cf-inline],[build Factory with \"configurable inline methods\" enabled.])],
+  [AS_HELP_STRING([--disable-cf-inline],[build Factory with \"configurable inline methods\" disabled.])],
   [enable_cf_inline=$enableval],
-  [enable_cf_inline=no])
+  [enable_cf_inline=yes])
 
 AC_ARG_ENABLE(
   assertions,

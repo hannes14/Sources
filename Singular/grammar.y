@@ -1157,6 +1157,7 @@ killcmd:
             if (v->name!=NULL)
             {
                Werror("`%s` is undefined in kill",v->name);
+	       omFree((ADDRESS)v->name); v->name=NULL;
             }
             else               WerrorS("kill what ?");
           }
@@ -1173,6 +1174,7 @@ killcmd:
             if (v->name!=NULL)
             {
                Werror("`%s` is undefined in kill",v->name);
+	       omFree((ADDRESS)v->name); v->name=NULL;
             }
             else               WerrorS("kill what ?");
           }
@@ -1328,7 +1330,6 @@ ringcmd:
           }
         | ringcmd1 elemexpr cmdeq elemexpr '[' exprlist ']'
         {
-          #ifdef SINGULAR_4_1
           yyInRingConstruction = FALSE;
           sleftv tmp;
           $4.next=(leftv)omAlloc(sizeof(sleftv));
@@ -1336,9 +1337,6 @@ ringcmd:
           memset(&$6,0,sizeof(sleftv));
           if (iiExprArithM(&tmp,&$4,'[')) YYERROR;
           if (iiAssignCR(&$2,&tmp)) YYERROR;
-          #else
-          YYERROR;
-          #endif
         }
         ;
 

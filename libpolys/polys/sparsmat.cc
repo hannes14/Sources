@@ -6,9 +6,6 @@
 * ABSTRACT: operations with sparse matrices (bareiss, ...)
 */
 
-
-
-
 #include <misc/auxiliary.h>
 
 #include <omalloc/omalloc.h>
@@ -25,7 +22,6 @@
 #include "monomials/p_polys.h"
 
 #include "simpleideals.h"
-
 
 #include "sparsmat.h"
 #include "prCopy.h"
@@ -210,12 +206,13 @@ long sm_ExpBound( ideal m, int di, int ra, int t, const ring currRing)
     {
       k = p_GetComp(p, currRing)-1;
       kr = r[k];
-      for (j=rVar(currRing);j>0;j--)
+      for (j=currRing->N;j>0;j--)
       {
-        if(p_GetExp(p,j, currRing)>kc)
-          kc=p_GetExp(p,j, currRing);
-        if(p_GetExp(p,j, currRing)>kr)
-          kr=p_GetExp(p,j, currRing);
+        long t=p_GetExp(p,j, currRing);
+        if(t /*p_GetExp(p,j, currRing)*/ >kc)
+          kc=t; /*p_GetExp(p,j, currRing);*/
+        if(t /*p_GetExp(p,j, currRing)s*/ >kr)
+          kr=t; /*p_GetExp(p,j, currRing);*/
       }
       r[k] = kr;
       pIter(p);
@@ -263,7 +260,7 @@ ring sm_RingChange(const ring origR, long bound)
 {
 //  *origR =currRing;
   ring tmpR=rCopy0(origR,FALSE,FALSE);
-  int *ord=(int*)omAlloc0(3*sizeof(int));
+  rRingOrder_t *ord=(rRingOrder_t*)omAlloc0(3*sizeof(rRingOrder_t));
   int *block0=(int*)omAlloc(3*sizeof(int));
   int *block1=(int*)omAlloc(3*sizeof(int));
   ord[0]=ringorder_c;
@@ -1608,6 +1605,7 @@ void sparse_mat::smInitPerm()
 }
 
 /* ----------------- arithmetic ------------------ */
+#ifdef OLD_DIV
 /*2
 * exact division a/b
 * a destroyed, b NOT destroyed
@@ -1664,7 +1662,7 @@ void sm_PolyDiv(poly a, poly b, const ring R)
   } while (a!=NULL);
   p_LmFree(dummy, R);
 }
-
+#endif
 
 //disable that, as it fails with coef buckets
 //#define X_MAS
@@ -1885,7 +1883,8 @@ poly sm_MultDiv(poly a, poly b, const poly c, const ring R)
   p_LmFree(e, R);
   return res;
 }
-#endif
+#endif /*else X_MAS*/
+
 /*n
 * exact division a/b
 * a is a result of smMultDiv
@@ -1900,7 +1899,6 @@ void sm_SpecialPolyDiv(poly a, poly b, const ring R)
   }
   sm_ExactPolyDiv(a, b, R);
 }
-
 
 /* ------------ internals arithmetic ------------- */
 static void sm_ExactPolyDiv(poly a, poly b, const ring R)

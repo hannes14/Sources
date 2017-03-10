@@ -368,7 +368,7 @@ BOOLEAN iiAllStart(procinfov pi, char *p,feBufferTypes t, int l)
 * TODO:interrupt
 * return FALSE on success, TRUE if an error occurs
 */
-BOOLEAN iiPStart(idhdl pn, sleftv  * v)
+BOOLEAN iiPStart(idhdl pn, leftv v)
 {
   procinfov pi=NULL;
   int old_echo=si_echo;
@@ -395,10 +395,12 @@ BOOLEAN iiPStart(idhdl pn, sleftv  * v)
   }
   else return TRUE;
   /* generate argument list ======================================*/
+  //iiCurrArgs should be NULL here, as the assignment for the parameters
+  // of the prevouis call are already done befor calling another routine
   if (v!=NULL)
   {
     iiCurrArgs=(leftv)omAllocBin(sleftv_bin);
-    memcpy(iiCurrArgs,v,sizeof(sleftv));
+    memcpy(iiCurrArgs,v,sizeof(sleftv)); // keeps track of v->next etc.
     memset(v,0,sizeof(sleftv));
   }
   else
@@ -433,7 +435,7 @@ BOOLEAN iiPStart(idhdl pn, sleftv  * v)
           nh=rFindHdl(currRing,NULL);
         if (nh!=NULL)          n=nh->id;
         else                   n="none";
-        Werror("ring change during procedure call: %s -> %s (level %d)",o,n,myynest);
+        Werror("ring change during procedure call %s: %s -> %s (level %d)",pi->procname,o,n,myynest);
         iiRETURNEXPR.CleanUp();
         err=TRUE;
       }
@@ -498,7 +500,7 @@ static void iiCheckNest()
     iiRETURNEXPR_len+=16;
   }
 }
-BOOLEAN iiMake_proc(idhdl pn, package pack, sleftv* sl)
+BOOLEAN iiMake_proc(idhdl pn, package pack, leftv sl)
 {
   int err;
   procinfov pi = IDPROC(pn);
@@ -656,7 +658,7 @@ iiGetBuiltinModInit(const char* libname)
 BOOLEAN iiTryLoadLib(leftv v, const char *id)
 {
   BOOLEAN LoadResult = TRUE;
-  char libnamebuf[128];
+  char libnamebuf[1024];
   char *libname = (char *)omAlloc(strlen(id)+5);
   const char *suffix[] = { "", ".lib", ".so", ".sl", NULL };
   int i = 0;
@@ -672,7 +674,7 @@ BOOLEAN iiTryLoadLib(leftv v, const char *id)
     {
       char *s=omStrDup(libname);
       #ifdef HAVE_DYNAMIC_LOADING
-      char libnamebuf[256];
+      char libnamebuf[1024];
       #endif
 
       if (LT==LT_SINGULAR)
@@ -717,7 +719,7 @@ BOOLEAN iiLocateLib(const char* lib, char* where)
 
 BOOLEAN iiLibCmd( char *newlib, BOOLEAN autoexport, BOOLEAN tellerror, BOOLEAN force )
 {
-  char libnamebuf[128];
+  char libnamebuf[1024];
   // procinfov pi;
   // idhdl h;
   idhdl pl;

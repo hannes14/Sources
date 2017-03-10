@@ -40,6 +40,8 @@ int produce_convert_table=0;
 #define ALLOW_ZERODIVISOR  0
 #define ZERODIVISOR_MASK 8
 
+#define ALLOW_ZZ (ALLOW_RING|NO_ZERODIVISOR)
+
 // bit 4 for warning, if used at toplevel
 #define WARN_RING        16
 // bit 5: do no try automatic conversions
@@ -143,9 +145,6 @@ const char * Tok2Cmdname(int tok)
   //if (tok==OBJECT) return "object";
   //if (tok==PRINT_EXPR) return "print_expr";
   if (tok==IDHDL) return "identifier";
-  #ifdef SINGULAR_4_1
-  //if (tok==CRING_CMD) return "Ring";
-  #endif
   // we do not blackbox objects during table generation:
   //if (tok>MAX_TOK) return getBlackboxName(tok);
   int i = 0;

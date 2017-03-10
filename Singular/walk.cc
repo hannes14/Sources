@@ -2701,7 +2701,7 @@ static ring VMrDefault(intvec* va)
     r->wvhdl[0][i] = (*va)[i];
 
   /* order: a,lp,C,0 */
-  r->order = (int *) omAlloc(nb * sizeof(int *));
+  r->order = (rRingOrder_t *) omAlloc(nb * sizeof(rRingOrder_t *));
   r->block0 = (int *)omAlloc0(nb * sizeof(int *));
   r->block1 = (int *)omAlloc0(nb * sizeof(int *));
 
@@ -2722,7 +2722,7 @@ static ring VMrDefault(intvec* va)
   r->order[2]  = ringorder_C;
 
   // the last block: everything is 0
-  r->order[3]  = 0;
+  r->order[3]  = (rRingOrder_t)0;
 
   // polynomial ring
   r->OrdSgn    = 1;
@@ -2757,7 +2757,7 @@ static ring VMrRefine(intvec* va, intvec* vb)
   }
 
   // order: (1..1),a,lp,C
-  r->order = (int *) omAlloc(nb * sizeof(int *));
+  r->order = (rRingOrder_t *) omAlloc(nb * sizeof(rRingOrder_t *));
   r->block0 = (int *)omAlloc0(nb * sizeof(int *));
   r->block1 = (int *)omAlloc0(nb * sizeof(int *));
 
@@ -2783,7 +2783,7 @@ static ring VMrRefine(intvec* va, intvec* vb)
   r->order[3]  = ringorder_C;
 
   // the last block: everything is 0
-  r->order[4]  = 0;
+  r->order[4]  = (rRingOrder_t)0;
 
   // complete ring intializations
 
@@ -2814,7 +2814,7 @@ static ring VMatrDefault(intvec* va)
     r->wvhdl[0][i] = (*va)[i];
 
   /* order: a,lp,C,0 */
-  r->order = (int *) omAlloc(nb * sizeof(int *));
+  r->order = (rRingOrder_t*) omAlloc(nb * sizeof(rRingOrder_t*));
   r->block0 = (int *)omAlloc0(nb * sizeof(int *));
   r->block1 = (int *)omAlloc0(nb * sizeof(int *));
 
@@ -2834,7 +2834,7 @@ static ring VMatrDefault(intvec* va)
   r->block1[2] = nv;
 
   // the last block: everything is 0
-  r->order[3]  = 0;
+  r->order[3]  = (rRingOrder_t)0;
 
   // complete ring intializations
 
@@ -2871,7 +2871,7 @@ static ring VMatrRefine(intvec* va, intvec* vb)
     r->wvhdl[0][i] = (*vb)[i];
   }
   /* order: a,lp,C,0 */
-  r->order = (int *) omAlloc(nb * sizeof(int *));
+  r->order = (rRingOrder_t *) omAlloc(nb * sizeof(rRingOrder_t *));
   r->block0 = (int *)omAlloc0(nb * sizeof(int *));
   r->block1 = (int *)omAlloc0(nb * sizeof(int *));
 
@@ -2891,7 +2891,7 @@ static ring VMatrRefine(intvec* va, intvec* vb)
   r->block1[2] = nv;
 
   // the last block: everything is 0
-  r->order[3]  = 0;
+  r->order[3]  = (rRingOrder_t)0;
 
   // complete ring intializations
 
@@ -2916,7 +2916,7 @@ static void VMrDefaultlp(void)
   r->wvhdl = (int **)omAlloc0(nb * sizeof(int_ptr));
 
   /* order: lp,C,0 */
-  r->order = (int *) omAlloc(nb * sizeof(int *));
+  r->order = (rRingOrder_t *) omAlloc(nb * sizeof(rRingOrder_t *));
   r->block0 = (int *)omAlloc0(nb * sizeof(int *));
   r->block1 = (int *)omAlloc0(nb * sizeof(int *));
 
@@ -2929,7 +2929,7 @@ static void VMrDefaultlp(void)
   r->order[1]  = ringorder_C;
 
   /* the last block: everything is 0 */
-  r->order[2]  = 0;
+  r->order[2]  = (rRingOrder_t)0;
 
   /*polynomial ring*/
   r->OrdSgn    = 1;
@@ -2960,7 +2960,7 @@ static void DefRingPar(intvec* va)
 
   /* order: a,lp,C,0 */
 
-  res->order = (int *) omAlloc(nb * sizeof(int *));
+  res->order = (rRingOrder_t *) omAlloc(nb * sizeof(rRingOrder_t *));
   res->block0 = (int *)omAlloc0(nb * sizeof(int *));
   res->block1 = (int *)omAlloc0(nb * sizeof(int *));
 
@@ -2981,7 +2981,7 @@ static void DefRingPar(intvec* va)
   res->order[2]  = ringorder_C;
 
   // the last block: everything is 0
-  res->order[3]  = 0;
+  res->order[3]  = (rRingOrder_t)0;
 
   // polynomial ring
   res->OrdSgn    = 1;
@@ -3007,7 +3007,7 @@ static void DefRingParlp(void)
   r->wvhdl = (int **)omAlloc0(nb * sizeof(int_ptr));
 
   /* order: lp,C,0 */
-  r->order = (int *) omAlloc(nb * sizeof(int *));
+  r->order = (rRingOrder_t *) omAlloc(nb * sizeof(rRingOrder_t *));
   r->block0 = (int *)omAlloc0(nb * sizeof(int *));
   r->block1 = (int *)omAlloc0(nb * sizeof(int *));
 
@@ -3020,7 +3020,7 @@ static void DefRingParlp(void)
   r->order[1]  = ringorder_C;
 
   /* the last block: everything is 0 */
-  r->order[2]  = 0;
+  r->order[2]  = (rRingOrder_t)0;
 
   /*polynomial ring*/
   r->OrdSgn    = 1;

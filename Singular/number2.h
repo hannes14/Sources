@@ -32,7 +32,6 @@ BOOLEAN jjNUMBER2CR(leftv res, leftv a, leftv b); // <any>,cring ->number2
 BOOLEAN jjN2_CR(leftv res, leftv a);              // number2 ->cring
 BOOLEAN jjCM_CR(leftv res, leftv a);              // cmatrix ->cring
 BOOLEAN jjBIM2_CR(leftv res, leftv a);            // bigint ->cring
-BOOLEAN jjR2_CR(leftv res, leftv a);              // ring ->cring
 BOOLEAN jjN2_N(leftv res, leftv a);               // number2 ->number
 BOOLEAN jjP2_R(leftv res, leftv a);              // poly2 ->ring
 // operations:
@@ -55,15 +54,15 @@ void p2Print(poly2 d);
 
 BOOLEAN jjCMATRIX_3(leftv, leftv, leftv,leftv);
 #endif
-#ifdef SINGULAR_4_1
 char *crString(coeffs c);
 
 void crPrint(coeffs cf);
+
+BOOLEAN jjR2_CR(leftv res, leftv a);              // ring ->cring
 
 BOOLEAN jjCRING_Zp(leftv res, leftv a, leftv b);
 BOOLEAN jjCRING_Zm(leftv res, leftv a, leftv b);
 
 BOOLEAN jjEQUAL_CR(leftv res, leftv a, leftv b); // compare cring
-#endif
 
 #endif

@@ -1,5 +1,4 @@
 #include "kernel/mod2.h" // general settings/macros
-#ifdef SINGULAR_4_1
 #include <reporter/reporter.h>  // for Print, WerrorS
 #include <coeffs/numbers.h> // nRegister, coeffs.h
 #include <coeffs/rmodulon.h> // ZnmInfo
@@ -78,6 +77,16 @@ BOOLEAN jjEQUAL_CR(leftv res, leftv a, leftv b)
   coeffs a2=(coeffs)a->Data();
   coeffs b2=(coeffs)b->Data();
   res->data=(void*)(long)(a2==b2);
+  return FALSE;
+}
+
+BOOLEAN jjR2_CR(leftv res, leftv a)              // ring ->cring
+{
+  ring r=(ring)a->Data();
+  AlgExtInfo extParam;
+  extParam.r = r;
+  coeffs cf=nInitChar(n_transExt,&extParam);
+  res->data=(void*)cf;
   return FALSE;
 }
 
@@ -500,15 +509,4 @@ BOOLEAN jjBIM2_CR(leftv res, leftv a)              // bigintmat ->cring
   return FALSE;
 }
 
-BOOLEAN jjR2_CR(leftv res, leftv a)              // ring ->cring
-{
-  ring r=(ring)a->Data();
-  AlgExtInfo extParam;
-  extParam.r = r;
-  coeffs cf=nInitChar(n_polyExt,&extParam);
-  res->data=(void*)cf;
-  return FALSE;
-}
-
-#endif
 #endif

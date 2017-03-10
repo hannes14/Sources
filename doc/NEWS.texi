@@ -23,14 +23,51 @@
 
 New libraries:
 @itemize
+@item goettsche.lib: Goettsche's formula for the Betti numbers of the Hilbert scheme
+of points on a surface, Macdonald's formula for the symmetric product (@nref{goettsche_lib})
+@item ncHilb.lib: Hilbert series of non-commutative monomial algebras (@nref{ncHilb_lib})
+@item rstandard.lib: Janet bases and border bases for ideals (@nref{rstandard_lib})
+@end itemize
+
+Changed libraries:
+@itemize
+@item chern.lib:  new version (@nref{chern_lib})
+@end itemize
+
+Changes in the kernel/build system:
+@itemize
+@item port to polymake 3.x.x
+@item p_Invers is only a helper for p_Series: now static
+@end itemize
+
+@heading News for version 4-1-0
+
+Syntax changes:
+@itemize
+@item new (additional) form of ring definitions: (for example @code{ring R=QQ[x,y,z];})
+      (@nref{General syntax of a ring declaration})
+@item new (additional) form of multi-indicies: (for example @code{i(1,2,3,4,5)})
+      (@nref{Names})
+@item changed behaviour of @code{charstr} (@nref{charstr})
+@item new data type @code{cring} to describe the coeffient rings, to be used
+      for the new definitions for (polynomial) rings (@nref{General syntax of a ring declaration})
+@item new command @code{ring_list} to access the parts used to contruct polynomial rings (@nref{ring_list},@nref{ringlist})
+@item extended polynomial ring construction: also from lists produced by @code{ring_list}
+@item new attribute @code{ring_cf} for @code{ring} (@nref{attrib})
+@item printing of rings changed to match @code{cring} names (@nref{charstr})
+@end itemize
+
+New libraries:
+@itemize
 @item new library: classifyMapGerms.lib: standard basis of the tangent space at the orbit of an algebraic group action (@nref{classifyMapGerms_lib})
 @item new library: ffmodstd.lib:  Groebner bases of ideals in polynomial rings over algebraic function fields(@nref{ffmodstd_lib})
 @item new library: nfmodsyz.lib: syzygy modules of submodules of free modules
       over algebraic number fields(@nref{nfmodsyz_lib})
 @item new library: curveInv.lib: invariants of curves (@nref{curveInv_lib})
 @item new library: gfan.lib: interface to gfanlib (@nref{gfan_lib})
-@item new library: polymakeInterface.lib: interface to polymake (@code{polymakeInterface_lib})
-      merged into @nref{polymake_lib}
+@item extended library: interface to polymake merged into @nref{polymake_lib}
+@item new library: tropicalNewton.lib: Newton polygon methods in tropical geometry (@nref{tropicalNewton_lib})
+@item new library: schubert.lib: some procedures for intersction theory (@nref{schubert_lib})
 @end itemize
 
 Changed libraries:
@@ -51,6 +88,7 @@ Changes in the kernel:
 @item port to readline 7
 @item @nref{sba} works for global orderings, also for coefficient types Z and Z/m
 @item @nref{std} works for all orderings, also for coefficient types Z and Z/m with local/mixed orderings
+@item @nref{factorize} works for polynomial rings over ZZ
 @end itemize
 
 Experimental stuff:
@@ -122,7 +160,7 @@ Changed libraries:
 
 Version 4-0-1 is a bug fix release.
 
-New feature: attribute @code{ring_cf} for @code{ring}.
+New feature: attribute @code{ring_cf} for @code{ring} (@nref{attrib})
 
 @heading News for version 4-0-0
 

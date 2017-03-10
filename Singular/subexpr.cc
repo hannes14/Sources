@@ -53,7 +53,6 @@ omBin libstack_bin = omGetSpecBin(sizeof(libstack));
 static omBin size_two_bin = omGetSpecBin(2);
 
 sleftv     sLastPrinted;
-const char sNoName[]="_";
 #ifdef SIQ
 BOOLEAN siq=FALSE;
 #endif
@@ -105,11 +104,9 @@ void sleftv::Print(leftv store, int spaces)
 
     switch (t /*=Typ()*/)
       {
-#ifdef SINGULAR_4_1
         case CRING_CMD:
           crPrint((coeffs)d);
           break;
-#endif
 #ifdef SINGULAR_4_2
         case CNUMBER_CMD:
           n2Print((number2)d);
@@ -336,7 +333,7 @@ void sleftv::CleanUp(ring r)
 {
   if (rtyp!=IDHDL)
   {
-    if ((name!=NULL) && (name!=sNoName) && (rtyp!=ALIAS_CMD))
+    if ((name!=NULL) && (name!=sNoName_fe) && (rtyp!=ALIAS_CMD))
     {
       //::Print("free %x (%s)\n",name,name);
       omFree((ADDRESS)name);
@@ -418,14 +415,12 @@ static inline void * s_internalCopy(const int t,  void *d)
 {
   switch (t)
   {
-#ifdef SINGULAR_4_1
     case CRING_CMD:
       {
         coeffs cf=(coeffs)d;
         cf->ref++;
         return (void*)d;
       }
-#endif
 #ifdef SINGULAR_4_2
     case CNUMBER_CMD:
       return (void*)n2Copy((number2)d);
@@ -502,7 +497,6 @@ void s_internalDelete(const int t,  void *d, const ring r)
   assume(d!=NULL);
   switch (t)
   {
-#ifdef SINGULAR_4_1
     case CRING_CMD:
       {
         coeffs cf=(coeffs)d;
@@ -516,7 +510,6 @@ void s_internalDelete(const int t,  void *d, const ring r)
           nKillChar((coeffs)d);
         break;
       }
-#endif
 #ifdef SINGULAR_4_2
     case CNUMBER_CMD:
       {
@@ -821,10 +814,8 @@ char *  sleftv::String(void *d, BOOLEAN typed, int dim)
           else
             return pString((poly)d);
 
-        #ifdef SINGULAR_4_1
         case CRING_CMD:
           return nCoeffString((coeffs)d);
-        #endif
         #ifdef SINGULAR_4_2
         case CNUMBER_CMD:
           return n2String((number2)d,typed);
@@ -1956,11 +1947,6 @@ int sleftv::Eval()
   if (nn!=NULL) nok=nok||nn->Eval();
   next=nn;
   return nok;
-}
-
-const char *iiSleftv2name(leftv v)
-{
-  return(v->name);
 }
 
 void * sattr::CopyA()

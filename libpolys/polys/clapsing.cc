@@ -56,59 +56,14 @@ poly singclap_gcd_r ( poly f, poly g, const ring r )
   assume(f!=NULL);
   assume(g!=NULL);
 
-  if(pNext(f)==NULL && pNext(g)==NULL)
+  if(pNext(f)==NULL)
   {
-    poly p=p_One(r);
-    for(int i=rVar(r);i>0;i--)
-      p_SetExp(p,i,si_min(p_GetExp(f,i,r),p_GetExp(g,i,r)),r);
-    if (rField_is_Ring(r))
-    {
-      number c = p_GetCoeff(f,r);
-      number d = p_GetCoeff(g,r);
-      p_SetCoeff(p,n_Gcd(c,d,r->cf),r);
-    }
-    p_Setm(p,r);
-    return p;
-#if 0
-    else
-    {
-      poly h=g;
-      for(int i=rVar(r);i>0;i--)
-        p_SetExp(p,i,p_GetExp(f,i,r),r);
-      while(h!=NULL)
-      {
-        for(int i=rVar(r);i>0;i--)
-          p_SetExp(p,i,si_min(p_GetExp(p,i,r),p_GetExp(h,i,r)),r);
-        pIter(h);
-      }
-      p_Setm(p,r);
-      return p;
-    }
-#endif
+    return p_GcdMon(f,g,r);
   }
-#if 0
-  else if (pNext(g)==NULL)
+  else if(pNext(g)==NULL)
   {
-    poly p=p_One(r);
-    poly h=f;
-    for(int i=rVar(r);i>0;i--)
-      p_SetExp(p,i,p_GetExp(g,i,r),r);
-    if (rField_is_Ring(r))
-    {
-      number c = p_GetCoeff(f,r);
-      number d = p_GetCoeff(g,r);
-      p_SetCoeff(p,n_Gcd(c,d,r->cf),r);
-    }
-    while(h!=NULL)
-    {
-      for(int i=rVar(r);i>0;i--)
-        p_SetExp(p,i,si_min(p_GetExp(p,i,r),p_GetExp(h,i,r)),r);
-      pIter(h);
-    }
-    p_Setm(p,r);
-    return p;
+    return p_GcdMon(g,f,r);
   }
-#endif
 
   Off(SW_RATIONAL);
   if (rField_is_Q(r) || rField_is_Zp(r) || rField_is_Ring_Z(r))
@@ -162,6 +117,28 @@ poly singclap_gcd_and_divide ( poly& f, poly& g, const ring r)
     res= g;
     g=p_One (r);
     return res;
+  }
+  if (pNext(g)==NULL)
+  {
+    poly G=p_GcdMon(g,f,r);
+    if (!n_IsOne(pGetCoeff(G),r->cf)
+    || (!p_IsConstant(G,r)))
+    {
+      f=p_Div_mm(f,G,r);
+      g=p_Div_mm(g,G,r);
+    }
+    return G;
+  }
+  else if (pNext(f)==NULL)
+  {
+    poly G=p_GcdMon(f,g,r);
+    if (!n_IsOne(pGetCoeff(G),r->cf)
+    || (!p_IsConstant(G,r)))
+    {
+      f=p_Div_mm(f,G,r);
+      g=p_Div_mm(g,G,r);
+    }
+    return G;
   }
 
   Off(SW_RATIONAL);
@@ -288,10 +265,20 @@ poly singclap_gcd ( poly f, poly g, const ring r)
 {
   poly res=NULL;
 
-  if (f!=NULL) p_Cleardenom(f, r);
-  if (g!=NULL) p_Cleardenom(g, r);
-  else         return f; // g==0 => gcd=f (but do a p_Cleardenom)
-  if (f==NULL) return g; // f==0 => gcd=g (but do a p_Cleardenom)
+  if (f!=NULL)
+  {
+    //if (r->cf->has_simple_Inverse) p_Norm(f,r);
+    if (rField_is_Zp(r)) p_Norm(f,r);
+    else                 p_Cleardenom(f, r);
+  }
+  if (g!=NULL)
+  {
+    //if (r->cf->has_simple_Inverse) p_Norm(g,r);
+    if (rField_is_Zp(r)) p_Norm(g,r);
+    else                 p_Cleardenom(g, r);
+  }
+  else         return f; // g==0 => gcd=f (but do a p_Cleardenom/pNorm)
+  if (f==NULL) return g; // f==0 => gcd=g (but do a p_Cleardenom/pNorm)
 
   res=singclap_gcd_r(f,g,r);
   p_Delete(&f, r);
@@ -863,7 +850,7 @@ ideal singclap_factorize ( poly f, intvec ** v , int with_exps, const ring r)
   number old_lead_coeff=n_Copy(pGetCoeff(f), r->cf);
 
   Variable a;
-  if (!rField_is_Zp(r) && !rField_is_Zp_a(r)) /* Q, Q(a) */
+  if (!rField_is_Zp(r) && !rField_is_Zp_a(r) && !rField_is_Z(r)) /* Q, Q(a) */
   {
     //if (f!=NULL) // already tested at start of routine
     {
@@ -901,7 +888,7 @@ ideal singclap_factorize ( poly f, intvec ** v , int with_exps, const ring r)
       }
     }
   }
-  if (rField_is_Q(r) || rField_is_Zp(r))
+  if (rField_is_Q(r) || rField_is_Zp(r) || (rField_is_Z(r)))
   {
     setCharacteristic( rChar(r) );
     CanonicalForm F( convSingPFactoryP( f,r ) );
@@ -961,7 +948,7 @@ ideal singclap_factorize ( poly f, intvec ** v , int with_exps, const ring r)
     for ( ; J.hasItem(); J++, j++ )
     {
       if (with_exps!=1) (**v)[j] = J.getItem().exp();
-      if (rField_is_Zp(r) || rField_is_Q(r))           /* Q, Fp */
+      if (rField_is_Zp(r) || rField_is_Q(r)||  rField_is_Z(r))           /* Q, Fp, Z */
       {
         //count_Factors(res,*v,f, j, convFactoryPSingP( J.getItem().factor() );
         res->m[j] = convFactoryPSingP( J.getItem().factor(),r );
@@ -1418,6 +1405,7 @@ matrix singclap_irrCharSeries ( ideal I, const ring r)
         p=p_Copy(p,r);
         p_Cleardenom(p, r);
         L.append(convSingPFactoryP(p,r));
+	p_Delete(&p,r);
       }
     }
   }
@@ -1433,6 +1421,7 @@ matrix singclap_irrCharSeries ( ideal I, const ring r)
         p=p_Copy(p,r);
         p_Cleardenom(p, r);
         L.append(convSingTrPFactoryP(p,r));
+	p_Delete(&p,r);
       }
     }
   }

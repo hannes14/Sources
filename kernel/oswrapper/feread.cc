@@ -6,6 +6,7 @@
 */
 
 #include <kernel/mod2.h>
+#include <errno.h>
 
 // ----------------------------------------
 // system settings:
@@ -100,7 +101,6 @@ char *command_generator (char *text, int state)
 #include <sys/types.h>
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <sys/errno.h>
 
 // #undef READLINE_READLINE_H_OK
 
@@ -314,9 +314,28 @@ char * fe_fgets(const char *pr,char *s, int size)
     fprintf(stdout,"%s",pr);
   }
   mflush();
+  errno=0;
   char *line=fgets(s,size,stdin);
   if (line!=NULL)
+  {
     for (int i=strlen(line)-1;i>=0;i--) line[i]=line[i]&127;
+  }
+  else
+  {
+    /* NULL can mean various things... */
+    switch(errno)
+    {
+      case 0:     return NULL;           /*EOF */
+      case EBADF: return NULL;           /* stdin got closed */
+      case EINTR: return strcpy(s,"\n"); /* CTRL-C or other signal */
+      default:                           /* other error */
+      {
+        int errsv = errno;
+        fprintf(stderr,"fgets() failed with errno %d\n%s\n",errsv,strerror(errsv));
+        return NULL;
+      }
+    }
+  }
   return line;
 }
 

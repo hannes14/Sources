@@ -396,12 +396,12 @@ void cancelunit (LObject* L,BOOLEAN inNF)
 
         return;
       }
-      i = 0;
+      i = rVar(r);
       loop
       {
-        i++;
-        if (p_GetExp(p,i,r) > p_GetExp(h,i,r)) return ; // does not divide
-        if (i == r->N) break; // does divide, try next monom
+        if (p_GetExp(p,i,r) > p_GetExp(h,i,r)) return; // does not divide
+        i--;
+        if (i == 0) break; // does divide, try next monom
       }
       //wrp(p); PrintS(" divide ");wrp(h); PrintLn();
       // Note: As long as qring j forbidden if j contains integer (i.e. ground rings are
@@ -456,12 +456,12 @@ void cancelunit (LObject* L,BOOLEAN inNF)
 
         return;
       }
-      i = 0;
+      i = rVar(r);
       loop
       {
-        i++;
-        if (p_GetExp(p,i,r) > p_GetExp(h,i,r)) return ; // does not divide
-        if (i == r->N) break; // does divide, try next monom
+        if (p_GetExp(p,i,r) > p_GetExp(h,i,r)) return; // does not divide
+        i--;
+        if (i == 0) break; // does divide, try next monom
       }
       //wrp(p); PrintS(" divide ");wrp(h); PrintLn();
       pIter(h);
@@ -885,7 +885,7 @@ BOOLEAN kTest_L(LObject *L, ring strat_tailRing,
         pNext(L->p) = NULL;
       }
     }
-    kFalseReturn(kTest_T(L, strat_tailRing, lpos, 'L'));
+    if (testp!=2) kFalseReturn(kTest_T(L, strat_tailRing, lpos, 'L'));
     if (pn != NULL)
       pNext(L->p) = pn;
 
@@ -903,9 +903,11 @@ BOOLEAN kTest_L(LObject *L, ring strat_tailRing,
     // L->p2 either NULL or "normal" poly
     pFalseReturn(pp_Test(L->p2, currRing, L->tailRing));
   }
-  else if (tlength > 0 && T != NULL && (lpos >=0))
+  else if (tlength > 0 && T != NULL && (lpos >=0) && (testp!=2))
   {
     // now p1 and p2 must be != NULL and must be contained in T
+    // unless for SHIFTGB: here each p_i must be in T or
+    // be shifted from an element in T -> to difficult to test
     int i;
     i = kFindInT(L->p1, T, tlength);
     if (i < 0)
@@ -939,6 +941,18 @@ BOOLEAN kTest (kStrategy strat)
   // test L
   if (strat->L != NULL)
   {
+  #ifdef HAVE_SHIFTBBA
+    if (strat->red==redFirstShift) // is this in bbaShift ?
+    {
+      for (i=0; i<=strat->Ll; i++)
+      {
+        kFalseReturn(kTest_L(&(strat->L[i]), strat->tailRing,
+                           2, i,
+                           strat->T, strat->tl));
+      }
+    }
+    else
+  #endif
     for (i=0; i<=strat->Ll; i++)
     {
       kFalseReturn(kTest_L(&(strat->L[i]), strat->tailRing,
@@ -1007,6 +1021,9 @@ BOOLEAN kTest_TS(kStrategy strat)
     }
   }
   // test strat->L[i].i_r1
+  #ifdef HAVE_SHIFTBBA
+  if (strat->red!=redFirstShift) // not from bbaShift
+  #endif
   for (i=0; i<=strat->Ll; i++)
   {
     if (strat->L[i].p1 != NULL && strat->L[i].p2)
@@ -1273,7 +1290,7 @@ static inline BOOLEAN sugarDivisibleBy(int ecart1, int ecart2)
 /*2
 * put the pair (s[i],p)  into the set B, ecart=ecart(p) (ring case)
 */
-void enterOnePairRing (int i,poly p,int /*ecart*/, int isFromQ,kStrategy strat, int atR = -1)
+static void enterOnePairRing (int i,poly p,int /*ecart*/, int isFromQ,kStrategy strat, int atR)
 {
   assume(atR >= 0);
   assume(i<=strat->sl);
@@ -1430,7 +1447,7 @@ void enterOnePairRing (int i,poly p,int /*ecart*/, int isFromQ,kStrategy strat, 
       if(h.lcm != NULL)
       {
         pLmDelete(h.lcm);
-	h.lcm=NULL;
+        h.lcm=NULL;
       }
       h.Clear();
       if (strat->pairtest==NULL) initPairtest(strat);
@@ -1513,7 +1530,7 @@ void enterOnePairRing (int i,poly p,int /*ecart*/, int isFromQ,kStrategy strat, 
 * put the  lcm(s[i],p)  into the set B
 */
 
-BOOLEAN enterOneStrongPoly (int i,poly p,int /*ecart*/, int /*isFromQ*/,kStrategy strat, int atR, bool enterTstrong)
+static BOOLEAN enterOneStrongPoly (int i,poly p,int /*ecart*/, int /*isFromQ*/,kStrategy strat, int atR, bool enterTstrong)
 {
   number d, s, t;
   assume(atR >= 0);
@@ -1708,7 +1725,7 @@ BOOLEAN sbaCheckGcdPair (LObject* h,kStrategy strat)
   return FALSE;
 }
 
-BOOLEAN enterOneStrongPolySig (int i,poly p,poly sig,int /*ecart*/, int /*isFromQ*/,kStrategy strat, int atR)
+static BOOLEAN enterOneStrongPolySig (int i,poly p,poly sig,int /*ecart*/, int /*isFromQ*/,kStrategy strat, int atR)
 {
   number d, s, t;
   assume(atR >= 0);
@@ -2217,7 +2234,7 @@ static BOOLEAN p_HasNotCF_Lift(poly p1, poly p2, const ring r)
 * put the pair (s[i],p)  into the set B, ecart=ecart(p) for idLift(I,T)
 */
 
-void enterOnePairLift (int i,poly p,int ecart, int isFromQ,kStrategy strat, int atR = -1)
+static void enterOnePairLift (int i,poly p,int ecart, int isFromQ,kStrategy strat, int atR = -1)
 {
   assume(ALLOW_PROD_CRIT(strat));
   assume(!rIsPluralRing(currRing));
@@ -2431,9 +2448,9 @@ void enterOnePairLift (int i,poly p,int ecart, int isFromQ,kStrategy strat, int 
 */
 
 #ifdef DEBUGF5
-void enterOnePairSig (int i, poly p, poly pSig, int from, int ecart, int isFromQ, kStrategy strat, int atR = -1)
+static void enterOnePairSig (int i, poly p, poly pSig, int from, int ecart, int isFromQ, kStrategy strat, int atR = -1)
 #else
-void enterOnePairSig (int i, poly p, poly pSig, int, int ecart, int isFromQ, kStrategy strat, int atR = -1)
+static void enterOnePairSig (int i, poly p, poly pSig, int, int ecart, int isFromQ, kStrategy strat, int atR = -1)
 #endif
 {
   assume(i<=strat->sl);
@@ -2688,9 +2705,9 @@ void enterOnePairSig (int i, poly p, poly pSig, int, int ecart, int isFromQ, kSt
 
 
 #ifdef DEBUGF5
-void enterOnePairSigRing (int i, poly p, poly pSig, int from, int ecart, int isFromQ, kStrategy strat, int atR = -1)
+static void enterOnePairSigRing (int i, poly p, poly pSig, int from, int ecart, int isFromQ, kStrategy strat, int atR = -1)
 #else
-void enterOnePairSigRing (int i, poly p, poly pSig, int, int ecart, int isFromQ, kStrategy strat, int atR = -1)
+static void enterOnePairSigRing (int i, poly p, poly pSig, int, int ecart, int isFromQ, kStrategy strat, int atR = -1)
 #endif
 {
   #ifdef ADIDEBUG
@@ -11070,18 +11087,26 @@ void postReduceByMon(LObject* h, kStrategy strat)
           ok = TRUE;
         }
       }
-      pp = pNext(p);
-      while(pp != NULL)
+      if (p!=NULL)
       {
-        if(pLmDivisibleBy(strat->S[i], pp))
+        pp = pNext(p);
+        while(pp != NULL)
         {
-          number dummy = n_IntMod(pp->coef, strat->S[i]->coef, currRing->cf);
-          p_SetCoeff(pp,dummy,currRing);
-          if(nIsZero(pp->coef))
+          if(pLmDivisibleBy(strat->S[i], pp))
           {
-            pLmDelete(&pNext(p));
-            pp = pNext(p);
-            deleted = TRUE;
+            number dummy = n_IntMod(pp->coef, strat->S[i]->coef, currRing->cf);
+            p_SetCoeff(pp,dummy,currRing);
+            if(nIsZero(pp->coef))
+            {
+              pLmDelete(&pNext(p));
+              pp = pNext(p);
+              deleted = TRUE;
+            }
+            else
+            {
+              p = pp;
+              pp = pNext(p);
+            }
           }
           else
           {
@@ -11089,16 +11114,11 @@ void postReduceByMon(LObject* h, kStrategy strat)
             pp = pNext(p);
           }
         }
-        else
-        {
-          p = pp;
-          pp = pNext(p);
-        }
       }
     }
   }
   h->SetLmCurrRing();
-  if(deleted)
+  if((deleted)&&(h->p!=NULL))
     strat->initEcart(h);
 }
 
@@ -11394,7 +11414,7 @@ ring sbaRing (kStrategy strat, const ring r, BOOLEAN /*complete*/, int /*sgn*/)
       return r;
     }
     ring res = rCopy0(r, TRUE, FALSE);
-    res->order  = (int *)omAlloc0((n+1)*sizeof(int));
+    res->order  = (rRingOrder_t *)omAlloc0((n+1)*sizeof(rRingOrder_t));
     res->block0 = (int *)omAlloc0((n+1)*sizeof(int));
     res->block1 = (int *)omAlloc0((n+1)*sizeof(int));
     int **wvhdl = (int **)omAlloc0((n+1)*sizeof(int*));
@@ -11414,7 +11434,7 @@ ring sbaRing (kStrategy strat, const ring r, BOOLEAN /*complete*/, int /*sgn*/)
     {
       if (res->order[i] == ringorder_C || res->order[i] == ringorder_c)
       {
-        res->order[i] = 0;
+        res->order[i] = (rRingOrder_t)0;
       }
     }
     rComplete(res, 1);
@@ -11442,7 +11462,7 @@ ring sbaRing (kStrategy strat, const ring r, BOOLEAN /*complete*/, int /*sgn*/)
   if (strat->sbaOrder == 3)
   {
     ring res = rCopy0(r, TRUE, FALSE);
-    res->order  = (int *)omAlloc0((n+2)*sizeof(int));
+    res->order  = (rRingOrder_t*)omAlloc0((n+2)*sizeof(rRingOrder_t));
     res->block0 = (int *)omAlloc0((n+2)*sizeof(int));
     res->block1 = (int *)omAlloc0((n+2)*sizeof(int));
     int **wvhdl = (int **)omAlloc0((n+2)*sizeof(int*));
@@ -11470,7 +11490,7 @@ ring sbaRing (kStrategy strat, const ring r, BOOLEAN /*complete*/, int /*sgn*/)
     {
       if (res->order[i] == ringorder_C || res->order[i] == ringorder_c)
       {
-        res->order[i] = 0;
+        res->order[i] = (rRingOrder_t)0;
       }
     }
     rComplete(res, 1);
@@ -12170,7 +12190,7 @@ void initBuchMoraShift (ideal F,ideal Q,kStrategy strat)
 /*1
 * put the pairs (sh \dot s[i],p)  into the set B, ecart=ecart(p)
 */
-void enterOnePairManyShifts (int i, poly p, int ecart, int isFromQ, kStrategy strat, int /*atR*/, int uptodeg, int lV)
+static void enterOnePairManyShifts (int i, poly p, int ecart, int isFromQ, kStrategy strat, int atR, int uptodeg, int lV)
 {
   /* p comes from strat->P.p, that is LObject with LM in currRing and Tail in tailRing */
 
@@ -12235,6 +12255,7 @@ void enterOnePairManyShifts (int i, poly p, int ecart, int isFromQ, kStrategy st
     //      PrintS("ManyShifts: calling enterOnePairShift(q,p)");      PrintLn();
     //}
 #endif
+    //kFindInTShift(q,atR,strat);
     enterOnePairShift(q, p, ecart, isFromQ, strat, -1, ecartq, qfromQ, j, i, uptodeg, lV);
   }
 }
@@ -12598,37 +12619,6 @@ void enterOnePairShift (poly q, poly p, int ecart, int isFromQ, kStrategy strat,
 #endif
 
 #ifdef HAVE_SHIFTBBA
-/*2
-*(s[0],h),...,(s[k],h) will be put to the pairset L(via initenterpairs)
-*superfluous elements in S will be deleted
-*/
-void enterpairsShift (poly h,int k,int ecart,int pos,kStrategy strat, int atR,int uptodeg, int lV)
-{
-  /* h is strat->P.p, that is LObject with LM in currRing and Tail in tailRing */
-  /* Q: what is exactly the strat->fromT ? A: a local case trick; don't need it yet*/
-  int j=pos;
-
-  assume (!rField_is_Ring(currRing));
-  initenterpairsShift(h,k,ecart,0,strat, atR,uptodeg,lV);
-  if ( (!strat->fromT)
-  && ((strat->syzComp==0)
-    ||(pGetComp(h)<=strat->syzComp)))
-  {
-    //Print("start clearS k=%d, pos=%d, sl=%d\n",k,pos,strat->sl);
-    unsigned long h_sev = pGetShortExpVector(h);
-    loop
-    {
-      if (j > k) break;
-      clearS(h,h_sev, &j,&k,strat);
-      j++;
-    }
-    //Print("end clearS sl=%d\n",strat->sl);
-  }
- // PrintS("end enterpairs\n");
-}
-#endif
-
-#ifdef HAVE_SHIFTBBA
 /*3
 *(s[0], s \dot h),...,(s[k],s \dot h) will be put to the pairset L
 * also the pairs (h, s\dot s[0]), ..., (h, s\dot s[k]) enter L
@@ -12699,6 +12689,37 @@ void initenterpairsShift (poly h,int k,int ecart,int isFromQ, kStrategy strat, i
     }
 
   }
+}
+#endif
+
+#ifdef HAVE_SHIFTBBA
+/*2
+*(s[0],h),...,(s[k],h) will be put to the pairset L(via initenterpairs)
+*superfluous elements in S will be deleted
+*/
+void enterpairsShift (poly h,int k,int ecart,int pos,kStrategy strat, int atR,int uptodeg, int lV)
+{
+  /* h is strat->P.p, that is LObject with LM in currRing and Tail in tailRing */
+  /* Q: what is exactly the strat->fromT ? A: a local case trick; don't need it yet*/
+  int j=pos;
+
+  assume (!rField_is_Ring(currRing));
+  initenterpairsShift(h,k,ecart,0,strat, atR,uptodeg,lV);
+  if ( (!strat->fromT)
+  && ((strat->syzComp==0)
+    ||(pGetComp(h)<=strat->syzComp)))
+  {
+    //Print("start clearS k=%d, pos=%d, sl=%d\n",k,pos,strat->sl);
+    unsigned long h_sev = pGetShortExpVector(h);
+    loop
+    {
+      if (j > k) break;
+      clearS(h,h_sev, &j,&k,strat);
+      j++;
+    }
+    //Print("end clearS sl=%d\n",strat->sl);
+  }
+ // PrintS("end enterpairs\n");
 }
 #endif
 

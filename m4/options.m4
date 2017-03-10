@@ -280,6 +280,17 @@ AC_ARG_ENABLE(factory, AS_HELP_STRING([--disable-factory], [Disable factory]),
 
 ])
 
+AC_DEFUN([SING_CHECK_PYTHON_MODULE],
+[ 
+AC_ARG_ENABLE(python_module, AS_HELP_STRING([--enable-python_module], [Enable python_module.so]),
+[if test $enableval = yes; then
+     ENABLE_PYTHON_MODULE="yes"
+     AC_DEFINE(HAVE_PYTHON_MOD,1,[Enable python_module.so])
+ else
+     ENABLE_PYTHON_MODULE="no"
+ fi
+],[ENABLE_PYTHON_MODULE="no"])
+])
 
 
 AC_DEFUN([SING_BUILTIN_MODULES],
@@ -307,11 +318,11 @@ AC_DEFUN([SING_BUILTIN_MODULES],
   bi_pyobject=false
   bi_gfanlib=false
   bi_polymake=false
+  bi_python=false
   bi_customstd=false
   bi_singmathic=false
   bi_bigintm=false
   bi_Order=false
-  bi_customstd=false
 
 
  if test -z "$with_builtinmodules"; then
@@ -328,6 +339,7 @@ AC_DEFUN([SING_BUILTIN_MODULES],
       L="${L} add($a)"
       LL="${LL} $a"
       BUILTIN_LIBS="${BUILTIN_LIBS} dyn_modules/$a/$a.la"
+      BUILTIN_MODULES="${BUILTIN_MODULES} dyn_modules/$a"
       AC_MSG_RESULT(yes)
 
 # *) AC_MSG_ERROR([bad value ${enableval} for	    --enable-debug]) ;;
@@ -338,11 +350,11 @@ AC_DEFUN([SING_BUILTIN_MODULES],
        pyobject ) bi_pyobject=true ;;
        gfanlib ) bi_gfanlib=true ;;
        polymake ) bi_polymake=true ;;
+       python_module ) bi_python=true ;;
        customstd ) bi_customstd=true ;;
        singmathic ) bi_singmathic=true ;;
        bigintm ) bi_bigintm=true ;;
        Order ) bi_Order=true ;;
-       customstd ) bi_customstd=true ;;
       esac
 
 ###### In case of out-of tree building: the build dir is empty in configure time!!!
@@ -366,17 +378,19 @@ AC_DEFUN([SING_BUILTIN_MODULES],
 
  AC_DEFINE_UNQUOTED([SI_BUILTINMODULES_ADD(add)],[$L],[Add(list) for Builtin modules])
  AC_SUBST(BUILTIN_LIBS)
+ AC_SUBST(BUILTIN_MODULES)
 
  AM_CONDITIONAL([SI_BUILTIN_STATICDEMO], [test x$bi_staticdemo = xtrue])
  AM_CONDITIONAL([SI_BUILTIN_SYZEXTRA], [test x$bi_syzextra = xtrue])
  AM_CONDITIONAL([SI_BUILTIN_PYOBJECT], [test x$bi_pyobject = xtrue])
  AM_CONDITIONAL([SI_BUILTIN_GFANLIB], [test x$bi_gfanlib = xtrue])
  AM_CONDITIONAL([SI_BUILTIN_POLYMAKE], [test x$bi_polymake = xtrue])
+ AM_CONDITIONAL([SI_BUILTIN_PYTHON_MODULE], [test x$bi_python = xtrue])
+ AM_CONDITIONAL([HAVE_PYTHON_MODULE], [test x$ENABLE_PYTHON_MODULE = xyes])
  AM_CONDITIONAL([SI_BUILTIN_CUSTOMSTD], [test x$bi_customstd = xtrue])
  AM_CONDITIONAL([SI_BUILTIN_SINGMATHIC], [test x$bi_singmathic = xtrue])
  AM_CONDITIONAL([SI_BUILTIN_BIGINTM], [test x$bi_bigintm = xtrue])
  AM_CONDITIONAL([SI_BUILTIN_ORDER], [test x$bi_Order = xtrue])
- AM_CONDITIONAL([SI_BUILTIN_CUSTOMSTD], [test x$bi_customstd = xtrue])
 
  AC_MSG_CHECKING([BUILTIN_LIBS...])
  AC_MSG_RESULT(${BUILTIN_LIBS:-unset})

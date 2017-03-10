@@ -44,7 +44,7 @@ extern BOOLEAN yyInRingConstruction; /* 1: during ring construction */
 
 int     IsCmd(const char *n, int & tok);
 
-BOOLEAN iiPStart(idhdl pn, sleftv * sl);
+BOOLEAN iiPStart(idhdl pn, leftv sl);
 BOOLEAN iiEStart(char* example, procinfo *pi);
 BOOLEAN iiAllStart(procinfov pi, char *p,feBufferTypes t, int l);
 void    type_cmd(leftv v);
@@ -159,10 +159,10 @@ struct sValCmdM
   short number_of_args; /* -1: any, -2: any >0, .. */
   short valid_for;
 };
-extern struct sValCmd2 dArith2[];
-extern struct sValCmd1 dArith1[];
-extern struct sValCmd3 dArith3[];
-extern struct sValCmdM dArithM[];
+extern const struct sValCmd2 dArith2[];
+extern const struct sValCmd1 dArith1[];
+extern const struct sValCmd3 dArith3[];
+extern const struct sValCmdM dArithM[];
 #endif
 
 /* ================================================================== */
@@ -191,7 +191,7 @@ int iiTokType(int op);
 /* ================================================================== */
 int     iiDeclCommand(leftv sy, leftv name, int lev, int t, idhdl* root,
   BOOLEAN isring = FALSE, BOOLEAN init_b=TRUE);
-BOOLEAN iiMake_proc(idhdl pn, package pack, sleftv* sl);
+BOOLEAN iiMake_proc(idhdl pn, package pack, leftv sl);
 // from misc.cc:
 char *  showOption();
 BOOLEAN setOption(leftv res, leftv v);
@@ -290,9 +290,7 @@ BOOLEAN iiBranchTo(leftv r, leftv args);
 
 lists rDecompose(const ring r);
 
-#ifdef SINGULAR_4_1
 lists rDecompose_list_cf(const ring r);
 BOOLEAN rDecompose_CF(leftv res,const coeffs C);
-#endif
 #endif
 
