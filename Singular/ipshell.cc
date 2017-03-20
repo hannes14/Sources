@@ -2299,10 +2299,9 @@ void rComposeRing(lists L, ring R)
   // ----------------------------------------
   // 0: string: integer
   // no further entries --> Z
-  mpz_ptr modBase = NULL;
+  mpz_t modBase;
   unsigned int modExponent = 1;
 
-  modBase = (mpz_ptr) omAlloc(sizeof(mpz_t));
   if (L->nr == 0)
   {
     mpz_init_set_ui(modBase,0);
@@ -2318,6 +2317,7 @@ void rComposeRing(lists L, ring R)
     {
       number tmp= (number) LL->m[0].data; // never use CopyD() on list elements
                                     // assume that tmp is integer, not rational
+      mpz_init(modBase);
       n_MPZ (modBase, tmp, coeffs_BIGINT);
     }
     else if (LL->nr >= 0 && LL->m[0].rtyp == INT_CMD)
@@ -2362,7 +2362,6 @@ void rComposeRing(lists L, ring R)
       /* this branch should be active for modExponent = 2..32 resp. 2..64,
            depending on the size of a long on the respective platform */
       R->cf=nInitChar(n_Z2m,(void*)(long)modExponent);       // Use Z/2^ch
-      omFreeSize (modBase, sizeof(mpz_t));
     }
     else
     {
@@ -2383,6 +2382,7 @@ void rComposeRing(lists L, ring R)
     info.exp= modExponent;
     R->cf=nInitChar(n_Zn,(void*) &info);
   }
+  mpz_clear(modBase);
 }
 #endif
 
@@ -3053,6 +3053,7 @@ BOOLEAN mpKoszul(leftv res,leftv c/*ip*/, leftv b/*in*/, leftv id)
     col++;
     idGetNextChoise(d,n,&bo,choise);
   }
+  omFreeSize(choise,d*sizeof(int));
   if (id==NULL) idDelete(&temp);
 
   res->data=(char *)result;
@@ -5516,11 +5517,6 @@ const short MAX_SHORT = 32767; // (1 << (sizeof(short)*8)) - 1;
 //         * considers input sleftv's as read-only
 ring rInit(leftv pn, leftv rv, leftv ord)
 {
-#ifdef HAVE_RINGS
-  //unsigned int ringtype = 0;
-  mpz_ptr modBase = NULL;
-  unsigned int modExponent = 1;
-#endif
   int float_len=0;
   int float_len2=0;
   ring R = NULL;
@@ -5688,7 +5684,8 @@ ring rInit(leftv pn, leftv rv, leftv ord)
   else if ((pn->name != NULL) && (strcmp(pn->name, "integer") == 0))
   {
     // TODO: change to use coeffs_BIGINT!?
-    modBase = (mpz_ptr) omAlloc(sizeof(mpz_t));
+    mpz_t modBase;
+    unsigned int modExponent = 1;
     mpz_init_set_si(modBase, 0);
     if (pn->next!=NULL)
     {
@@ -5711,7 +5708,7 @@ ring rInit(leftv pn, leftv rv, leftv ord)
       else if (pnn->next->Typ()==BIGINT_CMD)
       {
         number p=(number)pnn->next->CopyD();
-        nlGMP(p,(number)modBase,coeffs_BIGINT); // TODO? // extern void   nlGMP(number &i, number n, const coeffs r); // FIXME: n_MPZ( modBase, p, coeffs_BIGINT); ?
+        nlGMP(p,modBase,coeffs_BIGINT); // TODO? // extern void   nlGMP(number &i, mpz_t n, const coeffs r); // FIXME: n_MPZ( modBase, p, coeffs_BIGINT); ?
         n_Delete(&p,coeffs_BIGINT);
       }
     }
@@ -5738,8 +5735,6 @@ ring rInit(leftv pn, leftv rv, leftv ord)
            depending on the size of a long on the respective platform */
         //ringtype = 1;       // Use Z/2^ch
         cf=nInitChar(n_Z2m,(void*)(long)modExponent);
-        mpz_clear(modBase);
-        omFreeSize (modBase, sizeof (mpz_t));
       }
       else
       {
@@ -5770,6 +5765,7 @@ ring rInit(leftv pn, leftv rv, leftv ord)
       cf=nInitChar(n_Zn,(void*) &info);
     }
     assume( cf != NULL );
+    mpz_clear(modBase);
   }
 #endif
   // ring NEW = OLD, (), (); where OLD is a polynomial ring...

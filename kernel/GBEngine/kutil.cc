@@ -1321,7 +1321,7 @@ static void enterOnePairRing (int i,poly p,int /*ecart*/, int isFromQ,kStrategy 
   h.ecart=0; h.length=0;
 #endif
   /*- computes the lcm(s[i],p) -*/
-  h.lcm = pInit();
+  h.lcm = p_Lcm(p,strat->S[i],currRing);
   pSetCoeff0(h.lcm, n_Lcm(pGetCoeff(p), pGetCoeff(strat->S[i]), currRing->cf));
   if (nIsZero(pGetCoeff(h.lcm)))
   {
@@ -1330,9 +1330,7 @@ static void enterOnePairRing (int i,poly p,int /*ecart*/, int isFromQ,kStrategy 
       return;
   }
   // basic chain criterion
-  pLcm(p,strat->S[i],h.lcm);
-  pSetm(h.lcm);
-    /*
+  /*
   *the set B collects the pairs of type (S[j],p)
   *suppose (r,p) is in B and (s,p) is the new pair and lcm(s,p) != lcm(r,p)
   *if the leading term of s devides lcm(r,p) then (r,p) will be canceled
@@ -1969,9 +1967,9 @@ void enterOnePairNormal (int i,poly p,int ecart, int isFromQ,kStrategy strat, in
   pLcm(p,strat->S[i],Lp.lcm);
 #elif defined(HAVE_RATGRING)
   if (rIsRatGRing(currRing))
-  pLcmRat(p,strat->S[i],Lp.lcm, currRing->real_var_start); // int rat_shift
+    pLcmRat(p,strat->S[i],Lp.lcm, currRing->real_var_start); // int rat_shift
   else
-  pLcm(p,strat->S[i],Lp.lcm);
+    pLcm(p,strat->S[i],Lp.lcm);
 #endif
   pSetm(Lp.lcm);
 
@@ -1997,7 +1995,6 @@ void enterOnePairNormal (int i,poly p,int ecart, int isFromQ,kStrategy strat, in
     */
       strat->cp++;
       pLmFree(Lp.lcm);
-      Lp.lcm=NULL;
       return;
     }
     else
@@ -2005,7 +2002,6 @@ void enterOnePairNormal (int i,poly p,int ecart, int isFromQ,kStrategy strat, in
     if (strat->fromT && (strat->ecartS[i]>ecart))
     {
       pLmFree(Lp.lcm);
-      Lp.lcm=NULL;
       return;
       /*the pair is (s[i],t[.]), discard it if the ecart is too big*/
     }
@@ -2066,13 +2062,11 @@ void enterOnePairNormal (int i,poly p,int ecart, int isFromQ,kStrategy strat, in
       */
           strat->cp++;
           pLmFree(Lp.lcm);
-          Lp.lcm=NULL;
           return;
       }
       if (strat->fromT && (strat->ecartS[i]>ecart))
       {
         pLmFree(Lp.lcm);
-        Lp.lcm=NULL;
         return;
         /*the pair is (s[i],t[.]), discard it if the ecart is too big*/
       }
@@ -2241,6 +2235,9 @@ static void enterOnePairLift (int i,poly p,int ecart, int isFromQ,kStrategy stra
   assume(strat->syzComp==1);
   assume(i<=strat->sl);
 
+  if ((strat->S[i]==NULL) || (p==NULL))
+    return;
+
   int      l,j,compare;
   LObject  Lp;
   Lp.i_r = -1;
@@ -2249,10 +2246,7 @@ static void enterOnePairLift (int i,poly p,int ecart, int isFromQ,kStrategy stra
   Lp.ecart=0; Lp.length=0;
 #endif
   /*- computes the lcm(s[i],p) -*/
-  Lp.lcm = pInit();
-
-  pLcm(p,strat->S[i],Lp.lcm);
-  pSetm(Lp.lcm);
+  Lp.lcm = p_Lcm(p,strat->S[i],currRing);
 
   if (strat->sugarCrit)
   {
@@ -2275,7 +2269,6 @@ static void enterOnePairLift (int i,poly p,int ecart, int isFromQ,kStrategy stra
     */
       strat->cp++;
       pLmFree(Lp.lcm);
-      Lp.lcm=NULL;
       return;
     }
     else
@@ -2283,7 +2276,6 @@ static void enterOnePairLift (int i,poly p,int ecart, int isFromQ,kStrategy stra
     if (strat->fromT && (strat->ecartS[i]>ecart))
     {
       pLmFree(Lp.lcm);
-      Lp.lcm=NULL;
       return;
       /*the pair is (s[i],t[.]), discard it if the ecart is too big*/
     }
@@ -2340,13 +2332,11 @@ static void enterOnePairLift (int i,poly p,int ecart, int isFromQ,kStrategy stra
     */
       strat->cp++;
       pLmFree(Lp.lcm);
-      Lp.lcm=NULL;
       return;
     }
     if (strat->fromT && (strat->ecartS[i]>ecart))
     {
       pLmFree(Lp.lcm);
-      Lp.lcm=NULL;
       return;
       /*the pair is (s[i],t[.]), discard it if the ecart is too big*/
     }
@@ -2383,9 +2373,6 @@ static void enterOnePairLift (int i,poly p,int ecart, int isFromQ,kStrategy stra
   /*-  compute the short s-polynomial -*/
   if (strat->fromT && !TEST_OPT_INTSTRATEGY)
     pNorm(p);
-
-  if ((strat->S[i]==NULL) || (p==NULL))
-    return;
 
   if ((strat->fromQ!=NULL) && (isFromQ!=0) && (strat->fromQ[i]!=0))
     Lp.p=NULL;
@@ -2473,8 +2460,10 @@ static void enterOnePairSig (int i, poly p, poly pSig, int, int ecart, int isFro
 #ifndef HAVE_RATGRING
   pLcm(p,strat->S[i],Lp.lcm);
 #elif defined(HAVE_RATGRING)
-  //  if (rIsRatGRing(currRing))
-  pLcmRat(p,strat->S[i],Lp.lcm, currRing->real_var_start); // int rat_shift
+  if (rIsRatGRing(currRing))
+    pLcmRat(p,strat->S[i],Lp.lcm, currRing->real_var_start); // int rat_shift
+  else
+    pLcm(p,strat->S[i],Lp.lcm);
 #endif
   pSetm(Lp.lcm);
 
@@ -2523,7 +2512,6 @@ static void enterOnePairSig (int i, poly p, poly pSig, int, int ecart, int isFro
       pLmDelete(Lp.lcm);
     else
       pLmFree(Lp.lcm);
-    Lp.lcm=NULL;
     pDelete (&m1);
     pDelete (&m2);
     return;
@@ -2542,7 +2530,6 @@ static void enterOnePairSig (int i, poly p, poly pSig, int, int ecart, int isFro
       pLmDelete(Lp.lcm);
     else
       pLmFree(Lp.lcm);
-    Lp.lcm=NULL;
     pDelete (&m1);
     pDelete (&m2);
     return;
@@ -2633,7 +2620,6 @@ static void enterOnePairSig (int i, poly p, poly pSig, int, int ecart, int isFro
     {
       pLmFree(Lp.lcm);
       pDelete(&Lp.sig);
-      Lp.lcm=NULL;
       pDelete (&m1);
       pDelete (&m2);
       return;
@@ -2655,7 +2641,6 @@ static void enterOnePairSig (int i, poly p, poly pSig, int, int ecart, int isFro
 #if 0
       int pos = posInSyz(strat, Lp.sig);
       enterSyz(Lp, strat, pos);
-      Lp.lcm=NULL;
       pDelete (&m1);
       pDelete (&m2);
       return;
@@ -2753,8 +2738,10 @@ static void enterOnePairSigRing (int i, poly p, poly pSig, int, int ecart, int i
 #ifndef HAVE_RATGRING
   pLcm(p,strat->S[i],Lp.lcm);
 #elif defined(HAVE_RATGRING)
-  //  if (rIsRatGRing(currRing))
-  pLcmRat(p,strat->S[i],Lp.lcm, currRing->real_var_start); // int rat_shift
+  if (rIsRatGRing(currRing))
+    pLcmRat(p,strat->S[i],Lp.lcm, currRing->real_var_start); // int rat_shift
+  else
+    pLcm(p,strat->S[i],Lp.lcm);
 #endif
   pSetm(Lp.lcm);
 
@@ -2905,7 +2892,6 @@ static void enterOnePairSigRing (int i, poly p, poly pSig, int, int ecart, int i
       pLmDelete(Lp.lcm);
     else
       pLmFree(Lp.lcm);
-    Lp.lcm=NULL;
     pDelete (&m1);
     pDelete (&m2);
     return;
@@ -2929,7 +2915,6 @@ static void enterOnePairSigRing (int i, poly p, poly pSig, int, int ecart, int i
       pLmDelete(Lp.lcm);
     else
       pLmFree(Lp.lcm);
-    Lp.lcm=NULL;
     pDelete (&m1);
     pDelete (&m2);
     return;
@@ -3038,7 +3023,6 @@ static void enterOnePairSigRing (int i, poly p, poly pSig, int, int ecart, int i
       printf("\nrewCrit3 deletes it!\n");
       #endif
       pDelete(&Lp.sig);
-      Lp.lcm=NULL;
       pDelete (&m1);
       pDelete (&m2);
       return;
@@ -3060,7 +3044,6 @@ static void enterOnePairSigRing (int i, poly p, poly pSig, int, int ecart, int i
 #if 0
       int pos = posInSyz(strat, Lp.sig);
       enterSyz(Lp, strat, pos);
-      Lp.lcm=NULL;
       pDelete (&m1);
       pDelete (&m2);
       return;
@@ -3171,9 +3154,7 @@ void enterOnePairSpecial (int i,poly p,int ecart,kStrategy strat, int atR = -1)
   LObject  Lp;
   Lp.i_r = -1;
 
-  Lp.lcm = pInit();
-  pLcm(p,strat->S[i],Lp.lcm);
-  pSetm(Lp.lcm);
+  Lp.lcm = p_Lcm(p,strat->S[i],currRing);
   /*-  compute the short s-polynomial -*/
 
   #ifdef HAVE_PLURAL
@@ -4254,10 +4235,7 @@ void enterOneZeroPairRing (poly f, poly t_p, poly p, int ecart, kStrategy strat,
   Lp.ecart=0; Lp.length=0;
 #endif
   /*- computes the lcm(s[i],p) -*/
-  Lp.lcm = pInit();
-
-  pLcm(p,f,Lp.lcm);
-  pSetm(Lp.lcm);
+  Lp.lcm = p_Lcm(p,f,Lp.lcm,currRing);
   pSetCoeff(Lp.lcm, nLcm(pGetCoeff(p), pGetCoeff(f), currRing));
   assume(!strat->sugarCrit);
   assume(!strat->fromT);
@@ -12365,10 +12343,7 @@ void enterOnePairShift (poly q, poly p, int ecart, int isFromQ, kStrategy strat,
   Lp.ecart=0; Lp.length=0;
 #endif
   /*- computes the lcm(s[i],p) -*/
-  Lp.lcm = pInit();
-
-  pLcm(p,q, Lp.lcm); // q is what was strat->S[i], so a poly in LM/TR presentation
-  pSetm(Lp.lcm);
+  Lp.lcm = p_Lcm(p,q, currRing); // q is what was strat->S[i], so a poly in LM/TR presentation
 
   /* apply the V criterion */
   if (!isInV(Lp.lcm, lV))
@@ -12384,7 +12359,6 @@ void enterOnePairShift (poly q, poly p, int ecart, int isFromQ, kStrategy strat,
     }
 #endif
     pLmFree(Lp.lcm);
-    Lp.lcm=NULL;
     /* + counter for applying the V criterion */
     strat->cv++;
     return;
@@ -12411,7 +12385,6 @@ void enterOnePairShift (poly q, poly p, int ecart, int isFromQ, kStrategy strat,
     */
       strat->cp++;
       pLmFree(Lp.lcm);
-      Lp.lcm=NULL;
       return;
     }
     else
@@ -12419,7 +12392,6 @@ void enterOnePairShift (poly q, poly p, int ecart, int isFromQ, kStrategy strat,
     if (strat->fromT && (ecartq>ecart))
     {
       pLmFree(Lp.lcm);
-      Lp.lcm=NULL;
       return;
       /*the pair is (s[i],t[.]), discard it if the ecart is too big*/
     }
@@ -12480,13 +12452,11 @@ void enterOnePairShift (poly q, poly p, int ecart, int isFromQ, kStrategy strat,
       */
           strat->cp++;
           pLmFree(Lp.lcm);
-          Lp.lcm=NULL;
           return;
       }
       if (strat->fromT && (ecartq>ecart))
       {
         pLmFree(Lp.lcm);
-        Lp.lcm=NULL;
         return;
         /*the pair is (s[i],t[.]), discard it if the ecart is too big*/
       }
