@@ -322,20 +322,18 @@ void   rWrite(ring r, BOOLEAN details)
     Print("ordering %s", rSimpleOrdStr(r->order[l]));
 
 
-    if (r->order[l] == ringorder_s)
-    {
-      assume( l == 0 );
-#ifndef SING_NDEBUG
-      Print("  syzcomp at %d",r->typ[l].data.syz.limit);
-#endif
-      continue;
-    }
-    else if (r->order[l] == ringorder_IS)
+    if (r->order[l] == ringorder_IS)
     {
       assume( r->block0[l] == r->block1[l] );
       const int s = r->block0[l];
       assume( (-2 < s) && (s < 2) );
       Print("(%d)", s); // 0 => prefix! +/-1 => suffix!
+      continue;
+    }
+    else if (r->order[l]==ringorder_s)
+    {
+      assume( l == 0 );
+      Print(" syz_comp: %d",r->block0[l]);
       continue;
     }
     else if (
@@ -470,8 +468,8 @@ void rDelete(ring r)
     nc_rKill(r);
 #endif
 
+  rUnComplete(r); // may need r->cf for p_Delete
   nKillChar(r->cf); r->cf = NULL;
-  rUnComplete(r);
   // delete order stuff
   if (r->order != NULL)
   {
@@ -533,7 +531,11 @@ char * rOrdStr(ring r)
   for (l=0; ; l++)
   {
     StringAppendS((char *)rSimpleOrdStr(r->order[l]));
-    if (
+    if (r->order[l] == ringorder_s)
+    {
+      StringAppend("(%d)",r->block0[l]);
+    }
+    else if (
            (r->order[l] != ringorder_c)
         && (r->order[l] != ringorder_C)
         && (r->order[l] != ringorder_s)
@@ -1431,19 +1433,10 @@ ring rCopy0(const ring r, BOOLEAN copy_qideal, BOOLEAN copy_ordering)
   {
     if (copy_qideal)
     {
-      #ifndef SING_NDEBUG
-      if (!copy_ordering)
-        WerrorS("internal error: rCopy0(Q,TRUE,FALSE)");
-      else
-      #endif
-      {
-      #ifndef SING_NDEBUG
-        WarnS("internal bad stuff: rCopy0(Q,TRUE,TRUE)");
-      #endif
-        rComplete(res);
-        res->qideal= idrCopyR_NoSort(r->qideal, r, res);
-        rUnComplete(res);
-      }
+      assume(copy_ordering);
+      rComplete(res);
+      res->qideal= idrCopyR_NoSort(r->qideal, r, res);
+      rUnComplete(res);
     }
     //memset: else res->qideal = NULL;
   }
@@ -2334,7 +2327,7 @@ static void rO_Syzcomp(int &place, int &bitplace, int &prev_ord,
 }
 
 static void rO_Syz(int &place, int &bitplace, int &prev_ord,
-    long *o, sro_ord &ord_struct)
+    int syz_comp, long *o, sro_ord &ord_struct)
 {
   // ordering is derived from component number
   // let's reserve one Exponent_t for it
@@ -2342,8 +2335,11 @@ static void rO_Syz(int &place, int &bitplace, int &prev_ord,
     rO_Align(place,bitplace);
   ord_struct.ord_typ=ro_syz;
   ord_struct.data.syz.place=place;
-  ord_struct.data.syz.limit=0;
-  ord_struct.data.syz.syz_index = NULL;
+  ord_struct.data.syz.limit=syz_comp;
+  if (syz_comp>0)
+    ord_struct.data.syz.syz_index = (int*) omAlloc0((syz_comp+1)*sizeof(int));
+  else
+    ord_struct.data.syz.syz_index = NULL;
   ord_struct.data.syz.curr_index = 1;
   o[place]= -1;
   prev_ord=-1;
@@ -3604,7 +3600,7 @@ BOOLEAN rComplete(ring r, int force)
 
       case ringorder_s:
         assume(typ_i == 0 && j == 0);
-        rO_Syz(j, j_bits, prev_ordsgn, tmp_ordsgn, tmp_typ[typ_i]); // set syz-limit?
+        rO_Syz(j, j_bits, prev_ordsgn, r->block0[i], tmp_ordsgn, tmp_typ[typ_i]); // set syz-limit?
         need_to_add_comp=TRUE;
         r->ComponentOrder=-1;
         typ_i++;
@@ -4391,7 +4387,6 @@ ring rAssure_SyzComp(const ring r, BOOLEAN complete)
   if (complete)
   {
     rComplete(res, 1);
-
 #ifdef HAVE_PLURAL
     if (rIsPluralRing(r))
     {
@@ -4408,22 +4403,20 @@ ring rAssure_SyzComp(const ring r, BOOLEAN complete)
 #ifdef HAVE_PLURAL
     ring old_ring = r;
 #endif
-
     if (r->qideal!=NULL)
     {
       res->qideal= idrCopyR_NoSort(r->qideal, r, res);
-
       assume(id_RankFreeModule(res->qideal, res) == 0);
-
 #ifdef HAVE_PLURAL
       if( rIsPluralRing(res) )
+      {
         if( nc_SetupQuotient(res, r, true) )
         {
 //          WarnS("error in nc_SetupQuotient"); // cleanup?      rDelete(res);       return r;  // just go on...?
         }
-
+        assume(id_RankFreeModule(res->qideal, res) == 0);
+      }
 #endif
-      assume(id_RankFreeModule(res->qideal, res) == 0);
     }
 
 #ifdef HAVE_PLURAL
@@ -4436,7 +4429,7 @@ ring rAssure_SyzComp(const ring r, BOOLEAN complete)
   return res;
 }
 
-ring rAssure_TDeg(ring r, int start_var, int end_var, int &pos)
+BOOLEAN rHasTDeg(ring r)
 {
   int i;
   if (r->typ!=NULL)
@@ -4444,8 +4437,26 @@ ring rAssure_TDeg(ring r, int start_var, int end_var, int &pos)
     for(i=r->OrdSize-1;i>=0;i--)
     {
       if ((r->typ[i].ord_typ==ro_dp)
-      && (r->typ[i].data.dp.start==start_var)
-      && (r->typ[i].data.dp.end==end_var))
+      && (r->typ[i].data.dp.start==1)
+      && (r->typ[i].data.dp.end==r->N))
+      {
+        return TRUE;
+      }
+    }
+  }
+  return FALSE;
+}
+
+ring rAssure_TDeg(ring r, int &pos)
+{
+  int i;
+  if (r->typ!=NULL)
+  {
+    for(i=r->OrdSize-1;i>=0;i--)
+    {
+      if ((r->typ[i].ord_typ==ro_dp)
+      && (r->typ[i].data.dp.start==1)
+      && (r->typ[i].data.dp.end==r->N))
       {
         pos=r->typ[i].data.dp.place;
         //printf("no change, pos=%d\n",pos);
@@ -4459,6 +4470,10 @@ ring rAssure_TDeg(ring r, int start_var, int end_var, int &pos)
   r->GetNC()=NULL;
 #endif
   ring res=rCopy(r);
+  if (res->qideal!=NULL)
+  {
+    id_Delete(&res->qideal,r);
+  }
 
   i=rBlocks(r);
   int j;
@@ -4480,11 +4495,11 @@ ring rAssure_TDeg(ring r, int start_var, int end_var, int &pos)
   // the additional block for pSetm: total degree at the last word
   // but not included in the compare part
   res->typ[res->OrdSize-1].ord_typ=ro_dp;
-  res->typ[res->OrdSize-1].data.dp.start=start_var;
-  res->typ[res->OrdSize-1].data.dp.end=end_var;
+  res->typ[res->OrdSize-1].data.dp.start=1;
+  res->typ[res->OrdSize-1].data.dp.end=res->N;
   res->typ[res->OrdSize-1].data.dp.place=res->ExpL_Size-1;
   pos=res->ExpL_Size-1;
-  //if ((start_var==1) && (end_var==res->N)) res->pOrdIndex=pos;
+  //res->pOrdIndex=pos; //NO: think of a(1,0),dp !
   extern void p_Setm_General(poly p, ring r);
   res->p_Setm=p_Setm_General;
   // ----------------------------
@@ -4492,7 +4507,6 @@ ring rAssure_TDeg(ring r, int start_var, int end_var, int &pos)
   res->p_Procs = (p_Procs_s*)omAlloc(sizeof(p_Procs_s));
 
   p_ProcsSet(res, res->p_Procs);
-  if (res->qideal!=NULL) id_Delete(&res->qideal,res);
 #ifdef HAVE_PLURAL
   r->GetNC()=save;
   if (rIsPluralRing(r))
@@ -4638,7 +4652,7 @@ ring rAssure_CompLastBlock(ring r, BOOLEAN complete)
 }
 
 // Moves _c or _C ordering to the last place AND adds _s on the 1st place
-ring rAssure_SyzComp_CompLastBlock(const ring r, BOOLEAN)
+ring rAssure_SyzComp_CompLastBlock(const ring r)
 {
   rTest(r);
 
@@ -4972,6 +4986,7 @@ void rSetSyzComp(int k, const ring r)
   if (TEST_OPT_PROT) Print("{%d}", k);
   if ((r->typ!=NULL) && (r->typ[0].ord_typ==ro_syz))
   {
+    r->block0[0]=r->block1[0] = k;
     if( k == r->typ[0].data.syz.limit )
       return; // nothing to do
 
@@ -5016,8 +5031,11 @@ void rSetSyzComp(int k, const ring r)
     Warn("rSetSyzComp(%d) in an IS ring! Be careful!", k);
 #endif
   }
-  else
-  if ((r->order[0]!=ringorder_c) && (k!=0)) // ???
+  else if (r->order[0]==ringorder_s)
+  {
+    r->block0[0] = r->block1[0] = k;
+  }
+  else if (r->order[0]!=ringorder_c)
   {
     dReportError("syzcomp in incompatible ring");
   }
@@ -5048,6 +5066,9 @@ int rGetMaxSyzComp(int i, const ring r)
   }
   else
   {
+  #ifndef SING_NDEBUG
+    WarnS("rGetMaxSyzComp: order c");
+  #endif  
     return 0;
   }
 }
@@ -5374,6 +5395,8 @@ ring rOpposite(ring src)
       case ringorder_Ds:
       case ringorder_ws:
       case ringorder_Ws:
+      case ringorder_am:
+      case ringorder_a64:
       // should not occur:
       case ringorder_S:
       case ringorder_IS:

@@ -2882,124 +2882,6 @@ static BOOLEAN jjREDUCE_ID(leftv res, leftv u, leftv v)
   res->data = (char *)kNF(vi,currRing->qideal,ui);
   return FALSE;
 }
-#if 0
-static BOOLEAN jjRES(leftv res, leftv u, leftv v)
-{
-  int maxl=(int)(long)v->Data();
-  if (maxl<0)
-  {
-    WerrorS("length for res must not be negative");
-    return TRUE;
-  }
-  int l=0;
-  //resolvente r;
-  syStrategy r;
-  intvec *weights=NULL;
-  int wmaxl=maxl;
-  ideal u_id=(ideal)u->Data();
-
-  maxl--;
-  if (/*(*/ maxl==-1 /*)*/) /*&& (iiOp!=MRES_CMD)*/
-  {
-    maxl = currRing->N-1+2*(iiOp==MRES_CMD);
-    if (currRing->qideal!=NULL)
-    {
-      Warn(
-      "full resolution in a qring may be infinite, setting max length to %d",
-      maxl+1);
-    }
-  }
-  weights=(intvec*)atGet(u,"isHomog",INTVEC_CMD);
-  if (weights!=NULL)
-  {
-    if (!idTestHomModule(u_id,currRing->qideal,weights))
-    {
-      WarnS("wrong weights given:");weights->show();PrintLn();
-      weights=NULL;
-    }
-  }
-  intvec *ww=NULL;
-  int add_row_shift=0;
-  if (weights!=NULL)
-  {
-     ww=ivCopy(weights);
-     add_row_shift = ww->min_in();
-     (*ww) -= add_row_shift;
-  }
-  else
-    idHomModule(u_id,currRing->qideal,&ww);
-  weights=ww;
-
-  if ((iiOp == RES_CMD) || (iiOp == MRES_CMD))
-  {
-    r=syResolution(u_id,maxl, ww, iiOp==MRES_CMD);
-  }
-  else if (iiOp==SRES_CMD)
-  //  r=sySchreyerResolvente(u_id,maxl+1,&l);
-    r=sySchreyer(u_id,maxl+1);
-  else if (iiOp == LRES_CMD)
-  {
-    int dummy;
-    if((currRing->qideal!=NULL)||
-    (!idHomIdeal (u_id,NULL)))
-    {
-       WerrorS
-       ("`lres` not implemented for inhomogeneous input or qring");
-       return TRUE;
-    }
-    r=syLaScala3(u_id,&dummy);
-  }
-  else if (iiOp == KRES_CMD)
-  {
-    int dummy;
-    if((currRing->qideal!=NULL)||
-    (!idHomIdeal (u_id,NULL)))
-    {
-       WerrorS
-       ("`kres` not implemented for inhomogeneous input or qring");
-       return TRUE;
-    }
-    r=syKosz(u_id,&dummy);
-  }
-  else
-  {
-    int dummy;
-    if((currRing->qideal!=NULL)||
-    (!idHomIdeal (u_id,NULL)))
-    {
-       WerrorS
-       ("`hres` not implemented for inhomogeneous input or qring");
-       return TRUE;
-    }
-    r=syHilb(u_id,&dummy);
-  }
-  if (r==NULL) return TRUE;
-  //res->data=(void *)liMakeResolv(r,l,wmaxl,u->Typ(),weights);
-  r->list_length=wmaxl;
-  res->data=(void *)r;
-  if ((r->weights!=NULL) && (r->weights[0]!=NULL))
-  {
-    intvec *w=ivCopy(r->weights[0]);
-    if (weights!=NULL) (*w) += add_row_shift;
-    atSet(res,omStrDup("isHomog"),w,INTVEC_CMD);
-    w=NULL;
-  }
-  else
-  {
-//#if 0
-// need to set weights for ALL components (sres)
-    if (weights!=NULL)
-    {
-      atSet(res,omStrDup("isHomog"),ivCopy(weights),INTVEC_CMD);
-      r->weights = (intvec**)omAlloc0Bin(char_ptr_bin);
-      (r->weights)[0] = ivCopy(weights);
-    }
-//#endif
-  }
-  if (ww!=NULL) { delete ww; ww=NULL; }
-  return FALSE;
-}
-#else
 static BOOLEAN jjRES(leftv res, leftv u, leftv v)
 {
   int maxl=(int)(long)v->Data();
@@ -3090,7 +2972,14 @@ static BOOLEAN jjRES(leftv res, leftv u, leftv v)
     idDelete(&u_id_copy);
   }
   if (r==NULL) return TRUE;
-  //res->data=(void *)liMakeResolv(r,l,wmaxl,u->Typ(),weights);
+  if (r->list_length>wmaxl)
+  {
+    for(int i=wmaxl-1;i>=r->list_length;i--)
+    {
+      if (r->fullres[i]!=NULL) id_Delete(&r->fullres[i],currRing);
+      if (r->minres[i]!=NULL) id_Delete(&r->minres[i],currRing);
+    }
+  }
   r->list_length=wmaxl;
   res->data=(void *)r;
   if ((weights!=NULL) && (ww!=NULL)) { delete ww; ww=NULL; }
@@ -3119,7 +3008,6 @@ static BOOLEAN jjRES(leftv res, leftv u, leftv v)
 
   return FALSE;
 }
-#endif
 static BOOLEAN jjPFAC2(leftv res, leftv u, leftv v)
 {
   number n1; int i;
@@ -3377,6 +3265,18 @@ static BOOLEAN jjSTD_1(leftv res, leftv u, leftv v)
   }
   if(!TEST_OPT_DEGBOUND) setFlag(res,FLAG_STD);
   return FALSE;
+}
+static BOOLEAN jjSYZ_2(leftv res, leftv u, leftv v)
+{
+  // see jjSYZYGY
+  intvec *w=NULL;
+  ideal I=(ideal)u->Data();
+  GbVariant alg=syGetAlgorithm((char*)v->Data(),currRing,I);
+  res->data = (char *)idSyzygies(I,testHomog,&w,TRUE,FALSE,NULL,alg);
+  if (w!=NULL) delete w;
+  if (TEST_OPT_RETURN_SB) setFlag(res,FLAG_STD);
+  return FALSE;
+
 }
 static BOOLEAN jjVARSTR2(leftv res, leftv u, leftv v)
 {
@@ -4503,9 +4403,15 @@ err:
 }
 static BOOLEAN jjNAMEOF(leftv res, leftv v)
 {
-  res->data = (char *)v->name;
-  if (res->data==NULL) res->data=omStrDup("");
-  v->name=NULL;
+  if ((v->rtyp==IDHDL)||(v->rtyp==ALIAS_CMD))
+    res->data=omStrDup(v->name);
+  else if (v->name==NULL)
+    res->data=omStrDup("");
+  else
+  {
+    res->data = (char *)v->name;
+    v->name=NULL;
+  }
   return FALSE;
 }
 static BOOLEAN jjNAMES(leftv res, leftv v)
@@ -4755,7 +4661,7 @@ static BOOLEAN jjSLIM_GB(leftv res, leftv u)
     WerrorS("qring not supported by slimgb at the moment");
     return TRUE;
   }
-  if (rHasLocalOrMixedOrdering_currRing())
+  if (rHasLocalOrMixedOrdering(currRing))
   {
     WerrorS("ordering must be global for slimgb");
     return TRUE;
@@ -5170,8 +5076,8 @@ BOOLEAN jjLOAD(const char *s, BOOLEAN autoexport)
           omFree(plib);
           return TRUE;
         }
-	else
-	  omFree(plib);
+        else
+          omFree(plib);
         package savepack=currPack;
         currPack=IDPACKAGE(pl);
         IDPACKAGE(pl)->loaded=TRUE;
@@ -6109,7 +6015,7 @@ static BOOLEAN jjPREIMAGE(leftv res, leftv u, leftv v, leftv w)
       return TRUE;
     }
   }
-  if (((currRing->qideal!=NULL) && (rHasLocalOrMixedOrdering_currRing()))
+  if (((currRing->qideal!=NULL) && (rHasLocalOrMixedOrdering(currRing)))
   || ((rr->qideal!=NULL) && (rHasLocalOrMixedOrdering(rr))))
   {
     WarnS("preimage in local qring may be wrong: use Ring::preimageLoc instead");
@@ -7289,6 +7195,69 @@ static BOOLEAN jjKLAMMER_PL(leftv res, leftv u)
     b=FALSE;
   }
   return b;
+}
+static BOOLEAN jjLIFT_4(leftv res, leftv U)
+{
+  const short t1[]={4,IDEAL_CMD,IDEAL_CMD,MATRIX_CMD,STRING_CMD};
+  const short t2[]={4,MODUL_CMD,MODUL_CMD,MATRIX_CMD,STRING_CMD};
+  leftv u=U;
+  leftv v=u->next;
+  leftv w=v->next;
+  leftv u4=w->next;
+  if (w->rtyp!=IDHDL) return TRUE;
+  if (iiCheckTypes(U,t1)||iiCheckTypes(U,t2))
+  {
+    // see jjLIFT3
+    ideal I=(ideal)u->Data();
+    int ul= IDELEMS(I /*(ideal)u->Data()*/);
+    int vl= IDELEMS((ideal)v->Data());
+    GbVariant alg=syGetAlgorithm((char*)u4->Data(),currRing,I);
+    ideal m
+    = idLift(I,(ideal)v->Data(),NULL,FALSE,hasFlag(u,FLAG_STD),
+             FALSE, (matrix *)(&(IDMATRIX((idhdl)(w->data)))),alg);
+    if (m==NULL) return TRUE;
+    res->data = (char *)id_Module2formatedMatrix(m,ul,vl,currRing);
+    return FALSE;
+  }
+  else
+  {
+    Werror("%s(`ideal`,`ideal`,`matrix`,`string`)\n"
+           "or (`module`,`module`,`matrix`,`string`)expected",
+           Tok2Cmdname(iiOp));
+    return TRUE;
+  }
+}
+static BOOLEAN jjLIFTSTD_4(leftv res, leftv U)
+{
+  const short t1[]={4,IDEAL_CMD,IDEAL_CMD,MATRIX_CMD,STRING_CMD};
+  const short t2[]={4,MODUL_CMD,MODUL_CMD,MATRIX_CMD,STRING_CMD};
+  leftv u=U;
+  leftv v=u->next;
+  leftv w=v->next;
+  leftv u4=w->next;
+  if (v->rtyp!=IDHDL) return TRUE;
+  if (w->rtyp!=IDHDL) return TRUE;
+  if (iiCheckTypes(U,t1)||iiCheckTypes(U,t2))
+  {
+    // see jjLIFTSTD3
+    ideal I=(ideal)u->Data();
+    idhdl hv=(idhdl)v->data;
+    idhdl hw=(idhdl)w->data;
+    GbVariant alg=syGetAlgorithm((char*)u4->Data(),currRing,I);
+    // CopyD for IDEAL_CMD and MODUL_CMD are identical:
+    res->data = (char *)idLiftStd((ideal)u->Data(),
+                                &(hv->data.umatrix),testHomog,
+                                &(hw->data.uideal),alg);
+    setFlag(res,FLAG_STD); v->flag=0; w->flag=0;
+    return FALSE;
+  }
+  else
+  {
+    Werror("%s(`ideal`,`ideal`,`matrix`,`string`)\n"
+           "or (`module`,`module`,`matrix`,`string`)expected",
+           Tok2Cmdname(iiOp));
+    return TRUE;
+  }
 }
 BOOLEAN jjLIST_PL(leftv res, leftv v)
 {

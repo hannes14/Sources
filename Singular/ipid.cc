@@ -146,7 +146,10 @@ void *idrecDataInit(int t)
     case INTMAT_CMD:
       return (void *)new intvec();
     case NUMBER_CMD:
-      return (void *) nInit(0);
+    {
+      if (currRing!=NULL) return (void *) nInit(0);
+      else                return NULL;
+    }
     case BIGINT_CMD:
       return (void *) n_Init(0, coeffs_BIGINT);
     case IDEAL_CMD:
@@ -420,7 +423,7 @@ void killhdl2(idhdl h, idhdl * ih, ring r)
   }
   if (h->attribute!=NULL)
   {
-    //h->attribute->killAll(r); MEMORY LEAK!
+    h->attribute->killAll(r);
     h->attribute=NULL;
   }
   if (IDTYP(h) == PACKAGE_CMD)
@@ -492,6 +495,7 @@ void killhdl2(idhdl h, idhdl * ih, ring r)
   omFreeBin((ADDRESS)h, idrec_bin);
 }
 
+#if 0
 idhdl ggetid(const char *n, BOOLEAN /*local*/, idhdl *packhdl)
 {
   idhdl h = IDROOT->get(n,myynest);
@@ -504,17 +508,17 @@ idhdl ggetid(const char *n, BOOLEAN /*local*/, idhdl *packhdl)
   if (h2==NULL) return h;
   return h2;
 }
+#endif
 
 idhdl ggetid(const char *n)
 {
   idhdl h = IDROOT->get(n,myynest);
   if ((h!=NULL)&&(IDLEV(h)==myynest)) return h;
-  idhdl h2=NULL;
   if (currRing!=NULL)
   {
-    h2 = currRing->idroot->get(n,myynest);
+    idhdl h2 = currRing->idroot->get(n,myynest);
+    if (h2!=NULL) return h2;
   }
-  if (h2!=NULL) return h2;
   if (h!=NULL) return h;
   if (basePack!=currPack)
     return basePack->idroot->get(n,myynest);

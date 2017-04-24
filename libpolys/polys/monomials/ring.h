@@ -731,8 +731,9 @@ ring   rAssure_c_dp(const ring r);
 ring   rAssure_CompLastBlock(const ring r, BOOLEAN complete = TRUE);
 
 /// makes sure that c/C ordering is last ordering and SyzIndex is first
-ring   rAssure_SyzComp_CompLastBlock(const ring r, BOOLEAN complete = TRUE);
-ring   rAssure_TDeg(const ring r, int start_var, int end_var, int &pos);
+ring   rAssure_SyzComp_CompLastBlock(const ring r);
+ring   rAssure_TDeg(const ring r, int &pos);
+BOOLEAN rHasTDeg(const ring r);
 
 /// return the max-comonent wchich has syzIndex i
 /// Assume: i<= syzIndex_limit
@@ -753,9 +754,6 @@ inline BOOLEAN rHasMixedOrdering(const ring r) { return (r->MixedOrder); }
 
 // #define rHasGlobalOrdering(R) ((R)->OrdSgn==1)
 // #define rHasLocalOrMixedOrdering(R) ((R)->OrdSgn==-1)
-
-#define rHasGlobalOrdering_currRing() rHasGlobalOrdering(currRing)
-#define rHasLocalOrMixedOrdering_currRing() rHasLocalOrMixedOrdering(currRing)
 
 BOOLEAN rOrd_is_Totaldegree_Ordering(const ring r);
 

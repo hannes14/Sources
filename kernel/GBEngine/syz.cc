@@ -6,10 +6,6 @@
 * ABSTRACT: resolutions
 */
 
-
-
-
-
 #include <kernel/mod2.h>
 #include <misc/options.h>
 #include <omalloc/omalloc.h>
@@ -84,10 +80,9 @@ static void syDeleteAbove(ideal up, int k)
 *minimizes the module mod and cancel superfluous syzygies
 *from syz
 */
-static void syMinStep(ideal mod,ideal syz,BOOLEAN final=FALSE,ideal up=NULL,
+static void syMinStep(ideal mod,ideal &syz,BOOLEAN final=FALSE,ideal up=NULL,
                       tHomog h=isNotHomog)
 {
-  ideal deg0=NULL;
   poly Unit1,Unit2,actWith;
   int len,i,j,ModComp,m,k,l;
   BOOLEAN searchUnit,existsUnit;
@@ -96,7 +91,8 @@ static void syMinStep(ideal mod,ideal syz,BOOLEAN final=FALSE,ideal up=NULL,
   if ((final) && (h==isHomog))
   /*minim is TRUE, we are in the module: maxlength, maxlength <>0*/
   {
-    deg0=id_Jet(syz,0,currRing);
+    ideal deg0=id_Jet(syz,0,currRing);
+    id_Delete(&syz,currRing);
     idSkipZeroes(deg0);
     syz=deg0;
   }
@@ -127,7 +123,7 @@ static void syMinStep(ideal mod,ideal syz,BOOLEAN final=FALSE,ideal up=NULL,
     j=IDELEMS(syz);
     while ((j>0) && (syz->m[j-1]==NULL)) j--;
     existsUnit = FALSE;
-    if (rHasGlobalOrdering_currRing())
+    if (rHasGlobalOrdering(currRing))
     {
       while ((i<j) && (!existsUnit))
       {
@@ -212,8 +208,6 @@ static void syMinStep(ideal mod,ideal syz,BOOLEAN final=FALSE,ideal up=NULL,
   if (TEST_OPT_PROT) PrintLn();
   idSkipZeroes(mod);
   idSkipZeroes(syz);
-  if (deg0!=NULL)
-    idDelete(&deg0);
 }
 
 /*2
@@ -295,7 +289,6 @@ static void syMinStep1(resolvente res, int length)
 {
   int i,j,k,index=0;
   poly p;
-  ideal deg0=NULL,reddeg0=NULL;
   intvec *have_del=NULL,*to_del=NULL;
 
   while ((index<length) && (res[index]!=NULL))
@@ -303,8 +296,8 @@ static void syMinStep1(resolvente res, int length)
 /*---we take out dependend elements from syz---------------------*/
     if (res[index+1]!=NULL)
     {
-      deg0 = id_Jet(res[index+1],0,currRing);
-      reddeg0 = kInterRedOld(deg0);
+      ideal deg0 = id_Jet(res[index+1],0,currRing);
+      ideal reddeg0 = kInterRedOld(deg0);
       idDelete(&deg0);
       have_del = new intvec(IDELEMS(res[index]));
       for (i=0;i<IDELEMS(reddeg0);i++)
@@ -355,6 +348,7 @@ static void syMinStep1(resolvente res, int length)
   }
   if (TEST_OPT_PROT) PrintLn();
   syKillEmptyEntres(res,length);
+  if (to_del!=NULL) delete to_del;
 }
 
 void syMinimizeResolvente(resolvente res, int length, int first)
@@ -396,10 +390,8 @@ resolvente syResolvente(ideal arg, int maxlength, int * length,
 {
   BITSET save1;
   SI_SAVE_OPT1(save1);
-  resolvente res;
   resolvente newres;
   tHomog hom=isNotHomog;
-  ideal temp=NULL;
   intvec *w = NULL,**tempW;
   int i,k,syzIndex = 0,j,rk_arg=si_max(1,(int)id_RankFreeModule(arg,currRing));
   int Kstd1_OldDeg=Kstd1_deg;
@@ -417,7 +409,7 @@ resolvente syResolvente(ideal arg, int maxlength, int * length,
     omFreeSize((ADDRESS)*weights,wlength*sizeof(intvec*));
     *weights=wtmp;
   }
-  res = (resolvente)omAlloc0((*length)*sizeof(ideal));
+  resolvente res = (resolvente)omAlloc0((*length)*sizeof(ideal));
 
 /*--- initialize the syzygy-ring -----------------------------*/
   ring origR = currRing;
@@ -522,12 +514,11 @@ resolvente syResolvente(ideal arg, int maxlength, int * length,
     if(! TEST_OPT_NO_SYZ_MINIM )
     if (minim || (syzIndex!=0))
     {
-      temp = kInterRedOld(res[syzIndex],currRing->qideal);
+      ideal temp = kInterRedOld(res[syzIndex],currRing->qideal);
       idDelete(&res[syzIndex]);
       idSkipZeroes(temp);
       res[syzIndex] = temp;
     }
-    temp = NULL;
 /*--- computing the syzygy modules --------------------------------*/
     if ((currRing->qideal==NULL)&&(syzIndex==0)&& (!TEST_OPT_DEGBOUND))
     {
@@ -622,25 +613,15 @@ syStrategy syResolution(ideal arg, int maxlength,intvec * w, BOOLEAN minim)
 {
 
 #ifdef HAVE_PLURAL
-
   const ideal idSaveCurrRingQuotient = currRing->qideal;
-
   if( rIsSCA(currRing) )
   {
-
-#ifdef RDEBUG
-//    rWrite(currRing);
-//    rDebugPrint(currRing);
-#endif
-
     if( ncExtensions(TESTSYZSCAMASK) )
     {
       currRing->qideal = SCAQuotient(currRing);
     }
-
     const unsigned int m_iFirstAltVar = scaFirstAltVar(currRing);
     const unsigned int m_iLastAltVar  = scaLastAltVar(currRing);
-
     arg = id_KillSquares(arg, m_iFirstAltVar, m_iLastAltVar, currRing, false); // kill suares in input!
   }
 #endif
@@ -660,7 +641,8 @@ syStrategy syResolution(ideal arg, int maxlength,intvec * w, BOOLEAN minim)
     (result->weights)[0] = ivCopy(w);
     result->length = 1;
   }
-  resolvente fr = syResolvente(arg,maxlength,&(result->length),&(result->weights),minim),fr1;
+  resolvente fr = syResolvente(arg,maxlength,&(result->length),&(result->weights),minim);
+  resolvente fr1;
   if (minim)
   {
     result->minres = (resolvente)omAlloc0((result->length+1)*sizeof(ideal));
@@ -679,20 +661,16 @@ syStrategy syResolution(ideal arg, int maxlength,intvec * w, BOOLEAN minim)
   }
   omFreeSize((ADDRESS)fr,(result->length)*sizeof(ideal));
 
-
 #ifdef HAVE_PLURAL
   if( rIsSCA(currRing) )
   {
-
     if( ncExtensions(TESTSYZSCAMASK) )
     {
       currRing->qideal = idSaveCurrRingQuotient;
     }
-
     id_Delete(&arg, currRing);
   }
 #endif
-
 
   return result;
 }

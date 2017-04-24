@@ -125,14 +125,17 @@ void id_Delete (ideal * h, ring r)
   {
     assume( (*h)->m != NULL );
 
-    int j = elems;
-    do
+    if (r!=NULL)
     {
-      j--;
-      poly pp=((*h)->m[j]);
-      if (pp!=NULL) p_Delete(&pp, r);
+      int j = elems;
+      do
+      {
+        j--;
+        poly pp=((*h)->m[j]);
+        if (pp!=NULL) p_Delete(&pp, r);
+      }
+      while (j>0);
     }
-    while (j>0);
 
     omFreeSize((ADDRESS)((*h)->m),sizeof(poly)*elems);
   }
@@ -1395,7 +1398,7 @@ BOOLEAN id_HomModule(ideal m, ideal Q, intvec **w, const ring R)
   return TRUE;
 }
 
-ideal id_Jet(ideal i,int d, const ring R)
+ideal id_Jet(const ideal i,int d, const ring R)
 {
   ideal r=idInit((i->nrows)*(i->ncols),i->rank);
   r->nrows = i-> nrows;
@@ -1408,7 +1411,7 @@ ideal id_Jet(ideal i,int d, const ring R)
   return r;
 }
 
-ideal id_JetW(ideal i,int d, intvec * iv, const ring R)
+ideal id_JetW(const ideal i,int d, intvec * iv, const ring R)
 {
   ideal r=idInit(IDELEMS(i),i->rank);
   if (ecartWeights!=NULL)

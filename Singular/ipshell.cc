@@ -1513,7 +1513,7 @@ poly    iiHighCorner(ideal I, int ak)
   int i;
   if(!idIsZeroDim(I)) return NULL; // not zero-dim.
   poly po=NULL;
-  if (rHasLocalOrMixedOrdering_currRing())
+  if (rHasLocalOrMixedOrdering(currRing))
   {
     scComputeHC(I,currRing->qideal,ak,po);
     if (po!=NULL)
@@ -2154,11 +2154,12 @@ lists rDecompose(const ring r)
     LLL->m[0].rtyp=STRING_CMD;
     LLL->m[0].data=(void *)omStrDup(rSimpleOrdStr(r->order[i]));
 
-    if(r->order[i] == ringorder_IS) //  || r->order[i] == ringorder_s || r->order[i] == ringorder_S)
+    if((r->order[i] == ringorder_IS)
+    || (r->order[i] == ringorder_s)) //|| r->order[i] == ringorder_S)
     {
       assume( r->block0[i] == r->block1[i] );
       const int s = r->block0[i];
-      assume( -2 < s && s < 2);
+      assume( (-2 < s && s < 2)||(r->order[i] != ringorder_IS));
 
       iv=new intvec(1);
       (*iv)[0] = s;
@@ -2567,13 +2568,16 @@ static inline BOOLEAN rComposeOrder(const lists  L, const BOOLEAN check_comp, ri
         else
           iv=ivCopy((intvec*)vv->m[1].Data()); //assume INTVEC
         int iv_len=iv->length();
-        R->block1[j_in_R]=si_max(R->block0[j_in_R],R->block0[j_in_R]+iv_len-1);
-        if (R->block1[j_in_R]>R->N)
+        if (R->order[j_in_R]!=ringorder_s)
         {
-          R->block1[j_in_R]=R->N;
-          iv_len=R->block1[j_in_R]-R->block0[j_in_R]+1;
+          R->block1[j_in_R]=si_max(R->block0[j_in_R],R->block0[j_in_R]+iv_len-1);
+          if (R->block1[j_in_R]>R->N)
+          {
+            R->block1[j_in_R]=R->N;
+            iv_len=R->block1[j_in_R]-R->block0[j_in_R]+1;
+          }
+          //Print("block %d from %d to %d\n",j,R->block0[j], R->block1[j]);
         }
-        //Print("block %d from %d to %d\n",j,R->block0[j], R->block1[j]);
         int i;
         switch (R->order[j_in_R])
         {
@@ -2631,6 +2635,8 @@ static inline BOOLEAN rComposeOrder(const lists  L, const BOOLEAN check_comp, ri
              break;
 
            case ringorder_s:
+             R->block1[j_in_R]=R->block0[j_in_R]=(*iv)[0];
+             rSetSyzComp(R->block0[j_in_R],R);
              break;
 
            case ringorder_IS:
@@ -3128,12 +3134,13 @@ lists syConvRes(syStrategy syzstr,BOOLEAN toDel,int add_row_shift)
   else
     tr = fullres;
 
-  resolvente trueres=NULL; intvec ** w=NULL;
+  resolvente trueres=NULL;
+  intvec ** w=NULL;
 
   if (length>0)
   {
     trueres = (resolvente)omAlloc0((length)*sizeof(ideal));
-    for (int i=(length)-1;i>=0;i--)
+    for (int i=length-1;i>=0;i--)
     {
       if (tr[i]!=NULL)
       {
@@ -3154,8 +3161,6 @@ lists syConvRes(syStrategy syzstr,BOOLEAN toDel,int add_row_shift)
 
   lists li = liMakeResolv(trueres, length, syzstr->list_length,typ0,
                           w, add_row_shift);
-
-  if (w != NULL) omFreeSize(w, length*sizeof(intvec*));
 
   if (toDel)
     syKillComputation(syzstr);
@@ -3739,10 +3744,10 @@ spectrumState   spectrumCompute( poly h,lists *L,int fast )
     if( fast==1 ) cout << "    weight optimization" << endl;
     if( fast==2 ) cout << "    symmetry optimization" << endl;
   #else
-    fprintf( stdout,"spectrumCompute\n" );
-    if( fast==0 ) fprintf( stdout,"    no optimization\n" );
-    if( fast==1 ) fprintf( stdout,"    weight optimization\n" );
-    if( fast==2 ) fprintf( stdout,"    symmetry optimization\n" );
+    fputs( "spectrumCompute\n",stdout );
+    if( fast==0 ) fputs( "    no optimization\n", stdout );
+    if( fast==1 ) fputs( "    weight optimization\n", stdout );
+    if( fast==2 ) fputs( "    symmetry optimization\n", stdout );
   #endif
   #endif
   #endif
@@ -3791,7 +3796,7 @@ spectrumState   spectrumCompute( poly h,lists *L,int fast )
   #ifdef SPECTRUM_IOSTREAM
     cout << "\n   computing the Jacobi ideal...\n";
   #else
-    fprintf( stdout,"\n   computing the Jacobi ideal...\n" );
+    fputs( "\n   computing the Jacobi ideal...\n",stdout );
   #endif
   #endif
   #endif
@@ -3805,7 +3810,7 @@ spectrumState   spectrumCompute( poly h,lists *L,int fast )
     #ifdef SPECTRUM_IOSTREAM
       cout << "        ";
     #else
-      fprintf( stdout,"        " );
+      fputs("        ", stdout );
     #endif
       pWrite( J->m[i] );
     #endif
@@ -3822,8 +3827,8 @@ spectrumState   spectrumCompute( poly h,lists *L,int fast )
     cout << endl;
     cout << "    computing a standard basis..." << endl;
   #else
-    fprintf( stdout,"\n" );
-    fprintf( stdout,"    computing a standard basis...\n" );
+    fputs( "\n", stdout );
+    fputs( "    computing a standard basis...\n", stdout );
   #endif
   #endif
   #endif
@@ -3838,7 +3843,7 @@ spectrumState   spectrumCompute( poly h,lists *L,int fast )
       #ifdef SPECTRUM_IOSTREAM
         cout << "        ";
       #else
-        fprintf( stdout,"        " );
+        fputs( "        ",stdout );
       #endif
 
       pWrite( stdJ->m[i] );
@@ -3888,7 +3893,7 @@ spectrumState   spectrumCompute( poly h,lists *L,int fast )
   #ifdef SPECTRUM_IOSTREAM
     cout << "\n    computing the highest corner...\n";
   #else
-    fprintf( stdout,"\n    computing the highest corner...\n" );
+    fputs( "\n    computing the highest corner...\n", stdout );
   #endif
   #endif
   #endif
@@ -3917,7 +3922,7 @@ spectrumState   spectrumCompute( poly h,lists *L,int fast )
   #ifdef SPECTRUM_IOSTREAM
     cout << "       ";
   #else
-    fprintf( stdout,"       " );
+    fputs( "       ", stdout );
   #endif
     pWrite( hc );
   #endif
@@ -3932,7 +3937,7 @@ spectrumState   spectrumCompute( poly h,lists *L,int fast )
   #ifdef SPECTRUM_IOSTREAM
     cout << "\n    computing the newton polygon...\n";
   #else
-    fprintf( stdout,"\n    computing the newton polygon...\n" );
+    fputs( "\n    computing the newton polygon...\n", stdout );
   #endif
   #endif
   #endif
@@ -3954,7 +3959,7 @@ spectrumState   spectrumCompute( poly h,lists *L,int fast )
   #ifdef SPECTRUM_IOSTREAM
     cout << "\n    computing the weight corner...\n";
   #else
-    fprintf( stdout,"\n    computing the weight corner...\n" );
+    fputs( "\n    computing the weight corner...\n", stdout );
   #endif
   #endif
   #endif
@@ -3969,7 +3974,7 @@ spectrumState   spectrumCompute( poly h,lists *L,int fast )
   #ifdef SPECTRUM_IOSTREAM
     cout << "        ";
   #else
-    fprintf( stdout,"        " );
+    fputs( "        ", stdout );
   #endif
     pWrite( wc );
   #endif
@@ -3984,7 +3989,7 @@ spectrumState   spectrumCompute( poly h,lists *L,int fast )
   #ifdef SPECTRUM_IOSTREAM
     cout << "\n    computing NF...\n" << endl;
   #else
-    fprintf( stdout,"\n    computing NF...\n" );
+    fputs( "\n    computing NF...\n", stdout );
   #endif
   #endif
   #endif
@@ -3999,7 +4004,7 @@ spectrumState   spectrumCompute( poly h,lists *L,int fast )
   #ifdef SPECTRUM_IOSTREAM
     cout << endl;
   #else
-    fprintf( stdout,"\n" );
+    fputs( "\n", stdout );
   #endif
   #endif
   #endif
