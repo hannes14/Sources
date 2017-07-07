@@ -4,23 +4,23 @@
 /*
 * ABSTRACT: i/o system
 */
-#include <kernel/mod2.h>
+#include "kernel/mod2.h"
 
 /* I need myfread in standalone_parser */
 #ifndef STANDALONE_PARSER
 
-#include <omalloc/omalloc.h>
-#include <misc/options.h>
-#include <reporter/reporter.h>
-#include <kernel/oswrapper/feread.h>
-#include <Singular/fevoices.h>
-#include <Singular/subexpr.h>
-#include <Singular/ipshell.h>
-#include <Singular/sdb.h>
+#include "omalloc/omalloc.h"
+#include "misc/options.h"
+#include "reporter/reporter.h"
+#include "kernel/oswrapper/feread.h"
+#include "Singular/fevoices.h"
+#include "Singular/subexpr.h"
+#include "Singular/ipshell.h"
+#include "Singular/sdb.h"
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <misc/mylimits.h>
+#include "misc/mylimits.h"
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <ctype.h>
@@ -507,13 +507,13 @@ int feReadLine(char* b, int l)
     && (currentVoice->buffer[currentVoice->fptr]!='\0'))
     {
   NewBuff:
-      register int i=0;
+      REGISTER int i=0;
       long startfptr=currentVoice->fptr;
       long tmp_ptr=currentVoice->fptr;
       l--;
       loop
       {
-        register char c=
+        REGISTER char c=
         b[i]=currentVoice->buffer[tmp_ptr/*currentVoice->fptr*/];
         i++;
         if (yy_noeof==noeof_block)

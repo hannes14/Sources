@@ -2,7 +2,7 @@ ACLOCAL_AMFLAGS = -I ../../m4
 
 AM_CPPFLAGS	= -I${top_srcdir} -I${top_builddir} \
 ${FACTORY_INCLUDES} ${RESOURCES_INCLUDES} ${OMALLOC_INCLUDES} \
-${FLINT_CFLAGS} ${NTL_CFLAGS} ${GMP_CFLAGS}
+${FLINT_CFLAGS} ${NTL_CPPFLAGS} ${GMP_CPPFLAGS}
 
 
 if ENABLE_P_PROCS_STATIC
@@ -26,7 +26,7 @@ libpolys_LTLIBRARIES = libpolys.la
 libpolysdir = $(libdir)
 
 SOURCES = \
-	monomials/monomials.cc monomials/p_polys.cc monomials/ring.cc monomials/maps.cc \
+	monomials/p_polys.cc monomials/ring.cc monomials/maps.cc \
 	operations/pShallowCopyDelete.cc operations/p_Mult_q.cc \
 	nc/sca.cc nc/summator.cc nc/ncSAFormula.cc nc/ncSACache.cc nc/ncSAMult.cc \
 	pDebug.cc polys0.cc prCopy.cc prCopyMacros.h \

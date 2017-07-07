@@ -7,41 +7,41 @@
  ***************************************************************/
 #define TRANSEXT_PRIVATES 1 /* allow access to transext internals */
 
-#include <kernel/mod2.h>
+#include "kernel/mod2.h"
 
-#include <omalloc/omalloc.h>
+#include "omalloc/omalloc.h"
 
-#include <misc/intvec.h>
-#include <misc/options.h>
+#include "misc/intvec.h"
+#include "misc/options.h"
 
-#include <reporter/si_signals.h>
-#include <reporter/s_buff.h>
+#include "reporter/si_signals.h"
+#include "reporter/s_buff.h"
 
-#include <coeffs/bigintmat.h>
-#include <coeffs/longrat.h>
+#include "coeffs/bigintmat.h"
+#include "coeffs/longrat.h"
 
-#include <polys/monomials/ring.h>
-#include <polys/monomials/p_polys.h>
-#include <polys/ext_fields/transext.h>
-#include <polys/simpleideals.h>
-#include <polys/matpol.h>
+#include "polys/monomials/ring.h"
+#include "polys/monomials/p_polys.h"
+#include "polys/ext_fields/transext.h"
+#include "polys/simpleideals.h"
+#include "polys/matpol.h"
 
-#include <kernel/oswrapper/timer.h>
-#include <kernel/oswrapper/feread.h>
-#include <kernel/oswrapper/rlimit.h>
+#include "kernel/oswrapper/timer.h"
+#include "kernel/oswrapper/feread.h"
+#include "kernel/oswrapper/rlimit.h"
 
-#include <Singular/tok.h>
-#include <Singular/ipid.h>
-#include <Singular/ipshell.h>
-#include <Singular/subexpr.h>
-#include <Singular/links/silink.h>
-#include <Singular/cntrlc.h>
-#include <Singular/lists.h>
-#include <Singular/blackbox.h>
-#include <Singular/links/ssiLink.h>
+#include "Singular/tok.h"
+#include "Singular/ipid.h"
+#include "Singular/ipshell.h"
+#include "Singular/subexpr.h"
+#include "Singular/links/silink.h"
+#include "Singular/cntrlc.h"
+#include "Singular/lists.h"
+#include "Singular/blackbox.h"
+#include "Singular/links/ssiLink.h"
 
 #ifdef HAVE_SIMPLEIPC
-#include <Singular/links/simpleipc.h>
+#include "Singular/links/simpleipc.h"
 #endif
 
 #include <stdio.h>
@@ -1446,13 +1446,16 @@ BOOLEAN ssiWrite(si_link l, leftv data)
     void *dd=data->Data();
     attr *aa=data->Attribute();
     BOOLEAN with_attr=FALSE;
-    if (((*aa)!=NULL)||(data->flag!=0))
+    if ((aa!=NULL) && ((*aa)!=NULL))
     {
       attr a=*aa;
       int n=0;
       while(a!=NULL) { n++; a=a->next;}
       fprintf(d->f_write,"21 %d %d ",data->flag,n);
-      a=*aa;
+    }
+    else if (data->flag!=0)
+    {
+      fprintf(d->f_write,"21 %d 0 ",data->flag);
     }
     if ((dd==NULL) && (data->name!=NULL) && (tt==0)) tt=DEF_CMD;
       // return pure undefined names as def

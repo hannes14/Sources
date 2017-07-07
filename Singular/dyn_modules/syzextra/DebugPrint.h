@@ -19,11 +19,7 @@
 
 // include basic definitions
 #include "singularxx_defs.h"
-#include <kernel/polys.h>
-
-BEGIN_NAMESPACE_SINGULARXX    BEGIN_NAMESPACE(DEBUG)
-
-
+#include "kernel/polys.h"
 
 /// debug-print at most nTerms (2 by default) terms from poly/vector p,
 /// assuming that lt(p) lives in lmRing and tail(p) lives in tailRing.
@@ -31,8 +27,6 @@ void dPrint(const poly p, const ring lmRing = currRing, const ring tailRing = cu
 
 /// prints an ideal, optionally with details
 void dPrint(const ideal id, const ring lmRing = currRing, const ring tailRing = currRing, const int nTerms = 0);
-
-END_NAMESPACE               END_NAMESPACE_SINGULARXX
 
 #endif
 /* #ifndef DEBUGPRINT_H */

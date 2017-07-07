@@ -6,22 +6,23 @@
 */
 //Schauen was hier überhaupt sinn macht
 
-#include <misc/auxiliary.h>
-#include <omalloc/omalloc.h>
-#include <factory/factory.h>
-#include <misc/mylimits.h>
-#include <reporter/reporter.h>
+#include "misc/auxiliary.h"
 
-#include "coeffs.h"
-#include "numbers.h"
-#include "mpr_complex.h"
+#ifdef SINGULAR_4_2
+#include "omalloc/omalloc.h"
+#include "factory/factory.h"
+#include "misc/mylimits.h"
+#include "reporter/reporter.h"
+
+#include "coeffs/coeffs.h"
+#include "coeffs/numbers.h"
+#include "coeffs/mpr_complex.h"
 
 #include "OPAE.h"
 #include "AE.h"
 
 #include <string.h>
 
-#ifdef SINGULAR_4_2
 
 BOOLEAN nAECoeffIsEqual     (number a, number b, const coeffs r);
 number  nAEMult        (number a, number b, const coeffs r);
@@ -392,8 +393,6 @@ BOOLEAN n_AEInitChar(coeffs r, void *)
     r->cfCoeffWrite=nAECoeffWrite; //????
 
 
-    // the variables:
-    r->nNULL = (number) 0;
     //r->type = n_AE;
     r->ch = 0;
     r->has_simple_Alloc=TRUE;

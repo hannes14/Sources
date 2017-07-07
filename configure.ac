@@ -165,10 +165,10 @@ AC_DEFINE_UNQUOTED([LIBS],"$LIBS",[LIBS])
 AC_DEFINE_UNQUOTED([AC_CONFIGURE_ARGS],"$ac_configure_args",[ac_configure_args])
 # AC_DEFINE_UNQUOTED([AC_CT_CC], "$ac_ct_CC",[ac_ct_CC])
 
-AC_DEFINE_UNQUOTED([NTL_CFLAGS],"$NTL_CFLAGS",[NTL_CFLAGS])
+AC_DEFINE_UNQUOTED([NTL_CPPFLAGS],"$NTL_CPPFLAGS",[NTL_CPPFLAGS])
 AC_DEFINE_UNQUOTED([NTL_LIBS],"$NTL_LIBS",[NTL_LIBS])
 
-AC_DEFINE_UNQUOTED([GMP_CFLAGS],"$GMP_CFLAGS",[GMP_CFLAGS])
+AC_DEFINE_UNQUOTED([GMP_CPPFLAGS],"$GMP_CPPFLAGS",[GMP_CPPFLAGS])
 AC_DEFINE_UNQUOTED([GMP_LIBS],"$GMP_LIBS",[GMP_LIBS])
 
 AC_DEFINE_UNQUOTED([FLINT_CFLAGS],"$FLINT_CFLAGS",[FLINT_CFLAGS])
@@ -243,6 +243,8 @@ AC_CONFIG_FILES([Singular/dyn_modules/customstd/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/pyobject/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/singmathic/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/staticdemo/Makefile])
+AC_CONFIG_FILES([Singular/dyn_modules/gitfan/Makefile])
+AC_CONFIG_FILES([Singular/dyn_modules/interval/Makefile])
 
 AC_CONFIG_FILES([Singular/Makefile])
 

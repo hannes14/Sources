@@ -1,11 +1,11 @@
-#include <kernel/mod2.h>
+#include "kernel/mod2.h"
 
-#include <Singular/ipid.h>
-#include <Singular/blackbox.h>
-#include <Singular/lists.h>
-#include <Singular/ipid.h>
-#include <Singular/ipshell.h>
-#include <Singular/newstruct.h>
+#include "Singular/ipid.h"
+#include "Singular/blackbox.h"
+#include "Singular/lists.h"
+#include "Singular/ipid.h"
+#include "Singular/ipshell.h"
+#include "Singular/newstruct.h"
 
 #include <ctype.h>
 
@@ -56,7 +56,6 @@ char * newstruct_String(blackbox *b, void *d)
 
     if (p!=NULL)
     {
-      BOOLEAN sl;
       sleftv tmp;
       memset(&tmp,0,sizeof(tmp));
       tmp.rtyp=ad->id;
@@ -67,12 +66,11 @@ char * newstruct_String(blackbox *b, void *d)
       hh.id=Tok2Cmdname(p->t);
       hh.typ=PROC_CMD;
       hh.data.pinf=p->p;
-      sl=iiMake_proc(&hh,NULL,&tmp);
+      BOOLEAN sl=iiMake_proc(&hh,NULL,&tmp);
 
       if ((!sl)&& (iiRETURNEXPR.Typ() == STRING_CMD))
       {
-        char *res = omStrDup((char*)iiRETURNEXPR.CopyD());
-        iiRETURNEXPR.CleanUp();
+        char *res = (char*)iiRETURNEXPR.CopyD();
         iiRETURNEXPR.Init();
         return res;
       }
@@ -254,20 +252,16 @@ BOOLEAN newstruct_Op1(int op, leftv res, leftv arg)
 
   if (p!=NULL)
   {
-    BOOLEAN sl;
-    sleftv tmp;
-    memset(&tmp,0,sizeof(sleftv));
-    tmp.Copy(arg);
     idrec hh;
     memset(&hh,0,sizeof(hh));
     hh.id=Tok2Cmdname(p->t);
     hh.typ=PROC_CMD;
     hh.data.pinf=p->p;
-    sl=iiMake_proc(&hh,NULL,&tmp);
+    BOOLEAN sl=iiMake_proc(&hh,NULL,arg);
     if (sl) return TRUE;
     else
     {
-      res->Copy(&iiRETURNEXPR);
+      memcpy(res,&iiRETURNEXPR,sizeof(sleftv));
       iiRETURNEXPR.Init();
       return FALSE;
     }
@@ -376,6 +370,8 @@ BOOLEAN newstruct_Op2(int op, leftv res, leftv a1, leftv a2)
               if (r!=NULL) r->ref++;
               else WerrorS("ring of this member is not set and no basering found");
             }
+            a1->CleanUp();
+            a2->CleanUp();
             return r==NULL;
           }
           else if (RingDependend(nm->typ)
@@ -395,6 +391,7 @@ BOOLEAN newstruct_Op2(int op, leftv res, leftv a1, leftv a2)
             else
             {
               //Print("checking ring at pos %d for dat at pos %d\n",nm->pos-1,nm->pos);
+              #if 0
               if ((al->m[nm->pos-1].data!=(void *)currRing)
               &&(al->m[nm->pos-1].data!=(void*)0L))
               {
@@ -410,22 +407,27 @@ BOOLEAN newstruct_Op2(int op, leftv res, leftv a1, leftv a2)
 
                 return TRUE;
               }
+              #endif
             }
-            if ((currRing!=NULL)&&(al->m[nm->pos-1].data==NULL))
+            if(al->m[nm->pos-1].data!=NULL)
             {
-              // remember the ring, if not already set
-              al->m[nm->pos-1].data=(void *)currRing;
-              al->m[nm->pos-1].rtyp=RING_CMD;
-              currRing->ref++;
+              ring old=(ring)al->m[nm->pos-1].data;
+              old->ref--;
             }
+            // remember the ring, if not already set
+            al->m[nm->pos-1].data=(void *)currRing;
+            al->m[nm->pos-1].rtyp=RING_CMD;
+            if (currRing!=NULL)  currRing->ref++;
           }
           else if ((nm->typ==DEF_CMD)||(nm->typ==LIST_CMD))
           {
-            if (al->m[nm->pos-1].data==NULL)
+            if(al->m[nm->pos-1].data!=NULL)
             {
-              al->m[nm->pos-1].data=(void*)currRing;
-              if (currRing!=NULL) currRing->ref++;
+              ring old=(ring)al->m[nm->pos-1].data;
+              old->ref--;
             }
+            al->m[nm->pos-1].data=(void*)currRing;
+            if (currRing!=NULL) currRing->ref++;
           }
           Subexpr r=(Subexpr)omAlloc0Bin(sSubexpr_bin);
           r->start = nm->pos+1;
@@ -438,6 +440,8 @@ BOOLEAN newstruct_Op2(int op, leftv res, leftv a1, leftv a2)
             while (sh->next != NULL) sh=sh->next;
             sh->next=r;
           }
+          //a1->CleanUp();// see memset above
+          a2->CleanUp();
           return FALSE;
         }
         else
@@ -458,7 +462,6 @@ BOOLEAN newstruct_Op2(int op, leftv res, leftv a1, leftv a2)
   while((p!=NULL) && ( (p->t!=op) || (p->args!=2) )) p=p->next;
   if (p!=NULL)
   {
-    BOOLEAN sl;
     sleftv tmp;
     memset(&tmp,0,sizeof(sleftv));
     tmp.Copy(a1);
@@ -469,11 +472,13 @@ BOOLEAN newstruct_Op2(int op, leftv res, leftv a1, leftv a2)
     hh.id=Tok2Cmdname(p->t);
     hh.typ=PROC_CMD;
     hh.data.pinf=p->p;
-    sl=iiMake_proc(&hh,NULL,&tmp);
+    BOOLEAN sl=iiMake_proc(&hh,NULL,&tmp);
+    a1->CleanUp();
+    a2->CleanUp();
     if (sl) return TRUE;
     else
     {
-      res->Copy(&iiRETURNEXPR);
+      memcpy(res,&iiRETURNEXPR,sizeof(sleftv));
       iiRETURNEXPR.Init();
       return FALSE;
     }
@@ -493,6 +498,7 @@ BOOLEAN newstruct_OpM(int op, leftv res, leftv args)
     {
       res->data=(void *)a->blackbox_String(a,args->Data());
       res->rtyp=STRING_CMD;
+      args->CleanUp();
       return FALSE;
     }
     default:
@@ -504,20 +510,17 @@ BOOLEAN newstruct_OpM(int op, leftv res, leftv args)
 
   if (p!=NULL)
   {
-    BOOLEAN sl;
-    sleftv tmp;
-    memset(&tmp,0,sizeof(sleftv));
-    tmp.Copy(args);
     idrec hh;
     memset(&hh,0,sizeof(hh));
     hh.id=Tok2Cmdname(p->t);
     hh.typ=PROC_CMD;
     hh.data.pinf=p->p;
-    sl=iiMake_proc(&hh,NULL,&tmp);
+    BOOLEAN sl=iiMake_proc(&hh,NULL,args);
+    args->CleanUp();
     if (sl) return TRUE;
     else
     {
-      res->Copy(&iiRETURNEXPR);
+      memcpy(res,&iiRETURNEXPR,sizeof(sleftv));
       iiRETURNEXPR.Init();
       return FALSE;
     }
@@ -636,6 +639,7 @@ BOOLEAN newstruct_serialize(blackbox *b, void *d, si_link f)
     }
     f->m->Write(f,&(ll->m[i]));
   }
+  omFreeSize(rings,Ll+1);
   if (ring_changed)
     f->m->SetRing(f,save_ring,FALSE);
   return FALSE;
@@ -649,14 +653,14 @@ BOOLEAN newstruct_deserialize(blackbox **, void **d, si_link f)
   // newstruct_deserialize
   leftv l=f->m->Read(f); // int: length of list
   int Ll=(int)(long)(l->data);
-  omFree(l);
+  omFreeBin(l,sleftv_bin);
   lists L=(lists)omAllocBin(slists_bin);
   L->Init(Ll+1);
   for(int i=0;i<=Ll;i++)
   {
     l=f->m->Read(f);
     memcpy(&(L->m[i]),l,sizeof(sleftv));
-    omFree(l);
+    omFreeBin(l,sleftv_bin);
   }
   //newstruct_desc n=(newstruct_desc)b->data;
   //TODO: check compatibility of list l->data with description in n

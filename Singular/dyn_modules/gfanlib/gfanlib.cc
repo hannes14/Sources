@@ -1,15 +1,14 @@
-#include <kernel/mod2.h>
+#include "kernel/mod2.h"
 
 #if HAVE_GFANLIB
 
-#include <bbcone.h>
-#include <bbfan.h>
-#include <bbpolytope.h>
-#include <gitfan.h>
-#include <tropical.h>
+#include "bbcone.h"
+#include "bbfan.h"
+#include "bbpolytope.h"
+#include "tropical.h"
 
-#include <Singular/ipid.h>
-#include <Singular/mod_lib.h>
+#include "Singular/ipid.h"
+#include "Singular/mod_lib.h"
 
 
 template class gfan::Vector<gfan::Integer>;
@@ -23,7 +22,6 @@ extern "C" int SI_MOD_INIT(gfanlib)(SModulFunctions* p)
   bbcone_setup(p);
   bbfan_setup(p);
   bbpolytope_setup(p);
-  gitfan_setup(p);
   tropical_setup(p);
   return MAX_TOK;
 }

@@ -9,31 +9,32 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <misc/auxiliary.h>
-#include <omalloc/omalloc.h>
-#include <factory/factory.h>
+#include "misc/auxiliary.h"
+#include "omalloc/omalloc.h"
+#include "factory/factory.h"
 
-#include <reporter/reporter.h>
+#include "reporter/reporter.h"
 
-#include <coeffs/coeffs.h>
-#include <coeffs/numbers.h>
+#include "coeffs/coeffs.h"
+#include "coeffs/numbers.h"
 
-#include <coeffs/longrat.h>
-#include <coeffs/modulop.h>
-#include <coeffs/gnumpfl.h>
-#include <coeffs/gnumpc.h>
-#include <coeffs/ffields.h>
-#include <coeffs/shortfl.h>
+#include "coeffs/longrat.h"
+#include "coeffs/modulop.h"
+#include "coeffs/gnumpfl.h"
+#include "coeffs/gnumpc.h"
+#include "coeffs/ffields.h"
+#include "coeffs/shortfl.h"
+#include "coeffs/ntupel.h"
 
 #ifdef HAVE_RINGS
-# include <coeffs/rmodulo2m.h>
-# include <coeffs/rmodulon.h>
-# include <coeffs/rintegers.h>
+#include "coeffs/rmodulo2m.h"
+#include "coeffs/rmodulon.h"
+#include "coeffs/rintegers.h"
 #endif
 
 #ifdef HAVE_POLYEXTENSIONS
-#include <polys/ext_fields/algext.h>
-#include <polys/ext_fields/transext.h>
+#include "polys/ext_fields/algext.h"
+#include "polys/ext_fields/transext.h"
 #endif
 
 
@@ -321,6 +322,7 @@ cfInitCharProc nInitCharTableDefault[]=
  NULL,        /* n_transExt */
  #endif
  ngcInitChar,  /* n_long_C */
+ nnInitChar,   /* n_nTupel */
  #ifdef HAVE_RINGS
  nrzInitChar,  /* n_Z */
  nrnInitChar,  /* n_Zn */
@@ -491,9 +493,6 @@ coeffs nInitChar(n_coeffType t, void * parameter)
     if(n->cfWriteShort==NULL) Warn("cfWriteShort is NULL for coeff %d",t);
     if(n->cfCoeffString==ndCoeffString) Warn("cfCoeffString is undefined for coeff %d",t);
 #endif
-
-   if( n->nNULL == NULL )
-     n->nNULL = n->cfInit(0, n); // may still remain NULL
   }
   else
   {
@@ -518,7 +517,6 @@ void nKillChar(coeffs r)
       {
         n->next=n->next->next;
         if (cf_root==r) cf_root=n->next;
-        n_Delete(&(r->nNULL),r);
         assume (r->cfKillChar!=NULL); r->cfKillChar(r); // STATISTIC(nKillChar);
         omFreeSize((void *)r, sizeof(n_Procs_s));
         r=NULL;

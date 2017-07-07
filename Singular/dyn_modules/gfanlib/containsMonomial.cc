@@ -1,10 +1,10 @@
-#include <kernel/polys.h>
-#include <kernel/GBEngine/kstd1.h>
-#include <polys/prCopy.h>
+#include "kernel/polys.h"
+#include "kernel/GBEngine/kstd1.h"
+#include "polys/prCopy.h"
 
-#include <callgfanlib_conversion.h>
-#include <bbcone.h>
-#include <std_wrapper.h>
+#include "callgfanlib_conversion.h"
+#include "bbcone.h"
+#include "std_wrapper.h"
 
 poly checkForMonomialViaSuddenSaturation(const ideal I, const ring r)
 {

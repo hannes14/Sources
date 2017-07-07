@@ -5,75 +5,75 @@
 * ABSTRACT:
 */
 
-#include <kernel/mod2.h>
+#include "kernel/mod2.h"
 
-#include <omalloc/omalloc.h>
+#include "omalloc/omalloc.h"
 
-#include <factory/factory.h>
+#include "factory/factory.h"
 
-#include <misc/options.h>
-#include <misc/mylimits.h>
-#include <misc/intvec.h>
-#include <misc/prime.h>
+#include "misc/options.h"
+#include "misc/mylimits.h"
+#include "misc/intvec.h"
+#include "misc/prime.h"
 
-#include <coeffs/numbers.h>
-#include <coeffs/coeffs.h>
+#include "coeffs/numbers.h"
+#include "coeffs/coeffs.h"
 
-#include <coeffs/rmodulon.h>
-#include <coeffs/longrat.h>
+#include "coeffs/rmodulon.h"
+#include "coeffs/longrat.h"
 
-#include <polys/monomials/ring.h>
-#include <polys/monomials/maps.h>
+#include "polys/monomials/ring.h"
+#include "polys/monomials/maps.h"
 
-#include <polys/prCopy.h>
-#include <polys/matpol.h>
+#include "polys/prCopy.h"
+#include "polys/matpol.h"
 
-#include <polys/weight.h>
-#include <polys/clapsing.h>
+#include "polys/weight.h"
+#include "polys/clapsing.h"
 
 
-#include <polys/ext_fields/algext.h>
-#include <polys/ext_fields/transext.h>
+#include "polys/ext_fields/algext.h"
+#include "polys/ext_fields/transext.h"
 
-#include <kernel/polys.h>
-#include <kernel/ideals.h>
+#include "kernel/polys.h"
+#include "kernel/ideals.h"
 
-#include <kernel/numeric/mpr_base.h>
-#include <kernel/numeric/mpr_numeric.h>
+#include "kernel/numeric/mpr_base.h"
+#include "kernel/numeric/mpr_numeric.h"
 
-#include <kernel/GBEngine/syz.h>
-#include <kernel/GBEngine/kstd1.h>
-#include <kernel/GBEngine/kutil.h> // denominator_list
+#include "kernel/GBEngine/syz.h"
+#include "kernel/GBEngine/kstd1.h"
+#include "kernel/GBEngine/kutil.h" // denominator_list
 
-#include <kernel/combinatorics/stairc.h>
-#include <kernel/combinatorics/hutil.h>
+#include "kernel/combinatorics/stairc.h"
+#include "kernel/combinatorics/hutil.h"
 
-#include <kernel/spectrum/semic.h>
-#include <kernel/spectrum/splist.h>
-#include <kernel/spectrum/spectrum.h>
+#include "kernel/spectrum/semic.h"
+#include "kernel/spectrum/splist.h"
+#include "kernel/spectrum/spectrum.h"
 
-#include <kernel/oswrapper/feread.h>
+#include "kernel/oswrapper/feread.h"
 
-#include <Singular/lists.h>
-#include <Singular/attrib.h>
-#include <Singular/ipconv.h>
-#include <Singular/links/silink.h>
-#include <Singular/ipshell.h>
-#include <Singular/maps_ip.h>
-#include <Singular/tok.h>
-#include <Singular/ipid.h>
-#include <Singular/subexpr.h>
-#include <Singular/fevoices.h>
-#include <Singular/sdb.h>
+#include "Singular/lists.h"
+#include "Singular/attrib.h"
+#include "Singular/ipconv.h"
+#include "Singular/links/silink.h"
+#include "Singular/ipshell.h"
+#include "Singular/maps_ip.h"
+#include "Singular/tok.h"
+#include "Singular/ipid.h"
+#include "Singular/subexpr.h"
+#include "Singular/fevoices.h"
+#include "Singular/sdb.h"
 
 #include <math.h>
 #include <ctype.h>
 
-#include <kernel/maps/gen_maps.h>
+#include "kernel/maps/gen_maps.h"
 
 #ifdef SINGULAR_4_2
-#include <Singular/number2.h>
-#include <coeffs/bigintmat.h>
+#include "Singular/number2.h"
+#include "coeffs/bigintmat.h"
 #endif
 leftv iiCurrArgs=NULL;
 idhdl iiCurrProc=NULL;
@@ -5047,28 +5047,35 @@ void rSetHdl(idhdl h)
       omCheckAddr((ADDRESS)IDID(h));
     rTest(rg);
   }
+  else return;
 
   // clean up history
-  if (sLastPrinted.RingDependend())
+  if (currRing!=NULL)
   {
-    sLastPrinted.CleanUp();
-    memset(&sLastPrinted,0,sizeof(sleftv));
-  }
-
-  if ((rg!=currRing)&&(currRing!=NULL))
-  {
-    denominator_list dd=DENOMINATOR_LIST;
-    if (DENOMINATOR_LIST!=NULL)
+    if(sLastPrinted.RingDependend())
     {
-      if (TEST_V_ALLWARN)
-        Warn("deleting denom_list for ring change to %s",IDID(h));
-      do
+      sLastPrinted.CleanUp();
+      //memset(&sLastPrinted,0,sizeof(sleftv)); // done by Cleanup,Init
+    }
+
+    if (rg!=currRing)/*&&(currRing!=NULL)*/
+    {
+      if (rg->cf!=currRing->cf)
       {
-        n_Delete(&(dd->n),currRing->cf);
-        dd=dd->next;
-        omFree(DENOMINATOR_LIST);
-        DENOMINATOR_LIST=dd;
-      } while(DENOMINATOR_LIST!=NULL);
+        denominator_list dd=DENOMINATOR_LIST;
+        if (DENOMINATOR_LIST!=NULL)
+        {
+          if (TEST_V_ALLWARN)
+            Warn("deleting denom_list for ring change to %s",IDID(h));
+          do
+          {
+            n_Delete(&(dd->n),currRing->cf);
+            dd=dd->next;
+            omFree(DENOMINATOR_LIST);
+            DENOMINATOR_LIST=dd;
+          } while(DENOMINATOR_LIST!=NULL);
+        }
+      }
     }
   }
 
@@ -6113,6 +6120,23 @@ void rKill(idhdl h)
       sLastPrinted.CleanUp(r);
     }
     ref=r->ref;
+    if ((ref<=0)&&(r==currRing))
+    {
+      // cleanup DENOMINATOR_LIST
+      if (DENOMINATOR_LIST!=NULL)
+      {
+        denominator_list dd=DENOMINATOR_LIST;
+        if (TEST_V_ALLWARN)
+          Warn("deleting denom_list for ring change from %s",IDID(h));
+        do
+        {
+          n_Delete(&(dd->n),currRing->cf);
+          dd=dd->next;
+          omFree(DENOMINATOR_LIST);
+          DENOMINATOR_LIST=dd;
+        } while(DENOMINATOR_LIST!=NULL);
+      }
+    }
     rKill(r);
   }
   if (h==currRingHdl)

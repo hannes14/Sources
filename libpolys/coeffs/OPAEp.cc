@@ -6,14 +6,14 @@
 */
 //Schauen was hier überhaupt sinn macht
 
-#include <misc/auxiliary.h>
+#include "misc/auxiliary.h"
 
 #ifdef SINGULAR_4_2
 
-#include <omalloc/omalloc.h>
-#include <factory/factory.h>
-#include <misc/mylimits.h>
-#include <reporter/reporter.h>
+#include "omalloc/omalloc.h"
+#include "factory/factory.h"
+#include "misc/mylimits.h"
+#include "reporter/reporter.h"
 
 #include "coeffs.h"
 #include "numbers.h"
@@ -400,9 +400,6 @@ BOOLEAN n_pAEInitChar(coeffs r, void *p)
     r->cfInpMult=nAEpInpMult; //????
     r->cfCoeffWrite=nAEpCoeffWrite; //????
 
-
-    // the variables:
-    r->nNULL = (number) 0;
     //r->type = n_AE;
     r->ch = c;
     r->has_simple_Alloc=TRUE;

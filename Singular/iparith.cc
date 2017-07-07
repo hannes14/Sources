@@ -5,78 +5,80 @@
 /*
 * ABSTRACT: table driven kernel interface, used by interpreter
 */
+//#include <sys/time.h>
+//#include <sys/resource.h>
+//long all_farey=0L;
+//long farey_cnt=0L;
 
+#include "kernel/mod2.h"
 
-#include <kernel/mod2.h>
+#include "omalloc/omalloc.h"
 
-#include <omalloc/omalloc.h>
+#include "factory/factory.h"
 
-#include <factory/factory.h>
+#include "coeffs/bigintmat.h"
+#include "coeffs/coeffs.h"
+#include "coeffs/numbers.h"
 
-#include <coeffs/bigintmat.h>
-#include <coeffs/coeffs.h>
-#include <coeffs/numbers.h>
+#include "misc/options.h"
+#include "misc/intvec.h"
+#include "misc/sirandom.h"
+#include "misc/prime.h"
 
+#include "polys/matpol.h"
+#include "polys/monomials/maps.h"
+#include "polys/sparsmat.h"
+#include "polys/weight.h"
+#include "polys/ext_fields/transext.h"
+#include "polys/clapsing.h"
 
-#include <misc/options.h>
-#include <misc/intvec.h>
-#include <misc/sirandom.h>
-#include <misc/prime.h>
+#include "kernel/combinatorics/stairc.h"
+#include "kernel/combinatorics/hilb.h"
 
-#include <polys/matpol.h>
-#include <polys/monomials/maps.h>
-#include <polys/sparsmat.h>
-#include <polys/weight.h>
-#include <polys/ext_fields/transext.h>
-#include <polys/clapsing.h>
+#include "kernel/linear_algebra/interpolation.h"
+#include "kernel/linear_algebra/linearAlgebra.h"
+#include "kernel/linear_algebra/MinorInterface.h"
 
-#include <kernel/combinatorics/stairc.h>
-#include <kernel/combinatorics/hilb.h>
+#include "kernel/spectrum/GMPrat.h"
+#include "kernel/groebner_walk/walkProc.h"
+#include "kernel/oswrapper/timer.h"
+#include "kernel/fglm/fglm.h"
 
-#include <kernel/linear_algebra/interpolation.h>
-#include <kernel/linear_algebra/linearAlgebra.h>
-#include <kernel/linear_algebra/MinorInterface.h>
+#include "kernel/GBEngine/kstdfac.h"
+#include "kernel/GBEngine/syz.h"
+#include "kernel/GBEngine/kstd1.h"
+#include "kernel/GBEngine/units.h"
+#include "kernel/GBEngine/tgb.h"
 
-#include <kernel/spectrum/GMPrat.h>
-#include <kernel/groebner_walk/walkProc.h>
-#include <kernel/oswrapper/timer.h>
-#include <kernel/fglm/fglm.h>
+#include "kernel/preimage.h"
+#include "kernel/polys.h"
+#include "kernel/ideals.h"
 
-#include <kernel/GBEngine/kstdfac.h>
-#include <kernel/GBEngine/syz.h>
-#include <kernel/GBEngine/kstd1.h>
-#include <kernel/GBEngine/units.h>
-#include <kernel/GBEngine/tgb.h>
+#include "Singular/mod_lib.h"
+#include "Singular/fevoices.h"
+#include "Singular/tok.h"
+#include "Singular/ipid.h"
+#include "Singular/sdb.h"
+#include "Singular/subexpr.h"
+#include "Singular/lists.h"
+#include "Singular/maps_ip.h"
 
-#include <kernel/preimage.h>
-#include <kernel/polys.h>
-#include <kernel/ideals.h>
+#include "Singular/ipconv.h"
+#include "Singular/ipprint.h"
+#include "Singular/attrib.h"
+#include "Singular/links/silink.h"
+#include "Singular/misc_ip.h"
+#include "Singular/linearAlgebra_ip.h"
 
-#include <Singular/mod_lib.h>
-#include <Singular/fevoices.h>
-#include <Singular/tok.h>
-#include <Singular/ipid.h>
-#include <Singular/sdb.h>
-#include <Singular/subexpr.h>
-#include <Singular/lists.h>
-#include <Singular/maps_ip.h>
+#include "Singular/number2.h"
 
-#include <Singular/ipconv.h>
-#include <Singular/ipprint.h>
-#include <Singular/attrib.h>
-#include <Singular/links/silink.h>
-#include <Singular/misc_ip.h>
-#include <Singular/linearAlgebra_ip.h>
+#include "Singular/fglm.h"
 
-#include <Singular/number2.h>
-
-#  include <Singular/fglm.h>
-
-#include <Singular/blackbox.h>
-#include <Singular/newstruct.h>
-#include <Singular/ipshell.h>
-//#include <kernel/mpr_inout.h>
-#include <reporter/si_signals.h>
+#include "Singular/blackbox.h"
+#include "Singular/newstruct.h"
+#include "Singular/ipshell.h"
+//#include "kernel/mpr_inout.h"
+#include "reporter/si_signals.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -91,10 +93,10 @@ ring rCompose(const lists  L, const BOOLEAN check_comp=TRUE);
 // defaults for all commands: NO_PLURAL | NO_RING | ALLOW_ZERODIVISOR
 
 #ifdef HAVE_PLURAL
-  #include <kernel/GBEngine/ratgring.h>
-  #include <kernel/GBEngine/nc.h>
-  #include <polys/nc/nc.h>
-  #include <polys/nc/sca.h>
+  #include "kernel/GBEngine/ratgring.h"
+  #include "kernel/GBEngine/nc.h"
+  #include "polys/nc/nc.h"
+  #include "polys/nc/sca.h"
   #define  PLURAL_MASK 3
 #else /* HAVE_PLURAL */
   #define  PLURAL_MASK     0
@@ -2114,7 +2116,14 @@ static BOOLEAN jjFAREY_ID(leftv res, leftv u, leftv v)
 {
   ideal uu=(ideal)u->Data();
   number vv=(number)v->Data();
+  //timespec buf1,buf2;
+  //clock_gettime(CLOCK_THREAD_CPUTIME_ID,&buf1);
   res->data=(void*)id_Farey(uu,vv,currRing);
+  //clock_gettime(CLOCK_THREAD_CPUTIME_ID,&buf2);
+  //const unsigned long SEC = 1000L*1000L*1000L;
+  //all_farey+=((buf2.tv_sec-buf1.tv_sec)*SEC+
+  //                              buf2.tv_nsec-buf1.tv_nsec);
+  //farey_cnt++;
   return FALSE;
 }
 static BOOLEAN jjFAREY_LI(leftv res, leftv u, leftv v);
@@ -4573,6 +4582,7 @@ static BOOLEAN jjP2N(leftv res, leftv v)
 static BOOLEAN jjRESERVEDNAME(leftv res, leftv v)
 {
   char *s= (char *)v->Data();
+  // try system keywords
   for(unsigned i=0; i<sArithBase.nCmdUsed; i++)
   {
     //Print("test %d, >>%s<<, tab:>>%s<<\n",i,s,sArithBase.sCmds[i].name);
@@ -4582,7 +4592,13 @@ static BOOLEAN jjRESERVEDNAME(leftv res, leftv v)
       return FALSE;
     }
   }
-  //res->data = (char *)0;
+  // try blackbox names
+  int id;
+  blackboxIsCmd(s,id);
+  if (id>0)
+  {
+    res->data = (char *)1;
+  }
   return FALSE;
 }
 static BOOLEAN jjRANK1(leftv res, leftv v)
@@ -5705,6 +5721,27 @@ static BOOLEAN jjINTMAT3(leftv res, leftv u, leftv v,leftv w)
   }
 
   res->data = (char *)im;
+  return FALSE;
+}
+static BOOLEAN jjINTERSECT3(leftv res, leftv u, leftv v, leftv w)
+{
+  ideal I1=(ideal)u->Data();
+  ideal I2=(ideal)v->Data();
+  ideal I3=(ideal)w->Data();
+  resolvente r=(resolvente)omAlloc0(3*sizeof(ideal));
+  r[0]=I1;
+  r[1]=I2;
+  r[2]=I3;
+  res->data=(char *)idMultSect(r,3);
+  omFreeSize((ADDRESS)r,3*sizeof(ideal));
+  return FALSE;
+}
+static BOOLEAN jjINTERSEC3S(leftv res, leftv u, leftv v, leftv w)
+{
+  ideal I=(ideal)u->Data();
+  GbVariant alg=syGetAlgorithm((char*)w->Data(),currRing,I);
+  res->data=(char *)idSect(I,(ideal)v->Data(),alg);
+  if (TEST_OPT_RETURN_SB) setFlag(res,FLAG_STD);
   return FALSE;
 }
 static BOOLEAN jjJET_P_IV(leftv res, leftv u, leftv v, leftv w)
@@ -8046,10 +8083,10 @@ BOOLEAN iiExprArith2(leftv res, leftv a, int op, leftv b, BOOLEAN proccall)
       if (bb!=NULL)
       {
         if (!bb->blackbox_Op2(op,res,a,b)) return FALSE;
-        if (errorreported) return TRUE;
         // else: no op defined
       }
-      else          return TRUE;
+      /*else*/
+      return TRUE;
     }
     else if ((bt>MAX_TOK)&&(op!='('))
     {
@@ -8057,10 +8094,10 @@ BOOLEAN iiExprArith2(leftv res, leftv a, int op, leftv b, BOOLEAN proccall)
       if (bb!=NULL)
       {
         if(!bb->blackbox_Op2(op,res,a,b)) return FALSE;
-        if (errorreported) return TRUE;
         // else: no op defined
       }
-      else          return TRUE;
+      /*else*/
+      return TRUE;
     }
     int i=iiTabIndex(dArithTab2,JJTAB2LEN,op);
     return iiExprArith2TabIntern(res,a,op,b,proccall,dArith2+i,at,bt,dConvertTypes);
@@ -8234,9 +8271,9 @@ BOOLEAN iiExprArith1(leftv res, leftv a, int op)
         res->rtyp=op;
         res->data=bb->blackbox_Init(bb);
         if(!bb->blackbox_Assign(res,a)) return FALSE;
-        if (errorreported) return TRUE;
       }
-      else          return TRUE;
+      /*else*/
+      return TRUE;
     }
     else if (at>MAX_TOK) // argument is of bb-type
     {
@@ -8244,10 +8281,10 @@ BOOLEAN iiExprArith1(leftv res, leftv a, int op)
       if (bb!=NULL)
       {
         if(!bb->blackbox_Op1(op,res,a)) return FALSE;
-        if (errorreported) return TRUE;
         // else: no op defined
       }
-      else          return TRUE;
+      /*else*/
+      return TRUE;
     }
 
     iiOp=op;
@@ -8448,10 +8485,10 @@ BOOLEAN iiExprArith3(leftv res, int op, leftv a, leftv b, leftv c)
       if (bb!=NULL)
       {
         if(!bb->blackbox_Op3(op,res,a,b,c)) return FALSE;
-        if (errorreported) return TRUE;
         // else: no op defined
       }
-      else          return TRUE;
+      /*else*/
+      return TRUE;
       if (errorreported) return TRUE;
     }
     int bt=b->Typ();
@@ -8559,10 +8596,10 @@ BOOLEAN iiExprArithM(leftv res, leftv a, int op)
       if (bb!=NULL)
       {
         if(!bb->blackbox_OpM(op,res,a)) return FALSE;
-        if (errorreported) return TRUE;
         // else: no op defined
       }
-      else          return TRUE;
+      /*else*/
+      return TRUE;
     }
     int args=0;
     if (a!=NULL) args=a->listLength();

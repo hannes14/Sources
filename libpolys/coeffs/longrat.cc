@@ -5,19 +5,25 @@
 * ABSTRACT: computation with long rational numbers (Hubert Grassmann)
 */
 
-#include <misc/auxiliary.h>
-#include <omalloc/omalloc.h>
+#include "misc/auxiliary.h"
+#include "omalloc/omalloc.h"
 
-#include <factory/factory.h>
+#include "factory/factory.h"
 
-#include <misc/sirandom.h>
-#include <misc/prime.h>
-#include <reporter/reporter.h>
+#include "misc/sirandom.h"
+#include "misc/prime.h"
+#include "reporter/reporter.h"
 
-#include "rmodulon.h" // ZnmInfo
-#include "longrat.h"
-#include "shortfl.h"
-#include "modulop.h"
+#include "coeffs/coeffs.h"
+#include "coeffs/numbers.h"
+#include "coeffs/rmodulon.h" // ZnmInfo
+#include "coeffs/longrat.h"
+#include "coeffs/shortfl.h"
+#include "coeffs/modulop.h"
+#include "coeffs/mpr_complex.h"
+
+#include <string.h>
+#include <float.h>
 
 // allow inlining only from p_Numbers.h and if ! LDEBUG
 #if defined(DO_LINLINE) && defined(P_NUMBERS_H) && !defined(LDEBUG)
@@ -131,16 +137,6 @@ static inline number nlShort3(number x) // assume x->s==3
 
 #ifndef LONGRAT_CC
 #define LONGRAT_CC
-
-#include <string.h>
-#include <float.h>
-
-#include <coeffs/coeffs.h>
-#include <reporter/reporter.h>
-#include <omalloc/omalloc.h>
-
-#include <coeffs/numbers.h>
-#include <coeffs/mpr_complex.h>
 
 #ifndef BYTES_PER_MP_LIMB
 #define BYTES_PER_MP_LIMB sizeof(mp_limb_t)
@@ -2810,19 +2806,21 @@ void nlInpIntDiv(number &a, number b, const coeffs r)
 
 number nlFarey(number nN, number nP, const coeffs r)
 {
-  mpz_t tmp; mpz_init(tmp);
-  mpz_t A,B,C,D,E,N,P;
-  if (SR_HDL(nN) & SR_INT) mpz_init_set_si(N,SR_TO_INT(nN));
-  else                     mpz_init_set(N,nN->z);
+  mpz_t A,B,C,D,E,N,P,tmp;
   if (SR_HDL(nP) & SR_INT) mpz_init_set_si(P,SR_TO_INT(nP));
   else                     mpz_init_set(P,nP->z);
+  const mp_bitcnt_t bits=2*(mpz_size1(P)+1)*GMP_LIMB_BITS;
+  mpz_init2(N,bits);
+  if (SR_HDL(nN) & SR_INT) mpz_set_si(N,SR_TO_INT(nN));
+  else                     mpz_set(N,nN->z);
   assume(!mpz_isNeg(P));
   if (mpz_isNeg(N))  mpz_add(N,N,P);
-  mpz_init_set_si(A,0L);
-  mpz_init_set_ui(B,(unsigned long)1);
-  mpz_init_set_si(C,0L);
-  mpz_init(D);
-  mpz_init_set(E,P);
+  mpz_init2(A,bits); mpz_set_si(A,0L);
+  mpz_init2(B,bits); mpz_set_si(B,1L);
+  mpz_init2(C,bits); mpz_set_si(C,0L);
+  mpz_init2(D,bits);
+  mpz_init2(E,bits); mpz_set(E,P);
+  mpz_init2(tmp,bits);
   number z=INT_TO_SR(0);
   while(mpz_cmp_si(N,0L)!=0)
   {
@@ -3408,8 +3406,6 @@ BOOLEAN nlInitChar(coeffs r, void*p)
   r->cfWriteFd=nlWriteFd;
   r->cfReadFd=nlReadFd;
 
-  // the variables: general stuff (required)
-  r->nNULL = INT_TO_SR(0);
   //r->type = n_Q;
   r->ch = 0;
   r->has_simple_Alloc=FALSE;

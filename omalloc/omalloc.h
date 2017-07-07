@@ -13,9 +13,17 @@
 
 #ifdef __cplusplus
 extern "C" {
+  #if __cplusplus >= 201402L
+  /* clang 3.7, gcc 5.1 sets 201402L */
+  #define REGISTER
+  #else
+  #define REGISTER register
+  #endif
+#else
+  #define REGISTER register
 #endif
 
-#include <omalloc/omConfig.h>
+#include "omalloc/omConfig.h"
 
 #if defined(OM_NDEBUG) && !defined(OM_ALLOC_INTERNAL)
 #if (SIZEOF_LONG == 8)
@@ -41,7 +49,7 @@ extern "C" {
 #include "omOpts.h"
 #include "omBinPage.h"
 #include "omAllocSystem.h"
-#include <omalloc/omTables.h>
+#include "omalloc/omTables.h"
 #include "omAllocPrivate.h"
 #include "omDebug.h"
 #include "omInline.h"

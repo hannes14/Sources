@@ -248,7 +248,7 @@ CanonicalForm Farey ( const CanonicalForm & f, const CanonicalForm & q )
 }
 
 // returns x where (a * x) % b == 1, inv is a cache
-static CanonicalForm chin_mul_inv(CanonicalForm a, CanonicalForm b, int ind, CFArray &inv)
+static inline CanonicalForm chin_mul_inv(CanonicalForm a, CanonicalForm b, int ind, CFArray &inv)
 {
   if (inv[ind].isZero())
   {
@@ -261,9 +261,10 @@ static CanonicalForm chin_mul_inv(CanonicalForm a, CanonicalForm b, int ind, CFA
     return inv[ind];
 }
 
+void out_cf(const char *s1,const CanonicalForm &f,const char *s2);
 void chineseRemainderCached(CFArray &a, CFArray &n, CanonicalForm &xnew, CanonicalForm &prod, CFArray &inv)
 {
-  CanonicalForm p, sum = 0; prod=1;
+  CanonicalForm p, sum=0L; prod=1L;
   int i;
   int len=n.size();
 

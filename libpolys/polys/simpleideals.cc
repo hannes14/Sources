@@ -10,14 +10,13 @@
 
 
 
-#include <misc/auxiliary.h>
+#include "misc/auxiliary.h"
 
-#include <omalloc/omalloc.h>
+#include "omalloc/omalloc.h"
 
-#include <misc/options.h>
-#include <misc/intvec.h>
+#include "misc/options.h"
+#include "misc/intvec.h"
 
-// #include <coeffs/longrat.h>
 #include "matpol.h"
 
 #include "monomials/p_polys.h"
@@ -1312,7 +1311,7 @@ BOOLEAN id_HomModule(ideal m, ideal Q, intvec **w, const ring R)
     if (i<length)
     {
       p=F[i];
-      while ((p!=NULL) && (iscom[p_GetComp(p,R)]==0)) pIter(p);
+      while ((p!=NULL) && (iscom[__p_GetComp(p,R)]==0)) pIter(p);
     }
     if ((p==NULL) && (i<length))
     {
@@ -1332,7 +1331,7 @@ BOOLEAN id_HomModule(ideal m, ideal Q, intvec **w, const ring R)
       //else
       //  order = p->order;
       //  order = pFDeg(p,currRing);
-      order = d(p,R) +diff[p_GetComp(p,R)];
+      order = d(p,R) +diff[__p_GetComp(p,R)];
       //order += diff[pGetComp(p)];
       p = F[i];
 //Print("Actual p=F[%d]: ",i);pWrite(p);
@@ -1346,10 +1345,10 @@ BOOLEAN id_HomModule(ideal m, ideal Q, intvec **w, const ring R)
       else
       //  ord = p->order;
         ord = R->pFDeg(p,R);
-      if (iscom[p_GetComp(p,R)]==0)
+      if (iscom[__p_GetComp(p,R)]==0)
       {
-        diff[p_GetComp(p,R)] = order-ord;
-        iscom[p_GetComp(p,R)] = 1;
+        diff[__p_GetComp(p,R)] = order-ord;
+        iscom[__p_GetComp(p,R)] = 1;
 /*
 *PrintS("new diff: ");
 *for (j=0;j<cmax;j++) Print("%d ",diff[j]);
@@ -1368,7 +1367,7 @@ BOOLEAN id_HomModule(ideal m, ideal Q, intvec **w, const ring R)
 *PrintLn();
 *Print("order %d, ord %d, diff %d\n",order,ord,diff[pGetComp(p)]);
 */
-        if (order != (ord+diff[p_GetComp(p,R)]))
+        if (order != (ord+diff[__p_GetComp(p,R)]))
         {
           omFreeSize((ADDRESS) iscom,cmax*sizeof(int));
           omFreeSize((ADDRESS) diff,cmax*sizeof(long));
@@ -1449,7 +1448,7 @@ int id_ReadOutPivot(ideal arg,int* comp, const ring r)
     p = arg->m[i];
     while (p!=NULL)
     {
-      j = p_GetComp(p,r);
+      j = __p_GetComp(p,r);
       if (componentIsUsed[j]==0)
       {
         if (p_LmIsConstantComp(p,r) &&
@@ -1603,7 +1602,7 @@ int id_MinDegW(ideal M,intvec *w, const ring r)
   return d;
 }
 
-// #include <kernel/clapsing.h>
+// #include "kernel/clapsing.h"
 
 /*2
 * transpose a module
@@ -1620,7 +1619,7 @@ ideal id_Transp(ideal a, const ring rRing)
     while(p!=NULL)
     {
       poly h=p_Head(p, rRing);
-      int co=p_GetComp(h, rRing)-1;
+      int co=__p_GetComp(h, rRing)-1;
       p_SetComp(h, i, rRing);
       p_Setm(h, rRing);
       h->next=b->m[co];
@@ -1687,7 +1686,7 @@ ideal id_TensorModuleMult(const int m, const ideal M, const ring rRing)
     {
       poly h = p_Head(w, rRing);
 
-      const int  gen = p_GetComp(h, rRing); // 1 ...
+      const int  gen = __p_GetComp(h, rRing); // 1 ...
 
       assume(gen > 0);
       assume(gen <= n*m);
@@ -1764,6 +1763,9 @@ ideal id_ChineseRemainder(ideal *xx, number *q, int rl, const ring r)
   number *x=(number *)omAlloc(rl*sizeof(number));
   poly *p=(poly *)omAlloc(rl*sizeof(poly));
   CFArray inv_cache(rl);
+  extern int n_SwitchChinRem; //TEST
+  int save_n_SwitchChinRem=n_SwitchChinRem;
+  n_SwitchChinRem=1;
   for(i=cnt-1;i>=0;i--)
   {
     for(j=rl-1;j>=0;j--)
@@ -1779,6 +1781,7 @@ ideal id_ChineseRemainder(ideal *xx, number *q, int rl, const ring r)
       if(i<IDELEMS(xx[j])*xx[j]->nrows) xx[j]->m[i]=p[j];
     }
   }
+  n_SwitchChinRem=save_n_SwitchChinRem;
   omFreeSize(p,rl*sizeof(poly));
   omFreeSize(x,rl*sizeof(number));
   for(i=rl-1;i>=0;i--) id_Delete(&(xx[i]),r);

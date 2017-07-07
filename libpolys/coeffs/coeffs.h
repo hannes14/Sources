@@ -9,18 +9,18 @@
 #ifndef COEFFS_H
 #define COEFFS_H
 
-# include <misc/auxiliary.h>
-#include <omalloc/omalloc.h>
+#include "misc/auxiliary.h"
+#include "omalloc/omalloc.h"
 
-#include <misc/sirandom.h>
+#include "misc/sirandom.h"
 /* for assume: */
-#include <reporter/reporter.h>
-#include <reporter/s_buff.h>
-#include <factory/factory.h>
+#include "reporter/reporter.h"
+#include "reporter/s_buff.h"
+#include "factory/factory.h"
 
-#include <coeffs/si_gmp.h>
-#include <coeffs/Enumerator.h>
-#include <coeffs/numstats.h> // for STATISTIC(F) counting macro
+#include "coeffs/si_gmp.h"
+#include "coeffs/Enumerator.h"
+#include "coeffs/numstats.h" // for STATISTIC(F) counting macro
 
 class CanonicalForm;
 
@@ -40,6 +40,7 @@ enum n_coeffType
                   the top-most extension in an extension tower
                   is transcendental */
   n_long_C, /**< complex floating point (GMP) numbers */
+  n_nTupel, /**< n-tupel of cf: ZZ/p1,... ZZ/pn, R, long_R */
   n_Z, /**< only used if HAVE_RINGS is defined  */
   n_Zn, /**< only used if HAVE_RINGS is defined */
   n_Znm, /**< only used if HAVE_RINGS is defined */
@@ -314,10 +315,6 @@ struct n_Procs_s
    /// conversion to CanonicalForm(factory) to number
    number (*convFactoryNSingN)( const CanonicalForm n, const coeffs r);
    CanonicalForm (*convSingNFactoryN)( number n, BOOLEAN setChar, const coeffs r );
-
-
-   /// the 0 as constant, NULL by default
-   number nNULL;
 
    /// Number of Parameters in the coeffs (default 0)
    int iNumberOfParameters;

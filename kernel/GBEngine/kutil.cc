@@ -21,13 +21,13 @@
 // 1 - ann*old sig
 #define EXT_POLY_NEW 0
 
-#include <kernel/mod2.h>
+#include "kernel/mod2.h"
 
-#include <misc/mylimits.h>
-#include <misc/options.h>
-#include <polys/nc/nc.h>
-#include <polys/nc/sca.h>
-#include <polys/weight.h> /* for kDebugPrint: maxdegreeWecart*/
+#include "misc/mylimits.h"
+#include "misc/options.h"
+#include "polys/nc/nc.h"
+#include "polys/nc/sca.h"
+#include "polys/weight.h" /* for kDebugPrint: maxdegreeWecart*/
 
 #include <stdlib.h>
 #include <string.h>
@@ -43,7 +43,7 @@
 #endif
 
 #ifdef HAVE_RINGS
-#include <kernel/ideals.h>
+#include "kernel/ideals.h"
 #endif
 
 // define if enterL, enterT should use memmove instead of doing it manually
@@ -56,24 +56,23 @@
 // system memmove -- it does not seem to pay off, though
 // #define ENTER_USE_MYMEMMOVE
 
-#include <kernel/GBEngine/kutil.h>
-#include <polys/kbuckets.h>
-#include <omalloc/omalloc.h>
-#include <coeffs/numbers.h>
-#include <kernel/polys.h>
-#include <polys/monomials/ring.h>
-#include <kernel/ideals.h>
-//#include "cntrlc.h"
-#include <kernel/combinatorics/stairc.h>
-#include <kernel/GBEngine/kstd1.h>
-#include <polys/operations/pShallowCopyDelete.h>
+#include "kernel/GBEngine/kutil.h"
+#include "polys/kbuckets.h"
+#include "omalloc/omalloc.h"
+#include "coeffs/numbers.h"
+#include "kernel/polys.h"
+#include "polys/monomials/ring.h"
+#include "kernel/ideals.h"
+#include "kernel/combinatorics/stairc.h"
+#include "kernel/GBEngine/kstd1.h"
+#include "polys/operations/pShallowCopyDelete.h"
 
 /* shiftgb stuff */
-#include <kernel/GBEngine/shiftgb.h>
-#include <polys/prCopy.h>
+#include "kernel/GBEngine/shiftgb.h"
+#include "polys/prCopy.h"
 
 #ifdef HAVE_RATGRING
-#include <kernel/GBEngine/ratgring.h>
+#include "kernel/GBEngine/ratgring.h"
 #endif
 
 #ifdef KDEBUG
@@ -92,9 +91,9 @@ denominator_list DENOMINATOR_LIST=NULL;
 #ifdef ENTER_USE_MYMEMMOVE
 inline void _my_memmove_d_gt_s(unsigned long* d, unsigned long* s, long l)
 {
-  register unsigned long* _dl = (unsigned long*) d;
-  register unsigned long* _sl = (unsigned long*) s;
-  register long _i = l - 1;
+  REGISTER unsigned long* _dl = (unsigned long*) d;
+  REGISTER unsigned long* _sl = (unsigned long*) s;
+  REGISTER long _i = l - 1;
 
   do
   {
@@ -106,10 +105,10 @@ inline void _my_memmove_d_gt_s(unsigned long* d, unsigned long* s, long l)
 
 inline void _my_memmove_d_lt_s(unsigned long* d, unsigned long* s, long l)
 {
-  register long _ll = l;
-  register unsigned long* _dl = (unsigned long*) d;
-  register unsigned long* _sl = (unsigned long*) s;
-  register long _i = 0;
+  REGISTER long _ll = l;
+  REGISTER unsigned long* _dl = (unsigned long*) d;
+  REGISTER unsigned long* _sl = (unsigned long*) s;
+  REGISTER long _i = 0;
 
   do
   {
@@ -148,7 +147,8 @@ static poly redBba (poly h,int maxIndex,kStrategy strat);
      else return pDivComp_INCOMP */
 static inline int pDivCompRing(poly p, poly q)
 {
-  if (pGetComp(p) == pGetComp(q))
+  if ((currRing->pCompIndex < 0)
+  || (__p_GetComp(p,currRing) == __p_GetComp(q,currRing)))
   {
     BOOLEAN a=FALSE, b=FALSE;
     int i;
@@ -186,7 +186,8 @@ static inline int pDivCompRing(poly p, poly q)
 
 static inline int pDivComp(poly p, poly q)
 {
-  if (pGetComp(p) == pGetComp(q))
+  if ((currRing->pCompIndex < 0)
+  || (__p_GetComp(p,currRing) == __p_GetComp(q,currRing)))
   {
 #ifdef HAVE_RATGRING
     if (rIsRatGRing(currRing))
@@ -331,8 +332,6 @@ void deleteHC(poly* p, int* e, int* l,kStrategy strat)
 */
 void cancelunit (LObject* L,BOOLEAN inNF)
 {
-  int  i;
-  poly h;
   number lc;
 
   if(rHasGlobalOrdering (currRing)) return;
@@ -340,6 +339,7 @@ void cancelunit (LObject* L,BOOLEAN inNF)
 
   ring r = L->tailRing;
   poly p = L->GetLmTailRing();
+  if(p_GetComp(p, r) != 0 && !p_OneComp(p, r)) return;
 
   if (rField_is_Ring(r) /*&& (rHasLocalOrMixedOrdering(r))*/)
     lc = pGetCoeff(p);
@@ -354,13 +354,13 @@ void cancelunit (LObject* L,BOOLEAN inNF)
   //if ( !(n_IsUnit(pGetCoeff(p), r->cf)) ) return;
 #endif
 
-  if(p_GetComp(p, r) != 0 && !p_OneComp(p, r)) return;
 
 //    for(i=r->N;i>0;i--)
 //    {
 //      if ((p_GetExp(p,i,r)>0) && (rIsPolyVar(i, r)==TRUE)) return;
 //    }
-  h = pNext(p);
+  poly h = pNext(p);
+  int  i;
 
   if(rField_is_Ring(currRing))
   {
@@ -393,7 +393,6 @@ void cancelunit (LObject* L,BOOLEAN inNF)
           p_Delete(&pNext(L->t_p),r);
         if (L->p != NULL && pNext(L->p) != NULL)
           pNext(L->p) = NULL;
-
         return;
       }
       i = rVar(r);
@@ -4694,7 +4693,7 @@ void enterExtendedSpoly(poly h,kStrategy strat)
       }
       if (rRing_has_Comp(currRing) && rRing_has_Comp(strat->tailRing))
       {
-        p_SetComp(tmp, p_GetComp(p, strat->tailRing), currRing);
+        p_SetComp(tmp, __p_GetComp(p, strat->tailRing), currRing);
       }
       p_Setm(tmp, currRing);
       p = p_LmFreeAndNext(p, strat->tailRing);
@@ -4776,7 +4775,7 @@ void enterExtendedSpolySig(poly h,poly hSig,kStrategy strat)
       }
       if (rRing_has_Comp(currRing) && rRing_has_Comp(strat->tailRing))
       {
-        p_SetComp(tmp, p_GetComp(p, strat->tailRing), currRing);
+        p_SetComp(tmp, __p_GetComp(p, strat->tailRing), currRing);
       }
       p_Setm(tmp, currRing);
       p = p_LmFreeAndNext(p, strat->tailRing);
@@ -7156,7 +7155,7 @@ BOOLEAN syzCriterionInc(poly sig, unsigned long not_sevSig, kStrategy strat)
   PrintS("--- syzygy criterion checks:  ");
   pWrite(sig);
 #endif
-  int comp = p_GetComp(sig, currRing);
+  int comp = __p_GetComp(sig, currRing);
   int min, max;
   if (comp<=1)
     return FALSE;
@@ -7354,9 +7353,7 @@ BOOLEAN arriRewCriterionPre(poly sig, unsigned long not_sevSig, poly lm, kStrate
  * Tail reductions
  *
  ***************************************************************/
-TObject*
-kFindDivisibleByInS(kStrategy strat, int pos, LObject* L, TObject *T,
-                    long ecart)
+TObject* kFindDivisibleByInS_T(kStrategy strat, int end_pos, LObject* L, TObject *T, long ecart)
 {
   int j = 0;
   const unsigned long not_sev = ~L->sev;
@@ -7373,7 +7370,7 @@ kFindDivisibleByInS(kStrategy strat, int pos, LObject* L, TObject *T,
     {
       loop
       {
-        if (j > pos) return NULL;
+        if (j > end_pos) return NULL;
   #if defined(PDEBUG) || defined(PDIV_DEBUG)
         if (strat->S[j]!= NULL && p_LmShortDivisibleBy(strat->S[j], sev[j], p, not_sev, r) &&
             (ecart== LONG_MAX || ecart>= strat->ecartS[j]))
@@ -7396,7 +7393,7 @@ kFindDivisibleByInS(kStrategy strat, int pos, LObject* L, TObject *T,
     {
       loop
       {
-        if (j > pos) return NULL;
+        if (j > end_pos) return NULL;
   #if defined(PDEBUG) || defined(PDIV_DEBUG)
         if (strat->S[j]!= NULL && p_LmShortDivisibleBy(strat->S[j], sev[j], p, not_sev, r) &&
             (ecart== LONG_MAX || ecart>= strat->ecartS[j]) && n_DivBy(pGetCoeff(p), pGetCoeff(strat->S[j]), r->cf))
@@ -7436,7 +7433,7 @@ kFindDivisibleByInS(kStrategy strat, int pos, LObject* L, TObject *T,
     {
       loop
       {
-        if (j > pos) return NULL;
+        if (j > end_pos) return NULL;
         assume(strat->S_2_R[j] != -1);
   #if defined(PDEBUG) || defined(PDIV_DEBUG)
         t = strat->S_2_T(j);
@@ -7465,7 +7462,7 @@ kFindDivisibleByInS(kStrategy strat, int pos, LObject* L, TObject *T,
     {
       loop
       {
-        if (j > pos) return NULL;
+        if (j > end_pos) return NULL;
         assume(strat->S_2_R[j] != -1);
   #if defined(PDEBUG) || defined(PDIV_DEBUG)
         t = strat->S_2_T(j);
@@ -7493,7 +7490,7 @@ kFindDivisibleByInS(kStrategy strat, int pos, LObject* L, TObject *T,
   }
 }
 
-poly redtail (LObject* L, int pos, kStrategy strat)
+poly redtail (LObject* L, int end_pos, kStrategy strat)
 {
   poly h, hn;
   strat->redTailChange=FALSE;
@@ -7526,9 +7523,9 @@ poly redtail (LObject* L, int pos, kStrategy strat)
       Ln.Set(hn, strat->tailRing);
       Ln.sev = p_GetShortExpVector(hn, strat->tailRing);
       if (strat->kHEdgeFound)
-        With = kFindDivisibleByInS(strat, pos, &Ln, &With_s);
+        With = kFindDivisibleByInS_T(strat, end_pos, &Ln, &With_s);
       else
-        With = kFindDivisibleByInS(strat, pos, &Ln, &With_s, e);
+        With = kFindDivisibleByInS_T(strat, end_pos, &Ln, &With_s, e);
       if (With == NULL) break;
       With->length=0;
       With->pLength=0;
@@ -7539,7 +7536,7 @@ poly redtail (LObject* L, int pos, kStrategy strat)
         if (kStratChangeTailRing(strat, L))
         {
           strat->kHEdgeFound = save_HE;
-          return redtail(L, pos, strat);
+          return redtail(L, end_pos, strat);
         }
         else
           return NULL;
@@ -7563,13 +7560,13 @@ poly redtail (LObject* L, int pos, kStrategy strat)
   return p;
 }
 
-poly redtail (poly p, int pos, kStrategy strat)
+poly redtail (poly p, int end_pos, kStrategy strat)
 {
   LObject L(p, currRing);
-  return redtail(&L, pos, strat);
+  return redtail(&L, end_pos, strat);
 }
 
-poly redtailBba (LObject* L, int pos, kStrategy strat, BOOLEAN withT, BOOLEAN normalize)
+poly redtailBba (LObject* L, int end_pos, kStrategy strat, BOOLEAN withT, BOOLEAN normalize)
 {
 #define REDTAIL_CANONICALIZE 100
   strat->redTailChange=FALSE;
@@ -7601,11 +7598,11 @@ poly redtailBba (LObject* L, int pos, kStrategy strat, BOOLEAN withT, BOOLEAN no
       {
         if (Ln.p!=NULL)
         {
-          if (p_GetComp(Ln.p,currRing)> strat->syzComp) break;
+          if (__p_GetComp(Ln.p,currRing)> strat->syzComp) break;
         }
         else
         {
-          if (p_GetComp(Ln.t_p,strat->tailRing)> strat->syzComp) break;
+          if (__p_GetComp(Ln.t_p,strat->tailRing)> strat->syzComp) break;
         }
       }
       Ln.SetShortExpVector();
@@ -7618,7 +7615,7 @@ poly redtailBba (LObject* L, int pos, kStrategy strat, BOOLEAN withT, BOOLEAN no
       }
       else
       {
-        With = kFindDivisibleByInS(strat, pos, &Ln, &With_s);
+        With = kFindDivisibleByInS_T(strat, end_pos, &Ln, &With_s);
         if (With == NULL) break;
       }
       cnt--;
@@ -7677,9 +7674,8 @@ poly redtailBba (LObject* L, int pos, kStrategy strat, BOOLEAN withT, BOOLEAN no
   return L->GetLmCurrRing();
 }
 
-poly redtailBbaBound (LObject* L, int pos, kStrategy strat, int bound, BOOLEAN withT, BOOLEAN normalize)
+poly redtailBbaBound (LObject* L, int end_pos, kStrategy strat, int bound, BOOLEAN withT, BOOLEAN normalize)
 {
-#define REDTAIL_CANONICALIZE 100
   strat->redTailChange=FALSE;
   if (strat->noTailReduction) return L->GetLmCurrRing();
   poly h, p;
@@ -7709,11 +7705,11 @@ poly redtailBbaBound (LObject* L, int pos, kStrategy strat, int bound, BOOLEAN w
       {
         if (Ln.p!=NULL)
         {
-          if (p_GetComp(Ln.p,currRing)> strat->syzComp) break;
+          if (__p_GetComp(Ln.p,currRing)> strat->syzComp) break;
         }
         else
         {
-          if (p_GetComp(Ln.t_p,strat->tailRing)> strat->syzComp) break;
+          if (__p_GetComp(Ln.t_p,strat->tailRing)> strat->syzComp) break;
         }
       }
       Ln.SetShortExpVector();
@@ -7726,7 +7722,7 @@ poly redtailBbaBound (LObject* L, int pos, kStrategy strat, int bound, BOOLEAN w
       }
       else
       {
-        With = kFindDivisibleByInS(strat, pos, &Ln, &With_s);
+        With = kFindDivisibleByInS_T(strat, end_pos, &Ln, &With_s);
         if (With == NULL) break;
       }
       cnt--;
@@ -7794,7 +7790,7 @@ poly redtailBbaBound (LObject* L, int pos, kStrategy strat, int bound, BOOLEAN w
 }
 
 #ifdef HAVE_RINGS
-poly redtailBba_Z (LObject* L, int pos, kStrategy strat )
+poly redtailBba_Z (LObject* L, int end_pos, kStrategy strat )
 // normalize=FALSE, withT=FALSE, coeff=Z
 {
   strat->redTailChange=FALSE;
@@ -7823,7 +7819,7 @@ poly redtailBba_Z (LObject* L, int pos, kStrategy strat )
     loop
     {
       Ln.SetShortExpVector();
-      With = kFindDivisibleByInS(strat, pos, &Ln, &With_s);
+      With = kFindDivisibleByInS_T(strat, end_pos, &Ln, &With_s);
       if (With == NULL) break;
       cnt--;
       if (cnt==0)
@@ -8457,7 +8453,7 @@ void initSyzRules (kStrategy strat)
             p_SetCoeff(q,nCopy(p_GetCoeff(strat->S[i],currRing)),currRing);
           p_ExpVectorCopy(q,strat->S[i],currRing);
           q               = p_Neg (q, currRing);
-          p_SetCompP (q, p_GetComp(strat->sig[k], currRing), currRing);
+          p_SetCompP (q, __p_GetComp(strat->sig[k], currRing), currRing);
           Q.sig = p_Add_q (Q.sig, q, currRing);
           Q.sevSig  = p_GetShortExpVector(Q.sig,currRing);
           pos = posInSyz(strat, Q.sig);
@@ -8501,7 +8497,7 @@ void initSyzRules (kStrategy strat)
         p_SetCoeff(q,nCopy(p_GetCoeff(strat->L[strat->Ll].p,currRing)),currRing);
       p_ExpVectorCopy(q,strat->L[strat->Ll].p,currRing);
       q               = p_Neg (q, currRing);
-      p_SetCompP (q, p_GetComp(strat->sig[k], currRing), currRing);
+      p_SetCompP (q, __p_GetComp(strat->sig[k], currRing), currRing);
       Q.sig = p_Add_q (Q.sig, q, currRing);
       Q.sevSig = p_GetShortExpVector(Q.sig,currRing);
       pos = posInSyz(strat, Q.sig);
@@ -12774,7 +12770,7 @@ poly redtailBbaShift (LObject* L, int pos, kStrategy strat, BOOLEAN withT, BOOLE
       }
       else
       {
-        With = kFindDivisibleByInS(strat, pos, &Ln, &With_s);
+        With = kFindDivisibleByInS_T(strat, pos, &Ln, &With_s);
         if (With == NULL) break;
       }
       if (normalize && (!TEST_OPT_INTSTRATEGY) && (!nIsOne(pGetCoeff(With->p))))

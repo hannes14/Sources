@@ -66,6 +66,7 @@ and @code{LIB} no brackets are allowed.
 * coef::
 * coeffs::
 * contract::
+* crossprod::
 * datetime::
 * dbprint::
 * defined::
@@ -94,6 +95,7 @@ and @code{LIB} no brackets are allowed.
 * filecmd::
 * find::
 * finduni::
+* Float::
 * fprintf::
 * freemodule::
 * frwalk::
@@ -1113,7 +1115,7 @@ See
 @ref{kbase}.
 @c ref
 @c ---------------------------------------
-@node contract, datetime, coeffs, Functions
+@node contract, crossprod, coeffs, Functions
 @subsection contract
 @cindex contract
 
@@ -1169,7 +1171,31 @@ See
 @c ref
 
 @c ---------------------------------------
-@node datetime, dbprint, contract, Functions
+@node crossprod, datetime, contract, Functions
+@subsection crossprod
+@cindex crossprod
+
+@table @code
+@item @strong{Syntax:}
+@code{crossprod (} cring_expression@code{,} ... @code{)}
+@item @strong{Type:}
+cring
+@item @strong{Purpose:}
+crooss product of several objects of type cring
+@item @strong{Example:}
+@smallexample
+@c example
+  crossprod(ZZ/32003,Float());
+@c example
+@end smallexample
+@end table
+@c ref
+See
+@ref{cring}.
+@c ref
+
+@c ---------------------------------------
+@node datetime, dbprint, crossprod, Functions
 @subsection datetime
 @cindex datetime
 @c lib standard.lib:datetime lib_fun lib_ex subsection
@@ -2234,7 +2260,7 @@ See
 @ref{string}.
 @c ref
 @c ---------------------------------------
-@node finduni, fprintf, find, Functions
+@node finduni, Float, find, Functions
 @subsection finduni
 @cindex finduni
 @table @code
@@ -2270,7 +2296,37 @@ See
 @c ref
 
 @c ---------------------------------------
-@node fprintf, freemodule, finduni, Functions
+@node Float, fprintf, finduni, Functions
+@subsection Float
+@cindex Float
+@table @code
+@item @strong{Syntax:}
+@code{Float (} @code{)}
+@*@code{Float (} int_expression @code{)}
+@*@code{Float (} int_expression @code{,} int_expression @code{)}
+@item @strong{Type:}
+cring
+@item @strong{Purpose:}
+returns a coefficient ring of floating point (inexect) real number
+to be used in ring definitions.
+@item @strong{Example:}
+@smallexample
+@c example
+  ring R1=Float(),(x,y),dp;
+  R1;
+  ring R2=Float(10,20),(a,b),dp;
+  R2;
+@c example
+@end smallexample
+@end table
+@c ref
+See
+@ref{ring};
+@ref{cring}.
+@c ref
+
+@c ---------------------------------------
+@node fprintf, freemodule, Float, Functions
 @subsection fprintf
 @cindex fprintf
 @c lib standard.lib:fprintf lib_fun lib_ex subsection
@@ -3133,6 +3189,8 @@ ideal, resp.@: module
 computes the intersection of ideals, resp.@: modules.
 @item @strong{Note:}
 If the option @code{prot} is enabled then the result the used method (elimination/syzygies) is displayed.
+@*An optional last argument specifies the Groebner base algorith to use.
+Possible values are @code{"std"} and @code{"slimgb"}.
 @item @strong{Example:}
 @smallexample
 @c example
@@ -3144,7 +3202,9 @@ If the option @code{prot} is enabled then the result the used method (eliminatio
   ideal id1=maxideal(3);
   ideal id2=x2+xyz,y2-z3y,z3+y5xz;
   ideal id3=intersect(id1,id2,ideal(x,y));
+  ideal id4=intersect(id1,id2,"slimgb");
   id3;
+  id4;
 @c example
 @end smallexample
 @end table
@@ -6316,6 +6376,7 @@ int
 @item @strong{Purpose:}
 prints a list of all reserved identifiers (first form) or tests
 whether the string is a reserved identifier (second form).
+This includes blackbox/newstruct types.
 @item @strong{Example:}
 @smallexample
 reservedName();

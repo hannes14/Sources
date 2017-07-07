@@ -7,13 +7,13 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#include <kernel/mod2.h>
-#include <omalloc/omalloc.h>
-#include <Singular/tok.h>
-#include <Singular/stype.h>
-#include <Singular/ipshell.h>
-#include <Singular/fevoices.h>
-#include <kernel/oswrapper/feread.h>
+#include "kernel/mod2.h"
+#include "omalloc/omalloc.h"
+#include "Singular/tok.h"
+#include "Singular/stype.h"
+#include "Singular/ipshell.h"
+#include "Singular/fevoices.h"
+#include "kernel/oswrapper/feread.h"
 
 int feReadLine(char* b, int l);
 #define ALLOC(a) omAlloc((a))
@@ -119,8 +119,8 @@ parname        #
 %x asstring
 
 %%
-\/\/[^\n]*               { }
-^#![^\n]*                { }
+\/\/[^\n]*               
+^[ \r\t\n]*#![^\n]*      
 "/*"                     {
                            yy_noeof=noeof_comment;
                            loop

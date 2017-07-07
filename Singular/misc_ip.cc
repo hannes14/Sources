@@ -13,27 +13,30 @@
 // include header files
 #define PLURAL_INTERNAL_DECLARATIONS 1
 
-#include <kernel/mod2.h>
-#include <misc/sirandom.h>
+#include "kernel/mod2.h"
+#include "misc/sirandom.h"
 
-#include <reporter/si_signals.h>
+#include "omalloc/omalloc.h"
+#include "misc/mylimits.h"
 
-#include <factory/factory.h>
+#include "reporter/si_signals.h"
 
-#include <coeffs/si_gmp.h>
-#include <coeffs/coeffs.h>
-#include <coeffs/OPAE.h>
-#include <coeffs/OPAEQ.h>
-#include <coeffs/OPAEp.h>
-#include <coeffs/flintcf_Q.h>
-#include <coeffs/flintcf_Zn.h>
+#include "factory/factory.h"
 
-#include <polys/ext_fields/algext.h>
-#include <polys/ext_fields/transext.h>
-#include <polys/nc/gb_hack.h>
+#include "coeffs/si_gmp.h"
+#include "coeffs/coeffs.h"
+#include "coeffs/OPAE.h"
+#include "coeffs/OPAEQ.h"
+#include "coeffs/OPAEp.h"
+#include "coeffs/flintcf_Q.h"
+#include "coeffs/flintcf_Zn.h"
+
+#include "polys/ext_fields/algext.h"
+#include "polys/ext_fields/transext.h"
+#include "polys/nc/gb_hack.h"
 
 #ifdef HAVE_SIMPLEIPC
-#include <Singular/links/simpleipc.h>
+#include "Singular/links/simpleipc.h"
 #endif
 
 #include "misc_ip.h"
@@ -41,7 +44,33 @@
 #include "feOpt.h"
 #include "links/silink.h"
 #include "mod_lib.h"
-#include <Singular/distrib.h>
+#include "Singular/distrib.h"
+
+#include "misc/options.h"
+#include "misc/intvec.h"
+
+#include "polys/monomials/ring.h"
+#include "polys/templates/p_Procs.h"
+
+#include "kernel/GBEngine/kstd1.h"
+#include "kernel/oswrapper/timer.h"
+#include "resources/feResource.h"
+#include "kernel/oswrapper/feread.h"
+
+#include "subexpr.h"
+#include "cntrlc.h"
+#include "ipshell.h"
+
+#include "fehelp.h"
+
+#ifdef HAVE_READLINE
+  #ifdef READLINE_READLINE_H_OK
+    #include <readline/readline.h>
+  #endif
+  #ifndef RL_VERSION_MAJOR
+    #define RL_VERSION_MAJOR 0
+  #endif
+#endif
 
 static FORCE_INLINE void number2mpz(number n, mpz_t m){ number2mpz(n, coeffs_BIGINT, m); }
 static FORCE_INLINE number mpz2number(mpz_t m){ return mpz2number(m, coeffs_BIGINT); }
@@ -380,27 +409,6 @@ lists primeFactorisation(const number n, const int pBound)
 
   return L;
 }
-
-#include <omalloc/omalloc.h>
-#include <misc/mylimits.h>
-
-#include <misc/options.h>
-#include <misc/intvec.h>
-
-#include <polys/monomials/ring.h>
-#include <polys/templates/p_Procs.h>
-
-#include <kernel/GBEngine/kstd1.h>
-#include <kernel/oswrapper/timer.h>
-#include <resources/feResource.h>
-#include <kernel/oswrapper/feread.h>
-
-#include "subexpr.h"
-#include "cntrlc.h"
-#include "ipid.h"
-#include "ipshell.h"
-
-#include "fehelp.h"
 
 #ifdef HAVE_STATIC
 #undef HAVE_DYN_RL
@@ -810,7 +818,7 @@ char * versionString(/*const bool bShowDetails = false*/ )
               else if (fe_fgets_stdin==fe_fgets)
                 StringAppendS("fgets,");
               if (fe_fgets_stdin==fe_fgets_stdin_drl)
-                StringAppendS("dynamic readline,");
+                StringAppend("dynamic readline%d),",RL_VERSION_MAJOR);
               #ifdef HAVE_FEREAD
               else if (fe_fgets_stdin==fe_fgets_stdin_emu)
                 StringAppendS("emulated readline,");
@@ -819,7 +827,7 @@ char * versionString(/*const bool bShowDetails = false*/ )
                 StringAppendS("unknown fgets method,");
 #else
   #if defined(HAVE_READLINE) && !defined(FEREAD)
-              StringAppendS("static readline,");
+              StringAppend("static readline(%d),",RL_VERSION_MAJOR);
   #else
     #ifdef HAVE_FEREAD
               StringAppendS("emulated readline,");
@@ -1139,6 +1147,9 @@ void m2_end(int i)
     {
       if (i<=0)
       {
+        //extern long all_farey;
+        //extern long farey_cnt;
+        //if (all_farey!=0L) printf("farey:%ld, cnt=%ld\n",all_farey,farey_cnt);
         if (TEST_V_QUIET)
         {
           if (i==0)
@@ -1215,6 +1226,67 @@ static BOOLEAN ii_FlintZn_init(leftv res,leftv a)
   }
 }
 #endif
+
+static BOOLEAN iiFloat(leftv res, leftv pnn)
+{
+  short float_len=3;
+  short float_len2=SHORT_REAL_LENGTH;
+  coeffs cf=NULL;
+  if ((pnn!=NULL) && (pnn->Typ()==INT_CMD))
+  {
+    float_len=(int)(long)pnn->Data();
+    float_len2=float_len;
+    pnn=pnn->next;
+    if ((pnn!=NULL) && (pnn->Typ()==INT_CMD))
+    {
+      float_len2=(int)(long)pnn->Data();
+      pnn=pnn->next;
+    }
+  }
+  if (float_len2 <= (short)SHORT_REAL_LENGTH)
+       cf=nInitChar(n_R, NULL);
+  else // longR or longC?
+  {
+    LongComplexInfo param;
+    param.float_len = si_min (float_len, 32767);
+    param.float_len2 = si_min (float_len2, 32767);
+    cf = nInitChar(n_long_R, (void*)&param);
+  }
+  res->rtyp=CRING_CMD;
+  res->data=cf;
+  return cf==NULL;
+}
+static BOOLEAN iiCrossProd(leftv res, leftv args)
+{
+  leftv h=args;
+  coeffs *c=NULL;
+  coeffs cf=NULL;
+  int i=0;
+  if (h==NULL) goto crossprod_error;
+  while (h!=NULL)
+  {
+    if (h->Typ()!=CRING_CMD) goto crossprod_error;
+    i++;
+    h=h->next;
+  }
+  c=(coeffs*)omAlloc0((i+1)*sizeof(coeffs));
+  h=args;
+  i=0;
+  while (h!=NULL)
+  {
+    c[i]=(coeffs)h->CopyD();
+    i++;
+    h=h->next;
+  }
+  cf=nInitChar(n_nTupel,c);
+  res->data=cf;
+  res->rtyp=CRING_CMD;
+  return FALSE;
+
+  crossprod_error:
+    WerrorS("expected `crossprod(coeffs, ...)`");
+    return TRUE;
+}
 /*2
 * initialize components of Singular
 */
@@ -1316,6 +1388,8 @@ void siInit(char *name)
     IDDATA(h)=(char*)nInitChar(n_Q,NULL);
     h=enterid(omStrDup("ZZ"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
     IDDATA(h)=(char*)nInitChar(n_Z,NULL);
+    iiAddCproc("kernel","crossprod",FALSE,iiCrossProd);
+    iiAddCproc("kernel","Float",FALSE,iiFloat);
     //h=enterid(omStrDup("RR"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
     //IDDATA(h)=(char*)nInitChar(n_R,NULL);
     //h=enterid(omStrDup("CC"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);

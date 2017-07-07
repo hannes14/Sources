@@ -9,20 +9,15 @@
 #include <stdio.h>
 #include <math.h>
 
-#include <misc/auxiliary.h>
+#include "misc/auxiliary.h"
 
-#include <omalloc/omalloc.h>
-#include <misc/mylimits.h>
+#include "omalloc/omalloc.h"
+#include "misc/mylimits.h"
 
+#include "misc/intvec.h"
+#include "coeffs/numbers.h"
 
-// #include <kernel/structs.h>
-// #include <kernel/GBEngine/kstd1.h>
-// #include <kernel/polys.h>
-
-#include <misc/intvec.h>
-#include <coeffs/numbers.h>
-
-#include <reporter/reporter.h>
+#include "reporter/reporter.h"
 
 
 #include "monomials/ring.h"
@@ -548,7 +543,7 @@ void mp_Coef2(poly v, poly mon, matrix *c, matrix *m, const ring R)
   while (v!=NULL)
   {
     i = 1;
-    j = p_GetComp(v, R);
+    j = __p_GetComp(v, R);
     loop
     {
       poly mp=MATELEM(*m,j,i);
@@ -1713,8 +1708,8 @@ static void p_DecomposeComp(poly p, poly *a, int l, const ring r)
   while(h!=NULL)
   {
     poly hh=pNext(h);
-    pNext(h)=a[p_GetComp(h,r)-1];
-    a[p_GetComp(h,r)-1]=h;
+    pNext(h)=a[__p_GetComp(h,r)-1];
+    a[__p_GetComp(h,r)-1]=h;
     p_SetComp(h,0,r);
     p_SetmComp(h,r);
     h=hh;

@@ -9,13 +9,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <misc/auxiliary.h>
-#include <omalloc/omalloc.h>
-#include <reporter/reporter.h>
+#include "misc/auxiliary.h"
+#include "omalloc/omalloc.h"
+#include "reporter/reporter.h"
 
-#include "coeffs.h"
-#include "numbers.h"
-#include "longrat.h"
+#include "coeffs/coeffs.h"
+#include "coeffs/numbers.h"
+#include "coeffs/longrat.h"
 
 omBin rnumber_bin = omGetSpecBin(sizeof(snumber)); // TODO: move this into coeffs-struct (for Q)?!
 
@@ -29,7 +29,7 @@ omBin rnumber_bin = omGetSpecBin(sizeof(snumber)); // TODO: move this into coeff
 /*2
 * extracts a long integer from s, returns the rest
 */
-static const char * nlEatLong(char *s, mpz_ptr i)
+const char * nlEatLong(char *s, mpz_ptr i)
 {
   const char * start=s;
 

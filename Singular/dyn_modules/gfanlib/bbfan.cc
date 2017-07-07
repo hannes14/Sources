@@ -1,20 +1,20 @@
-#include <kernel/mod2.h>
+#include "kernel/mod2.h"
 
 #if HAVE_GFANLIB
 
-#include <misc/intvec.h>
-#include <coeffs/coeffs.h>
-#include <coeffs/bigintmat.h>
+#include "misc/intvec.h"
+#include "coeffs/coeffs.h"
+#include "coeffs/bigintmat.h"
 
-#include <Singular/ipid.h>
-#include <Singular/ipshell.h>
-#include <Singular/blackbox.h>
+#include "Singular/ipid.h"
+#include "Singular/ipshell.h"
+#include "Singular/blackbox.h"
 
-#include <Singular/links/ssiLink.h>
+#include "Singular/links/ssiLink.h"
 
-#include <callgfanlib_conversion.h>
-#include <bbfan.h>
-#include <gfan.h>
+#include "callgfanlib_conversion.h"
+#include "bbfan.h"
+#include "gfan.h"
 #include <sstream>
 
 int fanID;
@@ -409,9 +409,9 @@ BOOLEAN insertCone(leftv res, leftv args)
       zc->canonicalize();
 
       leftv w=v->next;
-      int n;
+      int n=1;
       if ((w != NULL) && (w->Typ() == INT_CMD))
-        n = (int)(long) w;
+        n = (int)(long) w->Data();
 
       if (n != 0)
       {

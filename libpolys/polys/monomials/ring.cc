@@ -8,41 +8,31 @@
 /* includes */
 #include <math.h>
 
+#include "omalloc/omalloc.h"
 
+#include "misc/auxiliary.h"
+#include "misc/mylimits.h"
+#include "misc/options.h"
+#include "misc/int64vec.h"
 
+#include "coeffs/numbers.h"
+#include "coeffs/coeffs.h"
 
+#include "polys/monomials/p_polys.h"
+#include "polys/simpleideals.h"
+#include "polys/monomials/ring.h"
+#include "polys/monomials/maps.h"
+#include "polys/prCopy.h"
+#include "polys/templates/p_Procs.h"
 
-#include <omalloc/omalloc.h>
+#include "polys/matpol.h"
 
-#include <misc/auxiliary.h>
-#include <misc/mylimits.h>
-#include <misc/options.h>
-#include <misc/int64vec.h>
-
-#include <coeffs/numbers.h>
-#include <coeffs/coeffs.h>
-
-#include <polys/monomials/p_polys.h>
-#include <polys/simpleideals.h>
-// #include <???/febase.h>
-// #include <???/intvec.h>
-// #include <coeffs/ffields.h>
-#include <polys/monomials/ring.h>
-#include <polys/monomials/maps.h>
-#include <polys/prCopy.h>
-// #include "../Singular/ipshell.h"
-#include <polys/templates/p_Procs.h>
-
-#include <polys/matpol.h>
-
-#include <polys/monomials/ring.h>
+#include "polys/monomials/ring.h"
 
 #ifdef HAVE_PLURAL
-#include <polys/nc/nc.h>
-#include <polys/nc/sca.h>
+#include "polys/nc/nc.h"
+#include "polys/nc/sca.h"
 #endif
-// #include <???/maps.h>
-// #include <???/matpol.h>
 
 
 #include "ext_fields/algext.h"
@@ -4719,7 +4709,7 @@ static ring rAssure_Global(rRingOrder_t b1, rRingOrder_t b2, const ring r)
       (r->order[1] == b2) &&
       (r->order[2] == 0))
     return r;
-  ring res = rCopy0(r, TRUE, FALSE);
+  ring res = rCopy0(r, FALSE, FALSE);
   res->order = (rRingOrder_t*)omAlloc0(3*sizeof(rRingOrder_t));
   res->block0 = (int*)omAlloc0(3*sizeof(int));
   res->block1 = (int*)omAlloc0(3*sizeof(int));
@@ -4737,6 +4727,7 @@ static ring rAssure_Global(rRingOrder_t b1, rRingOrder_t b2, const ring r)
     res->block1[0] = r->N;
   }
   rComplete(res, 1);
+  if (r->qideal!=NULL) res->qideal= idrCopyR_NoSort(r->qideal, r, res);
 #ifdef HAVE_PLURAL
   if (rIsPluralRing(r))
   {

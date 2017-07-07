@@ -5,24 +5,24 @@
 * ABSTRACT: numbers (integers)
 */
 
-#include <misc/auxiliary.h>
-#include <omalloc/omalloc.h>
+#include "misc/auxiliary.h"
+#include "omalloc/omalloc.h"
 
-#include <factory/factory.h>
+#include "factory/factory.h"
 
-#include <misc/mylimits.h>
-#include <reporter/reporter.h>
+#include "misc/mylimits.h"
+#include "reporter/reporter.h"
 
-#include "coeffs.h"
-#include "longrat.h"
-#include "numbers.h"
+#include "coeffs/coeffs.h"
+#include "coeffs/longrat.h"
+#include "coeffs/numbers.h"
 
-#include "si_gmp.h"
+#include "coeffs/si_gmp.h"
 
-#include "mpr_complex.h"
-#include "rintegers.h"
-#include "rmodulon.h"
-#include "longrat.h"
+#include "coeffs/mpr_complex.h"
+#include "coeffs/rintegers.h"
+#include "coeffs/rmodulon.h"
+#include "coeffs/longrat.h"
 
 #include <string.h>
 
@@ -625,7 +625,6 @@ BOOLEAN nrzInitChar(coeffs r,  void *)
   r->cfDBTest=nrzDBTest;
 #endif
 
-  r->nNULL = 0;
   r->ch = 0;
   r->has_simple_Alloc=FALSE;
   r->has_simple_Inverse=FALSE;
@@ -1864,7 +1863,6 @@ BOOLEAN nrzInitChar(coeffs r,  void *)
   r->cfDBTest=nrzDBTest;
 #endif
 
-  r->nNULL = 0;
   r->ch = 0;
   r->has_simple_Alloc=FALSE;
   r->has_simple_Inverse=FALSE;

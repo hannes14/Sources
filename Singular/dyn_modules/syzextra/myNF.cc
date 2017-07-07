@@ -14,54 +14,31 @@
  **/
 /*****************************************************************************/
 
-
-
-
-
 // include header file
-#include <kernel/mod2.h>
+#include "kernel/mod2.h"
 
-
-#include <omalloc/omalloc.h>
-
-#include <misc/intvec.h>
-
-#include <misc/options.h>
-
-#include <polys/monomials/p_polys.h>
-#include <polys/kbuckets.h>
-
-
-#include <kernel/structs.h>
-
-
-
-#include <kernel/ideals.h>
-
-#include <kernel/GBEngine/syz.h>
-// #include <kernel/longrat.h>
-#include <kernel/GBEngine/kutil.h>
-#include <kernel/GBEngine/kstd1.h>
-
-
-
-#include <kernel/polys.h>
-// #include <kernel/pInline2.h>
+#include "omalloc/omalloc.h"
+#include "misc/intvec.h"
+#include "misc/options.h"
+#include "polys/monomials/p_polys.h"
+#include "polys/kbuckets.h"
+#include "kernel/structs.h"
+#include "kernel/ideals.h"
+#include "kernel/GBEngine/syz.h"
+#include "kernel/GBEngine/kutil.h"
+#include "kernel/GBEngine/kstd1.h"
+#include "kernel/polys.h"
+// #include "kernel/pInline2.h"
 
 #include "myNF.h"
-
 
 #ifdef HAVE_PLURAL
 #define PLURAL_INTERNAL_DECLARATIONS 1
 #endif
 
-#include <polys/nc/sca.h>
-#include <polys/nc/nc.h>
-#include <kernel/GBEngine/nc.h>
-
-
-
-BEGIN_NAMESPACE()
+#include "polys/nc/sca.h"
+#include "polys/nc/nc.h"
+#include "kernel/GBEngine/nc.h"
 
 ///  reduction procedure for the normal form, which uses pLength instead of pSize!
 static poly redNFLength (poly h,int &max_ind,int nonorm,kStrategy strat)
@@ -283,11 +260,6 @@ poly kNF2Length (ideal F,ideal Q,poly q,kStrategy strat, int lazyReduce)
   return p;
 }
 
-END_NAMESPACE
-
-
-BEGIN_NAMESPACE_SINGULARXX  BEGIN_NAMESPACE(NF)
-
 poly kNFLength(ideal F, ideal Q, poly p,int syzComp, int lazyReduce)
 {
   if (p==NULL)
@@ -333,7 +305,5 @@ poly kNFLength(ideal F, ideal Q, poly p,int syzComp, int lazyReduce)
 #endif
   return res;
 }
-
-END_NAMESPACE               END_NAMESPACE_SINGULARXX
 
 // Vi-modeline: vim: filetype=c:syntax:shiftwidth=2:tabstop=8:textwidth=0:expandtab

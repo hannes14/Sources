@@ -21,45 +21,36 @@
 
 
 
-#include <misc/auxiliary.h>
+#include "misc/auxiliary.h"
 
 #ifdef HAVE_PLURAL
 
 // for
 #define PLURAL_INTERNAL_DECLARATIONS
 
-#include <polys/nc/sca.h>
-#include <polys/nc/nc.h>
-#include <polys/nc/gb_hack.h>
-// #include <polys/gring.h>
+#include "polys/nc/sca.h"
+#include "polys/nc/nc.h"
+#include "polys/nc/gb_hack.h"
 
+#include "coeffs/numbers.h"
 
-#include <coeffs/numbers.h>
+#include "misc/options.h"
 
-// #include <polys/febase.h>
-#include <misc/options.h>
+#include "polys/monomials/p_polys.h"
 
-#include <polys/monomials/p_polys.h>
+#include "polys/simpleideals.h"
+#include "misc/intvec.h"
 
-// #include <polys/kutil.h>
-#include <polys/simpleideals.h>
-#include <misc/intvec.h>
+#include "polys/monomials/ring.h"
+#include "polys/kbuckets.h"
+#include "polys/sbuckets.h"
 
-#include <polys/monomials/ring.h>
-#include <polys/kbuckets.h>
-// #include <polys/kstd1.h>
-#include <polys/sbuckets.h>
+#include "polys/prCopy.h"
 
-#include <polys/prCopy.h>
+#include "polys/operations/p_Mult_q.h"
+#include "polys/templates/p_MemAdd.h"
 
-#include <polys/operations/p_Mult_q.h>
-#include <polys/templates/p_MemAdd.h>
-
-// #include <polys/kutil.h>
-// #include <polys/kstd1.h>
-
-#include <polys/weight.h>
-
+#include "polys/weight.h"
 
 // poly functions defined in p_Procs :
 
@@ -97,10 +88,10 @@ static inline int sca_Sign_mm_Mult_mm( const poly pMonomM, const poly pMonomMM, 
     const short iFirstAltVar = scaFirstAltVar(rRing);
     const short iLastAltVar  = scaLastAltVar(rRing);
 
-    register unsigned int tpower = 0;
-    register unsigned int cpower = 0;
+    REGISTER unsigned int tpower = 0;
+    REGISTER unsigned int cpower = 0;
 
-    for( register short j = iLastAltVar; j >= iFirstAltVar; j-- )
+    for( REGISTER short j = iLastAltVar; j >= iFirstAltVar; j-- )
     {
       const unsigned int iExpM  = p_GetExp(pMonomM,  j, rRing);
       const unsigned int iExpMM = p_GetExp(pMonomMM, j, rRing);
@@ -148,10 +139,10 @@ static inline poly sca_m_Mult_mm( poly pMonomM, const poly pMonomMM, const ring 
     const unsigned int iFirstAltVar = scaFirstAltVar(rRing);
     const unsigned int iLastAltVar = scaLastAltVar(rRing);
 
-    register unsigned int tpower = 0;
-    register unsigned int cpower = 0;
+    REGISTER unsigned int tpower = 0;
+    REGISTER unsigned int cpower = 0;
 
-    for( register unsigned int j = iLastAltVar; j >= iFirstAltVar; j-- )
+    for( REGISTER unsigned int j = iLastAltVar; j >= iFirstAltVar; j-- )
     {
       const unsigned int iExpM  = p_GetExp(pMonomM,  j, rRing);
       const unsigned int iExpMM = p_GetExp(pMonomMM, j, rRing);
@@ -212,10 +203,10 @@ static inline poly sca_mm_Mult_m( const poly pMonomMM, poly pMonomM, const ring 
     const unsigned int iFirstAltVar = scaFirstAltVar(rRing);
     const unsigned int iLastAltVar = scaLastAltVar(rRing);
 
-    register unsigned int tpower = 0;
-    register unsigned int cpower = 0;
+    REGISTER unsigned int tpower = 0;
+    REGISTER unsigned int cpower = 0;
 
-    for( register unsigned int j = iLastAltVar; j >= iFirstAltVar; j-- )
+    for( REGISTER unsigned int j = iLastAltVar; j >= iFirstAltVar; j-- )
     {
       const unsigned int iExpMM = p_GetExp(pMonomMM, j, rRing);
       const unsigned int iExpM  = p_GetExp(pMonomM,  j, rRing);
@@ -277,10 +268,10 @@ static inline poly sca_mm_Mult_mm( poly pMonom1, const poly pMonom2, const ring 
     const unsigned int iFirstAltVar = scaFirstAltVar(rRing);
     const unsigned int iLastAltVar = scaLastAltVar(rRing);
 
-    register unsigned int tpower = 0;
-    register unsigned int cpower = 0;
+    REGISTER unsigned int tpower = 0;
+    REGISTER unsigned int cpower = 0;
 
-    for( register unsigned int j = iLastAltVar; j >= iFirstAltVar; j-- )
+    for( REGISTER unsigned int j = iLastAltVar; j >= iFirstAltVar; j-- )
     {
       const unsigned int iExp1 = p_GetExp(pMonom1, j, rRing);
       const unsigned int iExp2 = p_GetExp(pMonom2, j, rRing);
@@ -346,9 +337,9 @@ static inline poly sca_xi_Mult_mm(short i, const poly pMonom, const ring rRing)
 
     const short iFirstAltVar = scaFirstAltVar(rRing);
 
-    register unsigned int cpower = 0;
+    REGISTER unsigned int cpower = 0;
 
-    for( register short j = iFirstAltVar; j < i ; j++ )
+    for( REGISTER short j = iFirstAltVar; j < i ; j++ )
       cpower ^= p_GetExp(pMonom, j, rRing);
 
 #ifdef PDEBUG

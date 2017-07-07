@@ -1,12 +1,9 @@
 #ifndef TROPICALDEBUG_H
 #define TROPICALDEBUG_H
 
-#ifndef NDEBUG
-
-
-#include <libpolys/polys/simpleideals.h>
-#include <gfanlib/gfanlib.h>
-
+#ifndef SING_NDEBUG
+#include "libpolys/polys/simpleideals.h"
+#include "gfanlib/gfanlib.h"
 
 bool checkForNonPositiveEntries(const gfan::ZVector &w);
 bool checkForNonPositiveLaterEntries(const gfan::ZVector &w);
@@ -18,6 +15,6 @@ bool checkOrderingAndCone(const ring r, const gfan::ZCone zc);
 bool checkPolynomialInput(const ideal I, const ring r);
 bool checkPolyhedralInput(const gfan::ZCone zc, const gfan::ZVector p);
 
-#endif //NDEBUG
+#endif //SING_NDEBUG
 
 #endif

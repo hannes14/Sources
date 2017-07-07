@@ -17,13 +17,13 @@
  * (remark: NO_KINLINE is defined by KDEBUG, i.e. in the debug version)
  */
 
-#include <omalloc/omalloc.h>
-#include <misc/options.h>
+#include "omalloc/omalloc.h"
+#include "misc/options.h"
 
-#include <polys/monomials/p_polys.h>
-#include <polys/kbuckets.h>
+#include "polys/monomials/p_polys.h"
+#include "polys/kbuckets.h"
 
-#include <kernel/polys.h>
+#include "kernel/polys.h"
 
 
 #define HAVE_TAIL_BIN
@@ -362,7 +362,7 @@ sTObject::ShallowCopyDelete(ring new_tailRing, omBin new_tailBin,
       t_p = NULL;
     }
   }
-  else if (p != NULL)
+  else if (p != NULL) /* && t_p==NULL */
   {
     if (pNext(p) != NULL)
     {
@@ -426,38 +426,38 @@ KINLINE void  sTObject::pCleardenom()
 {
   assume(p != NULL);
   if (TEST_OPT_CONTENTSB)
+  {
+    number n;
+    if (t_p != NULL)
     {
-      number n;
-      if (t_p != NULL)
-        {
-          p_Cleardenom_n(t_p, tailRing, n);
-          pSetCoeff0(p, pGetCoeff(t_p));
-        }
-      else
-        {
-          p_Cleardenom_n(p, currRing, n);
-        }
-      if (!nIsOne(n))
-        {
-          denominator_list denom=(denominator_list)omAlloc(sizeof(denominator_list_s));
-          denom->n=nInvers(n);
-          denom->next=DENOMINATOR_LIST;
-          DENOMINATOR_LIST=denom;
-        }
-      nDelete(&n);
+      p_Cleardenom_n(t_p, tailRing, n);
+      pSetCoeff0(p, pGetCoeff(t_p));
     }
+    else
+    {
+      p_Cleardenom_n(p, currRing, n);
+    }
+    if (!nIsOne(n))
+    {
+      denominator_list denom=(denominator_list)omAlloc(sizeof(denominator_list_s));
+      denom->n=nInvers(n);
+      denom->next=DENOMINATOR_LIST;
+      DENOMINATOR_LIST=denom;
+    }
+    nDelete(&n);
+  }
   else
+  {
+    if (t_p != NULL)
     {
-      if (t_p != NULL)
-      {
-        p_ProjectiveUnique(t_p, tailRing);
-        pSetCoeff0(p, pGetCoeff(t_p));
-      }
-      else
-      {
-        p_ProjectiveUnique(p, currRing);
-      }
+      p_ProjectiveUnique(t_p, tailRing);
+      pSetCoeff0(p, pGetCoeff(t_p));
     }
+    else
+    {
+      p_ProjectiveUnique(p, currRing);
+    }
+  }
 }
 
 KINLINE void sTObject::pNorm() // pNorm seems to be a _bad_ method name...
@@ -876,18 +876,18 @@ KINLINE void    sLObject::T_1_2(const skStrategy* strat,
 KINLINE poly k_LmInit_currRing_2_tailRing(poly p, ring tailRing, omBin tailBin)
 {
 
-  poly np = p_LmInit(p, currRing, tailRing, tailBin);
-  pNext(np) = pNext(p);
-  pSetCoeff0(np, pGetCoeff(p));
-  return np;
+  poly t_p = p_LmInit(p, currRing, tailRing, tailBin);
+  pNext(t_p) = pNext(p);
+  pSetCoeff0(t_p, pGetCoeff(p));
+  return t_p;
 }
 
-KINLINE poly k_LmInit_tailRing_2_currRing(poly p, ring tailRing, omBin lmBin)
+KINLINE poly k_LmInit_tailRing_2_currRing(poly t_p, ring tailRing, omBin lmBin)
 {
-  poly np = p_LmInit(p, tailRing, currRing, lmBin);
-  pNext(np) = pNext(p);
-  pSetCoeff0(np, pGetCoeff(p));
-  return np;
+  poly p = p_LmInit(t_p, tailRing, currRing, lmBin);
+  pNext(p) = pNext(t_p);
+  pSetCoeff0(p, pGetCoeff(t_p));
+  return p;
 }
 
 // this should be made more efficient
@@ -1107,17 +1107,6 @@ KINLINE poly redtailBba_Z (poly p,int pos,kStrategy strat)
   return redtailBba_Z(&L, pos, strat);
 }
 #endif
-
-KINLINE poly redtailBba(TObject *T, int pos,kStrategy strat)
-{
-  LObject L;
-  L = *T;
-  poly p = redtailBba(&L, pos, strat, FALSE);
-  *T = L;
-  //kTest_T(T);
-  assume( p == T->p);
-  return p;
-}
 
 KINLINE void clearS (poly p, unsigned long p_sev, int* at, int* k,
                     kStrategy strat)

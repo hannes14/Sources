@@ -5,40 +5,40 @@
 * ABSTRACT: handling of leftv
 */
 
-#include <kernel/mod2.h>
+#include "kernel/mod2.h"
 
-#include <omalloc/omalloc.h>
+#include "omalloc/omalloc.h"
 
-#include <misc/intvec.h>
-#include <misc/options.h>
+#include "misc/intvec.h"
+#include "misc/options.h"
 
-#include <coeffs/numbers.h>
-#include <coeffs/bigintmat.h>
+#include "coeffs/numbers.h"
+#include "coeffs/bigintmat.h"
 
-#include <coeffs/ffields.h> // nfShowMipo // minpoly printing...
+#include "coeffs/ffields.h" // nfShowMipo // minpoly printing...
 
-#include <polys/monomials/maps.h>
-#include <polys/matpol.h>
-#include <polys/monomials/ring.h>
+#include "polys/monomials/maps.h"
+#include "polys/matpol.h"
+#include "polys/monomials/ring.h"
 
-// #include <coeffs/longrat.h>
+// #include "coeffs/longrat.h"
 
-#include <kernel/polys.h>
-#include <kernel/ideals.h>
-#include <kernel/GBEngine/kstd1.h>
-#include <kernel/GBEngine/syz.h>
-#include <kernel/oswrapper/timer.h>
+#include "kernel/polys.h"
+#include "kernel/ideals.h"
+#include "kernel/GBEngine/kstd1.h"
+#include "kernel/GBEngine/syz.h"
+#include "kernel/oswrapper/timer.h"
 
-#include <Singular/tok.h>
-#include <Singular/ipid.h>
-#include <Singular/ipshell.h>
-#include <Singular/lists.h>
-#include <Singular/attrib.h>
-#include <Singular/links/silink.h>
-#include <Singular/attrib.h>
-#include <Singular/subexpr.h>
-#include <Singular/blackbox.h>
-#include <Singular/number2.h>
+#include "Singular/tok.h"
+#include "Singular/ipid.h"
+#include "Singular/ipshell.h"
+#include "Singular/lists.h"
+#include "Singular/attrib.h"
+#include "Singular/links/silink.h"
+#include "Singular/attrib.h"
+#include "Singular/subexpr.h"
+#include "Singular/blackbox.h"
+#include "Singular/number2.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -501,12 +501,12 @@ void s_internalDelete(const int t,  void *d, const ring r)
       {
         coeffs cf=(coeffs)d;
         if ((cf->ref<=1)&&
-        ((cf->type <=n_long_R)
+        ((cf->type <=n_GF)
           ||((cf->type >=n_long_C)&&(cf->type <=n_CF))))
         {
           Werror("cannot kill %s",nCoeffName(cf));
         }
-        else
+        else // allow nKillChar for n_long_R, extensions, and user defined:
           nKillChar((coeffs)d);
         break;
       }
@@ -1169,7 +1169,7 @@ void * sleftv::Data()
           return (void *)A->qideal->m[0];
         }
         else
-          return (void *)currRing->cf->nNULL;
+          return (void *)nInit(0);
 
       case VNOETHER:   return (void *) (currRing->ppNoether);
       case IDHDL:

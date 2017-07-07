@@ -4,18 +4,18 @@
 /*
 * ABSTRACT: finite fields with a none-prime number of elements (via tables)
 */
-#include <misc/auxiliary.h>
-#include <omalloc/omalloc.h>
+#include "misc/auxiliary.h"
+#include "omalloc/omalloc.h"
 
-#include <misc/mylimits.h>
-#include <misc/sirandom.h>
+#include "misc/mylimits.h"
+#include "misc/sirandom.h"
 
-#include <reporter/reporter.h>
+#include "reporter/reporter.h"
 
-#include "coeffs.h"
-#include "numbers.h"
-#include "longrat.h"
-#include "ffields.h"
+#include "coeffs/coeffs.h"
+#include "coeffs/numbers.h"
+#include "coeffs/longrat.h"
+#include "coeffs/ffields.h"
 
 #include <string.h>
 #include <math.h>
@@ -774,9 +774,9 @@ static char* nfCoeffString(const coeffs r)
   return s;
 }
 
-static char nfCoeffName_buf[32];
 static char* nfCoeffName(const coeffs r)
 {
+  static char nfCoeffName_buf[32];
   const char *p=n_ParameterNames(r)[0];
   nfCoeffName_buf[31]='\0';
   snprintf(nfCoeffName_buf,31,"ZZ/%d[%s]",r->m_nfCharQ,p);
@@ -872,7 +872,6 @@ BOOLEAN nfInitChar(coeffs r,  void * parameter)
 #endif
 
   // the variables:
-  r->nNULL = (number)0;
   assume( getCoeffType(r) == n_GF );
 
   GFInfo* p = (GFInfo *)(parameter);

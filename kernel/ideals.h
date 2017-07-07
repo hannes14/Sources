@@ -7,11 +7,11 @@
 * ABSTRACT - all basic methods to manipulate ideals
 */
 
-#include <polys/monomials/ring.h>
-#include <polys/monomials/p_polys.h>
-#include <polys/simpleideals.h>
+#include "polys/monomials/ring.h"
+#include "polys/monomials/p_polys.h"
+#include "polys/simpleideals.h"
 
-#include <kernel/structs.h> // for tHomog
+#include "kernel/structs.h" // for tHomog
 
 //typedef struct sip_sideal *        ideal;
 //typedef struct sip_smap *          map;
@@ -114,9 +114,6 @@ inline ideal idFreeModule (int i)
 }
 
 
-ideal   idSect (ideal h1,ideal h2);
-ideal   idMultSect(resolvente arg, int length);
-
 // GB algorithm for syz computaions:
 enum GbVariant
 {
@@ -132,6 +129,9 @@ enum GbVariant
   GbNfmod,
   GbSingmatic
 };
+
+ideal   idSect (ideal h1,ideal h2, GbVariant a=GbDefault);
+ideal   idMultSect(resolvente arg, int length, GbVariant a=GbDefault);
 
 //ideal   idSyzygies (ideal h1, tHomog h,intvec **w);
 ideal   idSyzygies (ideal h1, tHomog h,intvec **w, BOOLEAN setSyzComp=TRUE,

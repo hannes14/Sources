@@ -7,35 +7,35 @@
 
 /* includes */
 
-#include <kernel/mod2.h>
+#include "kernel/mod2.h"
 
-#include <omalloc/omalloc.h>
+#include "omalloc/omalloc.h"
 
-#include <misc/options.h>
-#include <misc/intvec.h>
+#include "misc/options.h"
+#include "misc/intvec.h"
 
-#include <coeffs/coeffs.h>
-#include <coeffs/numbers.h>
-// #include <coeffs/longrat.h>
-
-
-#include <polys/monomials/ring.h>
-#include <polys/matpol.h>
-#include <polys/weight.h>
-#include <polys/sparsmat.h>
-#include <polys/prCopy.h>
-#include <polys/nc/nc.h>
+#include "coeffs/coeffs.h"
+#include "coeffs/numbers.h"
+// #include "coeffs/longrat.h"
 
 
-#include <kernel/ideals.h>
+#include "polys/monomials/ring.h"
+#include "polys/matpol.h"
+#include "polys/weight.h"
+#include "polys/sparsmat.h"
+#include "polys/prCopy.h"
+#include "polys/nc/nc.h"
 
-#include <kernel/polys.h>
 
-#include <kernel/GBEngine/kstd1.h>
-#include <kernel/GBEngine/tgb.h>
-#include <kernel/GBEngine/syz.h>
-#include <Singular/ipshell.h> // iiCallLibProc1
-#include <Singular/ipid.h> // ggetid
+#include "kernel/ideals.h"
+
+#include "kernel/polys.h"
+
+#include "kernel/GBEngine/kstd1.h"
+#include "kernel/GBEngine/tgb.h"
+#include "kernel/GBEngine/syz.h"
+#include "Singular/ipshell.h" // iiCallLibProc1
+#include "Singular/ipid.h" // ggetid
 
 
 /* #define WITH_OLD_MINOR */
@@ -201,7 +201,7 @@ ideal idSectWithElim (ideal h1,ideal h2)
 /*2
 * h3 := h1 intersect h2
 */
-ideal idSect (ideal h1,ideal h2)
+ideal idSect (ideal h1,ideal h2, GbVariant alg)
 {
   int i,j,k,length;
   int flength = id_RankFreeModule(h1,currRing);
@@ -275,9 +275,32 @@ ideal idSect (ideal h1,ideal h2)
     }
   }
   intvec *w=NULL;
-  temp1 = kStd(temp,currRing->qideal,testHomog,&w,NULL,length);
-  if (w!=NULL) delete w;
-  idDelete(&temp);
+  if (alg==GbDefault) alg=GbStd;
+  if (alg==GbStd)
+  {
+    if (TEST_OPT_PROT) { PrintS("std:"); mflush(); }
+    temp1 = kStd(temp,currRing->qideal,testHomog,&w,NULL,length);
+    if (w!=NULL) delete w;
+    idDelete(&temp);
+  }
+  else if (alg==GbSlimgb)
+  {
+    if (TEST_OPT_PROT) { PrintS("slimgb:"); mflush(); }
+    temp1 = t_rep_gb(currRing, temp, temp->rank);
+    idDelete(&temp);
+  }
+  else if (alg==GbGroebner)
+  {
+    if (TEST_OPT_PROT) { PrintS("groebner:"); mflush(); }
+    BOOLEAN err;
+    temp1=(ideal)iiCallLibProc1("groebner",temp,MODUL_CMD,err);
+    if (err)
+    {
+      Werror("error %d in >>groebner<<",err);
+      temp1=idInit(1,1);
+    }
+  }
+
   if(syz_ring!=orig_ring)
     rChangeCurrRing(orig_ring);
 
@@ -286,7 +309,7 @@ ideal idSect (ideal h1,ideal h2)
   for (i=0;i<IDELEMS(temp1);i++)
   {
     if ((temp1->m[i]!=NULL)
-    && (p_GetComp(temp1->m[i],syz_ring)>length))
+    && (__p_GetComp(temp1->m[i],syz_ring)>length))
     {
       if(syz_ring==orig_ring)
       {
@@ -341,7 +364,7 @@ ideal idSect (ideal h1,ideal h2)
 * ideal/module intersection for a list of objects
 * given as 'resolvente'
 */
-ideal idMultSect(resolvente arg, int length)
+ideal idMultSect(resolvente arg, int length, GbVariant alg)
 {
   int i,j=0,k=0,syzComp,l,maxrk=-1,realrki;
   ideal bigmat,tempstd,result;
@@ -416,9 +439,53 @@ ideal idMultSect(resolvente arg, int length)
     }
   }
   /* std computation --------------------------------------------*/
-  tempstd = kStd(bigmat,currRing->qideal,testHomog,&w,NULL,syzComp);
-  if (w!=NULL) delete w;
-  idDelete(&bigmat);
+  if (alg==GbDefault) alg=GbStd;
+  if (alg==GbStd)
+  {
+    if (TEST_OPT_PROT) { PrintS("std:"); mflush(); }
+    tempstd = kStd(bigmat,currRing->qideal,testHomog,&w,NULL,syzComp);
+    if (w!=NULL) delete w;
+    idDelete(&bigmat);
+  }
+  else if (alg==GbSlimgb)
+  {
+    if (TEST_OPT_PROT) { PrintS("slimgb:"); mflush(); }
+    tempstd = t_rep_gb(currRing, bigmat, syzComp);
+    idDelete(&bigmat);
+  }
+  else if (alg==GbGroebner)
+  {
+    if (TEST_OPT_PROT) { PrintS("groebner:"); mflush(); }
+    BOOLEAN err;
+    tempstd=(ideal)iiCallLibProc1("groebner",bigmat,MODUL_CMD,err);
+    if (err)
+    {
+      Werror("error %d in >>groebner<<",err);
+      tempstd=idInit(1,1);
+    }
+  }
+//  else if (alg==GbModstd): requires ideal, not module
+//  {
+//    if (TEST_OPT_PROT) { PrintS("modstd:"); mflush(); }
+//    BOOLEAN err;
+//    tempstd=(ideal)iiCallLibProc1("modStd",bigmat,MODUL_CMD,err);
+//    if (err)
+//    {
+//      Werror("error %d in >>modStd<<",err);
+//      tempstd=idInit(1,1);
+//    }
+//  }
+  //else if (alg==GbSba): requires order C,...
+  //{
+  //  if (TEST_OPT_PROT) { PrintS("sba:"); mflush(); }
+  //  tempstd = kSba(bigmat,currRing->qideal,hom,w,1,0,NULL,syzComp);
+  //  idDelete(&bigmat);
+  //}
+  else
+  {
+    tempstd=idInit(1,1);
+    Werror("wrong algorith %d for SB",(int)alg);
+  }
 
   if(syz_ring!=orig_ring)
     rChangeCurrRing(orig_ring);
@@ -428,7 +495,7 @@ ideal idMultSect(resolvente arg, int length)
   k = 0;
   for (j=0;j<IDELEMS(tempstd);j++)
   {
-    if ((tempstd->m[j]!=NULL) && (p_GetComp(tempstd->m[j],syz_ring)>syzComp))
+    if ((tempstd->m[j]!=NULL) && (__p_GetComp(tempstd->m[j],syz_ring)>syzComp))
     {
       if (syz_ring==orig_ring)
         p = pCopy(tempstd->m[j]);
@@ -2392,7 +2459,7 @@ ideal idMinEmbedding(ideal arg,BOOLEAN inPlace, intvec **w)
   return res;
 }
 
-#include <polys/clapsing.h>
+#include "polys/clapsing.h"
 
 #if 0
 poly id_GCD(poly f, poly g, const ring r)
@@ -2682,6 +2749,7 @@ GbVariant syGetAlgorithm(char *n, const ring r, const ideal /*M*/)
     {
        return GbSlimgb;
     }
+    if (TEST_OPT_PROT) PrintS("slimgb not possible here\n");
   }
   else if (alg==GbSba) // cond. for sba
   {
@@ -2691,6 +2759,7 @@ GbVariant syGetAlgorithm(char *n, const ring r, const ideal /*M*/)
     {
       return GbSba;
     }
+    if (TEST_OPT_PROT) PrintS("sba not possible here\n");
   }
   else if (alg==GbGroebner) // cond. for groebner
   {

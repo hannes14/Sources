@@ -6,21 +6,21 @@
 */
 #include <ctype.h> /* isdigit*/
 
-#include <misc/auxiliary.h>
+#include "misc/auxiliary.h"
 
 #ifdef HAVE_FLINT
 
 #include <flint/flint.h>
 #include <flint/nmod_poly.h>
-#include <factory/factory.h>
+#include "factory/factory.h"
 
-#include <omalloc/omalloc.h>
-#include <coeffs/coeffs.h>
+#include "omalloc/omalloc.h"
+#include "coeffs/coeffs.h"
 
-#include <coeffs/numbers.h>
-#include <coeffs/longrat.h>
-#include <coeffs/modulop.h>
-#include <coeffs/flintcf_Zn.h>
+#include "coeffs/numbers.h"
+#include "coeffs/longrat.h"
+#include "coeffs/modulop.h"
+#include "coeffs/flintcf_Zn.h"
 
 typedef nmod_poly_struct *nmod_poly_ptr;
 
@@ -45,13 +45,11 @@ static const char* Eati(const char *s, int *i)
   return s;
 }
 
-
-
-static char CoeffName_flint_Zn[20];
 static void CoeffWrite(const coeffs r, BOOLEAN details)
 {
   Print("flint:Z/%d[%s]",r->ch,r->pParameterNames[0]);
 }
+
 static BOOLEAN CoeffIsEqual(const coeffs r, n_coeffType n, void * parameter)
 {
   flintZn_struct *pp=(flintZn_struct*)parameter;
@@ -422,6 +420,7 @@ static CanonicalForm ConvSingNFactoryN( number n, BOOLEAN setChar, const coeffs 
 }
 static char * CoeffName(const coeffs r)
 {
+  static char CoeffName_flint_Zn[20];
   sprintf(CoeffName_flint_Zn,"flint:Z/%d[%s]",r->ch,r->pParameterNames[0]);
   return (char*)CoeffName_flint_Zn;
 }

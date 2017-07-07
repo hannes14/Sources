@@ -11,36 +11,36 @@
 #include <ctype.h>
 
 
-#include <kernel/mod2.h>
+#include "kernel/mod2.h"
 
-#include <omalloc/omalloc.h>
+#include "omalloc/omalloc.h"
 
 #define TRANSEXT_PRIVATES
-#include <polys/ext_fields/transext.h>
+#include "polys/ext_fields/transext.h"
 
-#include <misc/options.h>
-#include <misc/intvec.h>
+#include "misc/options.h"
+#include "misc/intvec.h"
 
-#include <coeffs/coeffs.h>
-#include <coeffs/numbers.h>
-#include <coeffs/bigintmat.h>
+#include "coeffs/coeffs.h"
+#include "coeffs/numbers.h"
+#include "coeffs/bigintmat.h"
 
 
-#include <polys/ext_fields/algext.h>
+#include "polys/ext_fields/algext.h"
 
-#include <polys/monomials/ring.h>
-#include <polys/matpol.h>
-#include <polys/monomials/maps.h>
-#include <polys/nc/nc.h>
-#include <polys/nc/sca.h>
-#include <polys/prCopy.h>
+#include "polys/monomials/ring.h"
+#include "polys/matpol.h"
+#include "polys/monomials/maps.h"
+#include "polys/nc/nc.h"
+#include "polys/nc/sca.h"
+#include "polys/prCopy.h"
 
-#include <kernel/polys.h>
-#include <kernel/ideals.h>
-#include <kernel/GBEngine/kstd1.h>
-#include <kernel/oswrapper/timer.h>
-#include <kernel/combinatorics/stairc.h>
-#include <kernel/GBEngine/syz.h>
+#include "kernel/polys.h"
+#include "kernel/ideals.h"
+#include "kernel/GBEngine/kstd1.h"
+#include "kernel/oswrapper/timer.h"
+#include "kernel/combinatorics/stairc.h"
+#include "kernel/GBEngine/syz.h"
 
 //#include "weight.h"
 #include "tok.h"
@@ -265,12 +265,13 @@ static BOOLEAN jjMINPOLY(leftv, leftv a)
   }
   if (DEN((fraction)(p)) != NULL) // minpoly must be a fraction with poly numerator...!!
   {
-    poly z=NUM((fraction)p);
     poly n=DEN((fraction)(p));
-    z=p_Mult_nn(z,pGetCoeff(n),currRing->cf->extRing);
-    NUM((fraction)p)=z;
-    DEN((fraction)(p))=NULL;
+    if(!p_IsConstantPoly(n,currRing->cf->extRing))
+    {
+      WarnS("denominator must be constant - ignoring it");
+    }
     p_Delete(&n,currRing->cf->extRing);
+    DEN((fraction)(p))=NULL;
   }
 
   q->m[0] = NUM((fraction)p);
@@ -287,16 +288,13 @@ static BOOLEAN jjMINPOLY(leftv, leftv a)
   // :(
 //  NUM((fractionObject *)p) = NULL; // makes 0/ NULL fraction - which should not happen!
 //  n_Delete(&p, currRing->cf); // doesn't expect 0/ NULL :(
-  if(true)
   {
     extern omBin fractionObjectBin;
     NUM((fractionObject *)p) = NULL; // not necessary, but still...
     omFreeBin((ADDRESS)p, fractionObjectBin);
   }
 
-
   coeffs new_cf = nInitChar(n_algExt, &A);
-
   if (new_cf==NULL)
   {
     WerrorS("Could not construct the alg. extension: llegal minpoly?");
@@ -308,9 +306,9 @@ static BOOLEAN jjMINPOLY(leftv, leftv a)
   {
     nKillChar(currRing->cf); currRing->cf=new_cf;
   }
-
   return FALSE;
 }
+
 static BOOLEAN jjNOETHER(leftv, leftv a)
 {
   poly p=(poly)a->CopyD(POLY_CMD);
@@ -2002,7 +2000,11 @@ BOOLEAN iiAssign(leftv l, leftv r, BOOLEAN toplevel)
         break;
       }
       if ((hh->next==NULL)&&(hh->Typ()==IDEAL_CMD))
-        return jiAssign_1(l,hh,toplevel); /* map-assign: map f=r,i; */
+      {
+        BOOLEAN bo=jiAssign_1(l,hh,toplevel); /* map-assign: map f=r,i; */
+        omFreeBin(hh,sleftv_bin);
+        return bo;
+      }
       //no break, handle the rest like an ideal:
       map_assign=TRUE;
     }
