@@ -1378,22 +1378,31 @@ See
 @table @code
 @item @strong{Syntax:}
 @code{delete (} list_expression@code{,} int_expression @code{)}
+@*@code{delete (} intvec_expression@code{,} int_expression @code{)}
+@*@code{delete (} ideal_expression@code{,} int_expression @code{)}
+@*@code{delete (} module_expression@code{,} int_expression @code{)}
 @item @strong{Type:}
-list
+type of the first argument
 @item @strong{Purpose:}
-deletes the element with the given index from a list (the input is not changed).
+deletes the element with the given index from a list/intvec/ideal/module (the input is not changed).
 @item @strong{Example:}
 @smallexample
 @c example
   list l="a","b","c";
   list l1=delete(l,2);l1;
   l;
+  delete(1..5,2);
+  ring r=0,(x,y,z),dp;
+  delete(maxideal(1),1);
 @c example
 @end smallexample
 @end table
 @c ref
 See
 @ref{list};
+@ref{intvec};
+@ref{ideal};
+@ref{module};
 @ref{insert}.
 @c ref
 @c ---------------------------------------
@@ -1612,7 +1621,9 @@ division(ideal(f^2),jacob(f),10);
 See
 @ref{ideal};
 @ref{lift};
-@ref{module}.
+@ref{module};
+@ref{reduce};
+@ref{poly operations}.
 @c ref
 @c ---------------------------------------
 @node dump, eliminate, division, Functions
@@ -2697,7 +2708,7 @@ See
 none (if called with one argument)
 @*intvec (if called with two or three arguments)
 @item @strong{Purpose:}
-computes the (weighted) Hilbert series of the ideal, resp.@: module,
+computes the (weighted) Hilbert series of the base ring R modulo the ideal, resp.@: R^k modulo the module,
 defined by the leading terms of the generators of the given ideal, resp.@: module.@*
 If @code{hilb} is called with one argument, then the first and second Hilbert series
 together with some additional information are displayed.@*
@@ -6261,8 +6272,11 @@ The commands @code{reduce} and @code{NF} are synonymous.
 See
 @ref{ideal};
 @ref{module};
+@ref{normal form}
 @ref{vector};
-@ref{std}.
+@ref{std};
+@ref{division};
+@ref{poly operations}.
 @c ref
 @c ---------------------------------------
 @node regularity, repart, reduce, Functions
@@ -7781,7 +7795,9 @@ module
 computes the first syzygy (i.e., the module of relations of the given
 generators) of the ideal, resp.@: module.
 @*An optional second argument specifies the Groebner base algorith to use.
-Possible values are @code{"std"} and @code{"slimgb"}.
+Possible values are @code{"std"}(default) and @code{"slimgb"}.
+@*Only for use of "std": If @code{option(returnSB)} is set,
+a standard basis is returned, otherwise a generating set.
 @item @strong{Example:}
 @smallexample
 @c example
@@ -7799,6 +7815,7 @@ See
 @ref{module};
 @ref{mres};
 @ref{nres};
+@ref{option};
 @ref{res};
 @ref{sres};
 @ref{lift};

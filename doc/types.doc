@@ -3488,6 +3488,9 @@ See @ref{ring}; @ref{Type conversion and casting}.
 @cindex -
 @cindex *
 @cindex /
+@cindex div
+@cindex %
+@cindex mod
 @cindex ^
 @cindex <
 @cindex <=
@@ -3507,8 +3510,15 @@ negation or subtraction
 @item @code{*}
 multiplication
 
-@item @code{/}
-division by a polynomial, non divisible terms yield 0
+@item @code{/}, @code{div}
+division by a polynomial, ignoring the remainder
+(only implemented for polynomials over QQ, ZZ/p and field extensions of them)@*
+(See also @ref{quotient},@ref{division},@ref{reduce})
+
+@item @code{%}, @code{mod}
+the remainder from the division by a polynomial
+(only implemented for polynomials over QQ, ZZ/p and field extensions of them)@*
+(See also @ref{quotient},@ref{division},@ref{reduce})
 
 @item @code{^}, @code{**}
 power by a positive integer

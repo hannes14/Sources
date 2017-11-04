@@ -135,7 +135,7 @@ static int factor_using_division (mpz_t t, unsigned int limit,lists primes, int 
   loop
   {
     mpz_tdiv_qr_ui (q, r, t, 3);
-    if (mpz_cmp_ui (r, 0) != 0)
+    if (mpz_sgn1 (r) != 0)
         break;
     mpz_set (t, q);
     f++;
@@ -149,7 +149,7 @@ static int factor_using_division (mpz_t t, unsigned int limit,lists primes, int 
   loop
   {
     mpz_tdiv_qr_ui (q, r, t, 5);
-    if (mpz_cmp_ui (r, 0) != 0)
+    if (mpz_sgn1 (r) != 0)
         break;
     mpz_set (t, q);
     f++;
@@ -167,7 +167,7 @@ static int factor_using_division (mpz_t t, unsigned int limit,lists primes, int 
   while (mpz_cmp_ui (t, 1) != 0)
   {
     mpz_tdiv_qr_ui (q, r, t, f);
-    if (mpz_cmp_ui (r, 0) != 0)
+    if (mpz_sgn1 (r) != 0)
     {
       f += addv[ai];
       if (mpz_cmp_ui (t, f) < 0)
@@ -553,6 +553,7 @@ const struct soptionStruct optionStruct[]=
 
 const struct soptionStruct verboseStruct[]=
 {
+  {"assign_none",Sy_bit(V_ASSIGN_NONE),~Sy_bit(V_ASSIGN_NONE)},
   {"mem",      Sy_bit(V_SHOW_MEM),  ~Sy_bit(V_SHOW_MEM)   },
   {"yacc",     Sy_bit(V_YACC),      ~Sy_bit(V_YACC)       },
   {"redefine", Sy_bit(V_REDEFINE),  ~Sy_bit(V_REDEFINE)   },
@@ -811,7 +812,7 @@ char * versionString(/*const bool bShowDetails = false*/ )
 #ifdef HAVE_FLINT
               StringAppend("FLINT(%s),",version);
 #endif
-              StringAppend("factory(%s),\n\t", factoryVersion);
+              StringAppendS("factory(" FACTORYVERSION "),\n\t");
 #if defined(HAVE_DYN_RL)
               if (fe_fgets_stdin==fe_fgets_dummy)
                 StringAppendS("no input,");
@@ -1325,7 +1326,7 @@ void siInit(char *name)
   basePack=(package)omAlloc0(sizeof(*basePack));
   currPack=basePack;
   idhdl h;
-  h=enterid("Top", 0, PACKAGE_CMD, &IDROOT, TRUE);
+  h=enterid("Top", 0, PACKAGE_CMD, &IDROOT, FALSE);
   IDPACKAGE(h)=basePack;
   IDPACKAGE(h)->language = LANG_TOP;
   currPackHdl=h;
@@ -1384,28 +1385,28 @@ void siInit(char *name)
 // default coeffs
   {
     idhdl h;
-    h=enterid(omStrDup("QQ"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
+    h=enterid("QQ",0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
     IDDATA(h)=(char*)nInitChar(n_Q,NULL);
-    h=enterid(omStrDup("ZZ"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
+    h=enterid("ZZ",0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
     IDDATA(h)=(char*)nInitChar(n_Z,NULL);
     iiAddCproc("kernel","crossprod",FALSE,iiCrossProd);
     iiAddCproc("kernel","Float",FALSE,iiFloat);
-    //h=enterid(omStrDup("RR"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
+    //h=enterid("RR",0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
     //IDDATA(h)=(char*)nInitChar(n_R,NULL);
-    //h=enterid(omStrDup("CC"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
+    //h=enterid("CC",0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
     //IDDATA(h)=(char*)nInitChar(n_long_C,NULL);
     n_coeffType t;
 #ifdef SINGULAR_4_2
     t=nRegister(n_unknown,n_AEInitChar);
     if (t!=n_unknown)
     {
-      h=enterid(omStrDup("AE"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
+      h=enterid("AE",0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
       IDDATA(h)=(char*)nInitChar(t,NULL);
     }
     t=nRegister(n_unknown,n_QAEInitChar);
     if (t!=n_unknown)
     {
-      h=enterid(omStrDup("QAE"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
+      h=enterid("QAE",0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
       IDDATA(h)=(char*)nInitChar(t,NULL);
     }
     n_pAE=nRegister(n_unknown,n_pAEInitChar);
@@ -1418,7 +1419,7 @@ void siInit(char *name)
     t=nRegister(n_unknown,flintQ_InitChar);
     if (t!=n_unknown)
     {
-      h=enterid(omStrDup("flint_poly_Q"),0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
+      h=enterid("flint_poly_Q",0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
       IDDATA(h)=(char*)nInitChar(t,NULL);
     }
     n_FlintZn=nRegister(n_unknown,flintZn_InitChar);

@@ -53,8 +53,6 @@ omBin idrec_bin = omGetSpecBin(sizeof(idrec));
 
 coeffs coeffs_BIGINT;
 
-FILE   *feFilePending; /*temp. storage for grammar.y */
-
 proclevel *procstack=NULL;
 //idhdl idroot = NULL;
 
@@ -428,9 +426,10 @@ void killhdl2(idhdl h, idhdl * ih, ring r)
   }
   if (IDTYP(h) == PACKAGE_CMD)
   {
-    if (strcmp(IDID(h),"Top")==0)
+    if (((IDPACKAGE(h)->language==LANG_C)&&(IDPACKAGE(h)->idroot!=NULL))
+    || (strcmp(IDID(h),"Top")==0))
     {
-      WarnS("can not kill `Top`");
+      Warn("cannot kill `%s`",IDID(h));
       return;
     }
     // any objects defined for this package ?

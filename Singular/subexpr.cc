@@ -336,7 +336,7 @@ void sleftv::CleanUp(ring r)
     if ((name!=NULL) && (name!=sNoName_fe) && (rtyp!=ALIAS_CMD))
     {
       //::Print("free %x (%s)\n",name,name);
-      omFree((ADDRESS)name);
+      omFree((ADDRESS)name); // may be larger >1000 char (large int)
     }
     //name=NULL;
     //flag=0;
@@ -504,7 +504,7 @@ void s_internalDelete(const int t,  void *d, const ring r)
         ((cf->type <=n_GF)
           ||((cf->type >=n_long_C)&&(cf->type <=n_CF))))
         {
-          Werror("cannot kill %s",nCoeffName(cf));
+          Warn("cannot kill `%s`",nCoeffName(cf));
         }
         else // allow nKillChar for n_long_R, extensions, and user defined:
           nKillChar((coeffs)d);
@@ -1668,12 +1668,7 @@ void syMake(leftv v,const char * id, package pa)
         {
           v->data = (void *)nInit(0);
           v->rtyp = NUMBER_CMD;
-          #ifdef HAVE_PLURAL
-          // in this case we may have monomials equal to 0 in p_Read
-          v->name = id;
-          #else
           omFreeBinAddr((ADDRESS)id);
-          #endif
         }
         else
         if (pIsConstant(p))

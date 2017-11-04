@@ -1176,7 +1176,7 @@ BOOLEAN iiDefaultParameter(leftv p)
   tmp.data=at->CopyA();
   return iiAssign(p,&tmp);
 }
-BOOLEAN iiBranchTo(leftv res, leftv args)
+BOOLEAN iiBranchTo(leftv, leftv args)
 {
   // must be inside a proc, as we simultae an proc_end at the end
   if (myynest==0)
@@ -2339,7 +2339,7 @@ void rComposeRing(lists L, ring R)
     }
   }
   // ----------------------------------------
-  if ((mpz_cmp_ui(modBase, 1) == 0) && (mpz_cmp_ui(modBase, 0) < 0))
+  if ((mpz_cmp_ui(modBase, 1) == 0) && (mpz_sgn1(modBase) < 0))
   {
     WerrorS("Wrong ground ring specification (module is 1)");
     return;
@@ -2350,7 +2350,7 @@ void rComposeRing(lists L, ring R)
     return;
   }
   // module is 0 ---> integers
-  if (mpz_cmp_ui(modBase, 0) == 0)
+  if (mpz_sgn1(modBase) == 0)
   {
     R->cf=nInitChar(n_Z,NULL);
   }
@@ -2545,22 +2545,22 @@ static inline BOOLEAN rComposeOrder(const lists  L, const BOOLEAN check_comp, ri
         if (j_in_R==0) R->block0[0]=1;
         else
         {
-           int jj=j_in_R-1;
-           while((jj>=0)
-           && ((R->order[jj]== ringorder_a)
-              || (R->order[jj]== ringorder_aa)
-              || (R->order[jj]== ringorder_am)
-              || (R->order[jj]== ringorder_c)
-              || (R->order[jj]== ringorder_C)
-              || (R->order[jj]== ringorder_s)
-              || (R->order[jj]== ringorder_S)
-           ))
-           {
-             //Print("jj=%, skip %s\n",rSimpleOrdStr(R->order[jj]));
-             jj--;
-           }
-           if (jj<0) R->block0[j_in_R]=1;
-           else       R->block0[j_in_R]=R->block1[jj]+1;
+          int jj=j_in_R-1;
+          while((jj>=0)
+          && ((R->order[jj]== ringorder_a)
+             || (R->order[jj]== ringorder_aa)
+             || (R->order[jj]== ringorder_am)
+             || (R->order[jj]== ringorder_c)
+             || (R->order[jj]== ringorder_C)
+             || (R->order[jj]== ringorder_s)
+             || (R->order[jj]== ringorder_S)
+          ))
+          {
+            //Print("jj=%, skip %s\n",rSimpleOrdStr(R->order[jj]));
+            jj--;
+          }
+          if (jj<0) R->block0[j_in_R]=1;
+          else      R->block0[j_in_R]=R->block1[jj]+1;
         }
         intvec *iv;
         if (vv->m[1].Typ()==INT_CMD)
@@ -2568,11 +2568,18 @@ static inline BOOLEAN rComposeOrder(const lists  L, const BOOLEAN check_comp, ri
         else
           iv=ivCopy((intvec*)vv->m[1].Data()); //assume INTVEC
         int iv_len=iv->length();
-        if (R->order[j_in_R]!=ringorder_s)
+        if ((R->order[j_in_R]!=ringorder_s)
+        &&(R->order[j_in_R]!=ringorder_c)
+        &&(R->order[j_in_R]!=ringorder_C))
         {
           R->block1[j_in_R]=si_max(R->block0[j_in_R],R->block0[j_in_R]+iv_len-1);
           if (R->block1[j_in_R]>R->N)
           {
+            if (R->block0[j_in_R]>R->N)
+            {
+              Werror("not enough variables for ordering %d (%s)",j_in_R,rSimpleOrdStr(R->order[j_in_R]));
+              return TRUE;
+            }
             R->block1[j_in_R]=R->N;
             iv_len=R->block1[j_in_R]-R->block0[j_in_R]+1;
           }
@@ -2653,6 +2660,10 @@ static inline BOOLEAN rComposeOrder(const lists  L, const BOOLEAN check_comp, ri
            case 0:
            case ringorder_unspec:
              break;
+           case ringorder_L: /* cannot happen */
+           case ringorder_a64: /*not implemented */
+             WerrorS("ring order not implemented");
+             return TRUE;
         }
         delete iv;
       }
@@ -3549,7 +3560,7 @@ spectrumState   spectrumStateFromList( spectrumPolyList& speclist, lists *L,int 
                         //  normalize coefficient
 
             number inv = nInvers( pGetCoeff( f ) );
-            pMult_nn( search->nf,inv );
+            search->nf=__p_Mult_nn( search->nf,inv,currRing );
             nDelete( &inv );
 
                         //  exchange  normal forms
@@ -3608,7 +3619,7 @@ spectrumState   spectrumStateFromList( spectrumPolyList& speclist, lists *L,int 
             else if( cmp==0 )
             {
               search->nf = pSub( search->nf,
-                                 ppMult_nn( (*node)->nf,pGetCoeff( f ) ) );
+                                 __pp_Mult_nn( (*node)->nf,pGetCoeff( f ),currRing ) );
               pNorm( search->nf );
             }
           }
@@ -5727,7 +5738,7 @@ ring rInit(leftv pn, leftv rv, leftv ord)
     else
       cf=nInitChar(n_Z,NULL);
 
-    if ((mpz_cmp_ui(modBase, 1) == 0) && (mpz_cmp_ui(modBase, 0) < 0))
+    if ((mpz_cmp_ui(modBase, 1) == 0) && (mpz_sgn1(modBase) < 0))
     {
       WerrorS("Wrong ground ring specification (module is 1)");
       goto rInitError;
@@ -5750,7 +5761,7 @@ ring rInit(leftv pn, leftv rv, leftv ord)
       }
       else
       {
-        if (mpz_cmp_ui(modBase,0)==0)
+        if (mpz_sgn1(modBase)==0)
         {
           WerrorS("modulus must not be 0 or parameter not allowed");
           goto rInitError;
@@ -5765,7 +5776,7 @@ ring rInit(leftv pn, leftv rv, leftv ord)
     // just a module m > 1
     else if (cf == NULL)
     {
-      if (mpz_cmp_ui(modBase,0)==0)
+      if (mpz_sgn1(modBase)==0)
       {
         WerrorS("modulus must not be 0 or parameter not allowed");
         goto rInitError;
@@ -6175,7 +6186,7 @@ ideal kGroebner(ideal F, ideal Q)
   idhdl new_ring=NULL;
   if ((currRingHdl==NULL) || (IDRING(currRingHdl)!=currRing))
   {
-    currRingHdl=enterid(omStrDup(" GROEBNERring"),0,RING_CMD,&IDROOT,FALSE);
+    currRingHdl=enterid(" GROEBNERring",0,RING_CMD,&IDROOT,FALSE);
     new_ring=currRingHdl;
     IDRING(currRingHdl)=currRing;
   }
@@ -6265,6 +6276,7 @@ void paPrint(const char *n,package p)
     case LANG_SINGULAR: PrintS("S"); break;
     case LANG_C:        PrintS("C"); break;
     case LANG_TOP:      PrintS("T"); break;
+    case LANG_MAX:      PrintS("M"); break;
     case LANG_NONE:     PrintS("N"); break;
     default:            PrintS("U");
   }
@@ -6470,7 +6482,7 @@ BOOLEAN iiAssignCR(leftv r, leftv arg)
 
 static void iiReportTypes(int nr,int t,const short *T)
 {
-  char *buf=(char*)omAlloc(250);
+  char buf[250];
   buf[0]='\0';
   if (nr==0)
     sprintf(buf,"wrong length of parameters(%d), expected ",t);

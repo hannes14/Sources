@@ -78,7 +78,8 @@ static void copyL (kStrategy o,kStrategy n)
       l[j].p=pCopy(o->L[j].p);
     else
     {
-      l[j].p=pHead(o->L[j].p);
+      l[j].p=p_LmHead(o->L[j].p,currRing);
+      if (pGetCoeff(o->L[j].p)!=NULL) pSetCoeff0(l[j].p,nCopy(pGetCoeff(o->L[j].p)));
       pNext(l[j].p)=n->tail;
     }
     // copy .lcm ----------------------------------------------
@@ -336,7 +337,7 @@ static void completeReduceFac (kStrategy strat, ideal_list FL)
       }
 
       n->P.p=fac->m[i];
-      n->P.pLength=0;
+      //n->P.pLength=pLength(n->P.p); // by initEcart
       n->initEcart(&n->P);
       /* enter P.p into s and L */
       int pos;
@@ -352,7 +353,7 @@ static void completeReduceFac (kStrategy strat, ideal_list FL)
         pNorm(n->P.p);
         n->P.p = redtailBba(n->P.p,pos-1,n);
       }
-      n->P.pLength=0;
+      n->P.pLength=pLength(n->P.p);
       if (TEST_OPT_DEBUG)
       {
         Print("new s(%d)->S:",n->nr);
@@ -592,8 +593,8 @@ ideal bbafac (ideal /*F*/, ideal Q,intvec */*w*/,kStrategy strat, ideal_list FL)
           n->P.Init(strat->tailRing);
         }
 
-        n->P.pLength=0;
         n->P.p=fac->m[i];
+        //n->P.pLength=pLength(n->P.p); // by initEcart
         n->initEcart(&n->P);
         kTest_TS(n);
 
@@ -609,7 +610,7 @@ ideal bbafac (ideal /*F*/, ideal Q,intvec */*w*/,kStrategy strat, ideal_list FL)
           if (n->redTailChange)
           {
             n->P.pCleardenom();
-            n->P.pLength=0;
+            n->P.pLength=pLength(n->P.p);
           }
         }
         else
@@ -618,7 +619,7 @@ ideal bbafac (ideal /*F*/, ideal Q,intvec */*w*/,kStrategy strat, ideal_list FL)
           n->P.p = redtailBba(n->P.p,pos-1,n);
           if (n->redTailChange)
           {
-            n->P.pLength=0;
+            n->P.pLength=pLength(n->P.p);
           }
         }
         kTest_TS(n);

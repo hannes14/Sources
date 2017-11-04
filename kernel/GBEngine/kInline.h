@@ -124,9 +124,10 @@ KINLINE void sTObject::Set(poly p_in, ring r)
   }
   else
   {
-    pp_Test(p_in, currRing, tailRing);
+    p_Test(p_in, currRing);
     p = p_in;
   }
+  pLength=::pLength(p_in);
 }
 
 KINLINE sTObject::sTObject(poly p_in, ring r)
@@ -140,8 +141,9 @@ KINLINE void sTObject::Set(poly p_in, ring c_r, ring t_r)
   if (c_r != t_r)
   {
     assume(c_r == currRing && t_r == tailRing);
-    pp_Test(p_in, currRing, t_r);
+    p_Test(p_in, currRing);
     p = p_in;
+    pLength=::pLength(p_in);
   }
   else
   {
@@ -167,7 +169,7 @@ KINLINE sTObject::sTObject(sTObject* T, int copy)
     }
     else
     {
-      p = p_Copy(p, currRing, tailRing);
+      p = p_Copy(p, currRing);
     }
   }
 }
@@ -182,7 +184,7 @@ KINLINE void sTObject::Delete()
   }
   else
   {
-    p_Delete(&p, currRing, tailRing);
+    p_Delete(&p, currRing);
   }
 }
 
@@ -202,15 +204,17 @@ KINLINE void sTObject::Copy()
   if (t_p != NULL)
   {
     t_p = p_Copy(t_p, tailRing);
-    if (p != NULL)
+    if (p != NULL) /* and t_p!=NULL*/
     {
       p = p_Head(p, currRing);
-      if (pNext(t_p) != NULL) pNext(p) = pNext(t_p);
+      n_Delete(&pGetCoeff(p),currRing->cf);
+      pGetCoeff(p)=pGetCoeff(t_p);
+      pNext(p) = pNext(t_p);
     }
   }
   else
   {
-    p = p_Copy(p, currRing, tailRing);
+    p = p_Copy(p, currRing);
   }
 }
 
@@ -309,7 +313,8 @@ KINLINE void sTObject::LmDeleteAndIter()
 KINLINE void sTObject::Mult_nn(number n)
 {
   if (t_p != NULL)
-  {    t_p = p_Mult_nn(t_p, n, tailRing);
+  {
+    t_p = p_Mult_nn(t_p, n, tailRing);
     if (p != NULL) pSetCoeff0(p, pGetCoeff(t_p));
   }
   else
@@ -563,7 +568,7 @@ KINLINE void sLObject::Tail_Mult_nn(number n)
   {
     poly _p = (t_p != NULL ? t_p : p);
     assume(_p != NULL);
-    pNext(_p) = p_Mult_nn(pNext(_p), n, tailRing);
+    pNext(_p) = __p_Mult_nn(pNext(_p), n, tailRing);
   }
 }
 
@@ -940,8 +945,8 @@ KINLINE BOOLEAN k_GetLeadTerms(const poly p1, const poly p2, const ring p_r,
 
   int i;
   long x;
-  m1 = p_Init(m_r);
-  m2 = p_Init(m_r);
+  m1 = p_Init(m_r,m_r->PolyBin);
+  m2 = p_Init(m_r,m_r->PolyBin);
 
   for (i = p_r->N; i; i--)
   {
@@ -986,9 +991,9 @@ KINLINE void k_GetStrongLeadTerms(const poly p1, const poly p2, const ring leadR
   int e1;
   int e2;
   int s;
-  m1 = p_Init(tailRing);
-  m2 = p_Init(tailRing);
-  lcm = p_Init(leadRing);
+  m1 = p_Init(tailRing,tailRing->PolyBin);
+  m2 = p_Init(tailRing,tailRing->PolyBin);
+  lcm = p_Init(leadRing,leadRing->PolyBin);
 
   for (i = leadRing->N; i>=0; i--)
   {

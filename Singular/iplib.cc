@@ -95,15 +95,6 @@ BOOLEAN iiGetLibStatus(char *lib)
 }
 
 /*2
-* find the library of an proc:
-*  => return (pi->libname)
-*/
-char * iiGetLibName(procinfov pi)
-{
-  return pi->libname;
-}
-
-/*2
 * given a line 'proc[ ]+{name}[ \t]*'
 * return a pointer to name and set the end of '\0'
 * changes the input!
@@ -1083,6 +1074,7 @@ int iiAddCproc(const char *libname, const char *procname, BOOLEAN pstatic,
     }
     else
       Warn("internal error: unknown procedure type %d",pi->language);
+    if (currPack->language==LANG_SINGULAR) currPack->language==LANG_MIX;
     return(1);
   }
   else
@@ -1146,6 +1138,12 @@ BOOLEAN load_modules(const char *newlib, char *fullname, BOOLEAN autoexport)
       omFree(plib);
       return FALSE;
     }
+    else if(IDPACKAGE(pl)->language==LANG_MIX)
+    {
+      if (BVERBOSE(V_LOAD_LIB)) Warn( "%s contain binary parts, cannot load", newlib);
+      omFree(plib);
+      return FALSE;
+    }
   }
   else
   {
@@ -1187,13 +1185,15 @@ BOOLEAN load_modules(const char *newlib, char *fullname, BOOLEAN autoexport)
         Warn("loaded %s for a different version of Singular(expected MAX_TOK: %d, got %d)",fullname,MAX_TOK,ver);
       }
       currPack->loaded=1;
-      currPack=s;
+      currPack=s; /* reset currPack to previous */
       RET=FALSE;
     }
     else
     {
       Werror("mod_init not found:: %s\nThis is probably not a dynamic module for Singular!\n", dynl_error());
-      killhdl2(pl,&(basePack->idroot),NULL); // remove package
+      errorreported=0;
+      if(IDPACKAGE(pl)->idroot==NULL)
+        killhdl2(pl,&(basePack->idroot),NULL); // remove package
     }
   }
 
@@ -1265,7 +1265,7 @@ void module_help_main(const char *newlib,const char *help)
   {
     package s=currPack;
     currPack=IDPACKAGE(pl);
-    idhdl h=enterid(omStrDup("info"),0,STRING_CMD,&IDROOT,FALSE);
+    idhdl h=enterid("info",0,STRING_CMD,&IDROOT,FALSE);
     IDSTRING(h)=omStrDup(help);
     currPack=s;
   }
@@ -1284,7 +1284,7 @@ void module_help_proc(const char *newlib,const char *p, const char *help)
     buff[255]='\0';
     strncpy(buff,p,255);
     strncat(buff,"_help",255-strlen(p));
-    idhdl h=enterid(omStrDup(buff),0,STRING_CMD,&IDROOT,FALSE);
+    idhdl h=enterid(buff,0,STRING_CMD,&IDROOT,FALSE);
     IDSTRING(h)=omStrDup(help);
     currPack=s;
   }
@@ -1342,10 +1342,12 @@ char *iiConvName(const char *libname)
   char *tmpname = omStrDup(libname);
   char *p = strrchr(tmpname, DIR_SEP);
   char *r;
-  if(p==NULL) p = tmpname;
-  else p++;
-  r = (char *)strchr(p, '.');
-  if( r!= NULL) *r = '\0';
+  if(p==NULL) p = tmpname; else p++;
+  // p is now the start of the file name (without path)
+  r=p;
+  while(isalnum(*r)||(*r=='_')) r++;
+  // r point the the end of the main part of the filename
+  *r = '\0';
   r = omStrDup(p);
   *r = mytoupper(*r);
   // printf("iiConvName: '%s' '%s' => '%s'\n", libname, tmpname, r);
