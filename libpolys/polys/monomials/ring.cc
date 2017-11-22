@@ -580,7 +580,11 @@ char * rOrdStr(ring r)
       StringAppend("(%d)", s);
     }
 
-    if (l==nblocks) return StringEndS();
+    if (l==nblocks)
+    {
+      if (r->bitmask!=0xffff) StringAppend(",L(%ld)",r->bitmask);
+      return StringEndS();
+    }
     StringAppendS(",");
   }
 }
@@ -2944,12 +2948,6 @@ ring rModifyRing_Simple(ring r, BOOLEAN ommit_degree, BOOLEAN ommit_comp, unsign
   }
   return rModifyRing(r, ommit_degree, ommit_comp, exp_limit);
 }
-
-void rKillModifiedRing_Simple(ring r)
-{
-  rKillModifiedRing(r);
-}
-
 
 void rKillModifiedRing(ring r)
 {
