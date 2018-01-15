@@ -1469,13 +1469,22 @@ static inline void p_GetExpV(poly p, int *ev, const ring r)
 
   ev[0] = p_GetComp(p, r);
 }
-static inline void p_GetExpVL(poly p, long *ev, const ring r)
+static inline void p_GetExpVL(poly p, int64 *ev, const ring r)
 {
   p_LmCheckPolyRing1(p, r);
   for (unsigned j = r->N; j!=0; j--)
       ev[j-1] = p_GetExp(p, j, r);
 }
 static inline void p_SetExpV(poly p, int *ev, const ring r)
+{
+  p_LmCheckPolyRing1(p, r);
+  for (unsigned j = r->N; j!=0; j--)
+      p_SetExp(p, j, ev[j], r);
+
+  if(ev[0]!=0) p_SetComp(p, ev[0],r);
+  p_Setm(p, r);
+}
+static inline void p_SetExpVL(poly p, int64 *ev, const ring r)
 {
   p_LmCheckPolyRing1(p, r);
   for (unsigned j = r->N; j!=0; j--)
@@ -1514,14 +1523,21 @@ static inline int p_LmCmp(poly p, poly q, const ring r)
     goto LengthGeneral_OrdGeneral_LoopTop;
   }
   const long* _ordsgn = (long*) r->ordsgn;
+#if 1 /* two variants*/ 
   if (_v1 > _v2)
   {
-    if (_ordsgn[_i] == 1) return 1;
-    return -1;
+    return _ordsgn[_i];
   }
-  if (_ordsgn[_i] == 1) return -1;
-  return 1;
-
+  return -(_ordsgn[_i]);
+#else
+   if (_v1 > _v2)
+   {
+     if (_ordsgn[_i] == 1) return 1;
+     return -1;
+   }
+   if (_ordsgn[_i] == 1) return -1;
+   return 1;
+#endif
 }
 
 // The coefficient will be compared in absolute value

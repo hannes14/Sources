@@ -46,8 +46,9 @@ SLIB1 = arr.lib \
         locnormal.lib \
 	methods.lib modnormal.lib modular.lib multigrading.lib modwalk.lib\
 	JMBTest.lib JMSConst.lib \
+	ncfrac.lib ncloc.lib ncModslimgb.lib\
 	nfmodstd.lib nfmodsyz.lib numerAlg.lib numerDecom.lib \
-        orbitparam.lib \
+        olga.lib orbitparam.lib \
 	parallel.lib polyclass.lib polymake.lib polybori.lib \
 	realclassify.lib realizationMatroids.lib resources.lib ringgb.lib \
 	rootisolation.lib rwalk.lib rstandard.lib \
@@ -55,11 +56,11 @@ SLIB1 = arr.lib \
 	tasks.lib tropical.lib tropicalNewton.lib
 
 PLIBS = bimodules.lib bfun.lib central.lib dmod.lib dmodapp.lib dmodvar.lib\
-        fpadim.lib \
-	freegb.lib gkdim.lib involut.lib ncalg.lib ncdecomp.lib \
-	ncfactor.lib ncpreim.lib nctools.lib perron.lib qmatrix.lib \
-        purityfiltration.lib nchomolog.lib ratgb.lib \
-	ncall.lib
+        fpadim.lib fpaprops.lib freegb.lib\
+	gkdim.lib involut.lib\
+	ncall.lib ncalg.lib ncdecomp.lib ncfactor.lib nchomolog.lib ncpreim.lib nctools.lib \
+	perron.lib purityfiltration.lib  qmatrix.lib \
+        ratgb.lib
 
 # contributed libs, status not yet decided
 SLIB2 = KVequiv.lib deflation.lib lejeune.lib ncHilb.lib \

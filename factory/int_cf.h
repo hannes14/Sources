@@ -26,7 +26,9 @@
 #include "variable.h"
 
 #ifdef HAVE_OMALLOC
+#ifndef XMEMORY_H
 #include "omalloc/omallocClass.h"
+#endif
 #endif
 
 class CanonicalForm;
@@ -38,7 +40,9 @@ class CanonicalForm;
 **/
 class InternalCF
 #ifdef HAVE_OMALLOC
+#ifndef XMEMORY_H
        : public omallocClass
+#endif
 #endif
 {
 private:
@@ -51,7 +55,7 @@ public:
     InternalCF() { refCount = 1; };
     InternalCF( const InternalCF& )
     {
-	ASSERT( 0, "ups there is something wrong in your code");
+        ASSERT( 0, "ups there is something wrong in your code");
     };
     virtual ~InternalCF() {};
     int deleteObject() { return decRefCount() == 0; }

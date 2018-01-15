@@ -88,7 +88,7 @@
 #include <unistd.h>
 #include <vector>
 
-ring rCompose(const lists  L, const BOOLEAN check_comp=TRUE);
+ring rCompose(const lists  L, const BOOLEAN check_comp=TRUE, const long bitmask=0x7fff);
 
 // defaults for all commands: NO_PLURAL | NO_RING | ALLOW_ZERODIVISOR
 
@@ -2198,6 +2198,48 @@ static BOOLEAN jjFIND2(leftv res, leftv u, leftv v)
   /*else res->data=NULL;*/
   return FALSE;
 }
+
+static BOOLEAN jjFRES3(leftv res, leftv u, leftv v, leftv w)
+{
+    assumeStdFlag(u);
+    ideal id = (ideal)u->Data();
+    int max_length = (int)(long)v->Data();
+    if (max_length < 0) {
+        WerrorS("length for fres must not be negative");
+        return TRUE;
+    }
+    if (max_length == 0) {
+        max_length = currRing->N+1;
+        if (currRing->qideal != NULL) {
+            Warn("full resolution in a qring may be infinite, "
+                "setting max length to %d", max_length);
+        }
+    }
+    char *method = (char *)w->Data();
+    /* For the moment, only "complete" (default), "frame", or "extended frame"
+     * are allowed. Another useful option would be "linear strand".
+     */
+    if (strcmp(method, "complete") != 0
+            && strcmp(method, "frame") != 0
+            && strcmp(method, "extended frame") != 0) {
+        WerrorS("wrong optional argument for fres");
+    }
+    syStrategy r = syFrank(id, max_length, method);
+    assume(r->fullres != NULL);
+    res->data = (void *)r;
+    return FALSE;
+}
+
+static BOOLEAN jjFRES(leftv res, leftv u, leftv v)
+{
+    leftv w = (leftv)omAlloc0(sizeof(sleftv));
+    w->rtyp = STRING_CMD;
+    w->data = (char *)"complete";   // default
+    BOOLEAN RES = jjFRES3(res, u, v, w);
+    omFree(w);
+    return RES;
+}
+
 static BOOLEAN jjFWALK(leftv res, leftv u, leftv v)
 {
   res->data=(char *)fractalWalkProc(u,v);
@@ -2260,6 +2302,8 @@ static BOOLEAN jjHILBERT2(leftv res, leftv u, leftv v)
   assumeStdFlag(u);
   intvec *module_w=(intvec*)atGet(u,"isHomog",INTVEC_CMD);
   intvec *iv=hFirstSeries((ideal)u->Data(),module_w,currRing->qideal);
+  if (errorreported) return TRUE;
+
   switch((int)(long)v->Data())
   {
     case 1:
@@ -2606,8 +2650,14 @@ static BOOLEAN jjNEWSTRUCT2(leftv, leftv u, leftv v)
 {
   // u: the name of the new type
   // v: the elements
-  newstruct_desc d=newstructFromString((const char *)v->Data());
-  if (d!=NULL) newstruct_setup((const char *)u->Data(),d);
+  const char *s=(const char *)u->Data();
+  newstruct_desc d=NULL;
+  if (strlen(s)>=2)
+  {
+    d=newstructFromString((const char *)v->Data());
+    if (d!=NULL) newstruct_setup(s,d);
+  }
+  else WerrorS("name of newstruct must be longer than 1 character");
   return d==NULL;
 }
 static BOOLEAN jjPARSTR2(leftv res, leftv u, leftv v)
@@ -3558,6 +3608,12 @@ static BOOLEAN jjCOUNT_BI(leftv res, leftv v)
   res->data = (char *)(long)n_Size((number)v->Data(),coeffs_BIGINT);
   return FALSE;
 }
+static BOOLEAN jjCOUNT_BIM(leftv res, leftv v)
+{
+  bigintmat* aa= (bigintmat *)v->Data();
+  res->data = (char *)(long)(aa->rows()*aa->cols());
+  return FALSE;
+}
 static BOOLEAN jjCOUNT_N(leftv res, leftv v)
 {
   res->data = (char *)(long)nSize((number)v->Data());
@@ -4252,10 +4308,12 @@ static BOOLEAN jjLOAD1(leftv /*res*/, leftv v)
 }
 static BOOLEAN jjLISTRING(leftv res, leftv v)
 {
-  ring r=rCompose((lists)v->Data());
-  if (r==NULL) return TRUE;
+  lists l=(lists)v->Data();
+  long mm=(long)atGet(v,"maxExp",INT_CMD);
+  if (mm==0) mm=0x7fff;
+  ring r=rCompose((lists)v->Data(),TRUE,mm);
   res->data=(char *)r;
-  return FALSE;
+  return (r==NULL);
 }
 static BOOLEAN jjPFAC1(leftv res, leftv v)
 {
@@ -4592,8 +4650,17 @@ static BOOLEAN jjRINGLIST(leftv res, leftv v)
 {
   ring r=(ring)v->Data();
   if (r!=NULL)
+  {
     res->data = (char *)rDecompose((ring)v->Data());
-  return (r==NULL)||(res->data==NULL);
+    if (res->data!=NULL)
+    {
+      long mm=r->bitmask/2;
+      if (mm>MAX_INT_VAL) mm=MAX_INT_VAL;
+      atSet(res,omStrDup("maxExp"),(void*)mm,INT_CMD);
+      return FALSE;
+    }
+  }
+  return TRUE;
 }
 static BOOLEAN jjRINGLIST_C(leftv res, leftv v)
 {
@@ -5631,6 +5698,8 @@ static BOOLEAN jjHILBERT3(leftv res, leftv u, leftv v, leftv w)
   assumeStdFlag(u);
   intvec *module_w=(intvec *)atGet(u,"isHomog",INTVEC_CMD);
   intvec *iv=hFirstSeries((ideal)u->Data(),module_w,currRing->qideal,wdegree);
+  if (errorreported) return TRUE;
+
   switch((int)(long)v->Data())
   {
     case 1:
@@ -7798,9 +7867,9 @@ static BOOLEAN jjRESTART(leftv, leftv u)
   {
     case 0:{
         PrintS("delete all variables\n");
-	killlocals(0);
-	WerrorS("restarting...");
-	break;
+        killlocals(0);
+        WerrorS("restarting...");
+        break;
       };
     default: WerrorS("not implemented");
   }

@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-version="version triang.lib 4.0.0.0 Jun_2013 "; // $Id$
+version="version triang.lib 4.1.1.0 Dec_2017 "; // $Id$
 category="Symbolic-numerical solving";
 info="
 LIBRARY: triang.lib   Decompose Zero-dimensional Ideals into Triangular Sets
@@ -821,7 +821,7 @@ EXAMPLE: example triangMH; shows an example
     }
     if(npars(basering)<>0)
     {
-        ERROR("basering has parameters");
+      "Warning: factorization may fail";
     }
     // Faktorisierungsschalter setzen.
     int fak;

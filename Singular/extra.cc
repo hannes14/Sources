@@ -277,7 +277,6 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
     }
     else
 /*==================== alarm ==================================*/
-  #ifdef unix
       if(strcmp(sys_cmd,"alarm")==0)
       {
         if ((h!=NULL) &&(h->Typ()==INT_CMD))
@@ -295,7 +294,6 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
           WerrorS("int expected");
       }
       else
-  #endif
 /*==================== cpu ==================================*/
     if(strcmp(sys_cmd,"cpu")==0)
     {
@@ -386,7 +384,6 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
     }
     else
 /*===== rcolon ===============================================*/
-   // Hilbert series of non-commutative monomial algebras
   if(strcmp(sys_cmd,"rcolon") == 0)
   {
     const short t1[]={3,IDEAL_CMD,POLY_CMD,INT_CMD};
@@ -2476,7 +2473,7 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
 #  ifdef RDEBUG
           p_DebugPrint((poly)h->Data(), currRing);
 #  else
-          Warn("Sorry: not available for release build!");
+          WarnS("Sorry: not available for release build!");
 #  endif
           return FALSE;
         }
@@ -2499,7 +2496,7 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
 #  ifdef RDEBUG
           rDebugPrint((ring)h->Data());
 #  else
-          Warn("Sorry: not available for release build!");
+          WarnS("Sorry: not available for release build!");
 #  endif
           return FALSE;
         }
@@ -2671,7 +2668,7 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
           {
             if (h->next->Typ()!=POLY_CMD)
             {
-              Warn("Wrong types for poly= comb(ideal,poly)");
+              WarnS("Wrong types for poly= comb(ideal,poly)");
             }
           }
           res->rtyp=POLY_CMD;
@@ -2692,7 +2689,7 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
           {
             if (h->next->Typ()!=POLY_CMD)
             {
-                Warn("Wrong types for poly= comb(ideal,poly)");
+                WarnS("Wrong types for poly= comb(ideal,poly)");
             }
           }
           res->rtyp=POLY_CMD;
@@ -3010,11 +3007,9 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
   /*==================== Roune Hilb  =================*/
        if (strcmp(sys_cmd, "hilbroune") == 0)
        {
-         ideal I;
          if ((h!=NULL) && (h->Typ()==IDEAL_CMD))
          {
-           I=(ideal)h->CopyD();
-           slicehilb(I);
+           slicehilb((ideal)h->Data());
          }
          else return TRUE;
          return FALSE;

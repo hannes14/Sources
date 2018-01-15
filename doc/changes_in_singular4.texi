@@ -22,12 +22,12 @@ as @code{a-b-c-d} where a,b,c and d are numbers:
 @itemize
 @item a is changed with major, incompatible changes
 @item b is changed with incompatible changes (of some commands/libraries)
-@item c is changed with compatible chnages (i.e. new commands,
+@item c is changed with compatible changes (i.e. new commands,
       extended options, new algorithms, etc.)
 @item d is changed with each release (i.e. with bug fixes, etc.)
 @end itemize
-@sc{Singular} does also have "inofficiall" build orginating from
-a code version between "officiall" version: such builds display
+@sc{Singular} does also have "unofficial" build orginating from
+a code version between "official" version: such builds display
 "Development version a.b.c" in the header while "official" versions
 show "version a.b.c". Also the manual describes version a-b-c.
 To get the complete version number, use
@@ -94,21 +94,6 @@ Also the following settings now belong to individual (currently active) polynomi
 Hence setting these options only affects the current ring. Be aware of this
 when switching between different rings, since the options affect the
 result of various computations (in particular Groebner bases).
-
-@subsubheading New libraries depending on Singular 4
-@cindex New libraries depending on Singular 4
-
-In Singular 4 there several new features are implemented within a
-dynamic module @code{syzextra.so}, not available in Singular 3.
-It implements the low-level functions for Schreyer resolutions and many auxiliary functions.
-The following new libraries @ref{deRham_lib}, @ref{schreyer_lib} depend on it:
-
-@c table @asis
-@itemize @bullet
-@item @ref{deRham_lib} - computes de Rham cohomology
-@item @ref{schreyer_lib} - computes Schreyer resolution via several approaches. It also serves as a high-level wrapper to the dynamic module @code{syzextra.so}
-@end itemize
-@c @end table
 
 @subsubheading Path names
 @cindex Path names
@@ -215,7 +200,7 @@ In contrast to Singular 3, there are now many more configuration options.
 
 All possible options for configure can be seen by running the configure script with
 option @code{--help}. On a multicore compute consider running make with the
-option @code{-f [cores]}.
+option @code{-j [cores]}.
 
 @subsection Side-by-side installation
 

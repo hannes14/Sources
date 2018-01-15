@@ -9,10 +9,12 @@ bug_minpoly2
 bug_minpoly_frac
 bug_naGreater
 bug_newstruct
+bug_newstruct3
 bug_normalize
 bug_qring2
 bug_ring
 bug_ringlist
+bug_solve
 bug_ssi_algring
 bug_ssi_attr
 bug_zp
@@ -89,6 +91,7 @@ fermat_gcd_mod_2var
 fermat_gcd_mod_3var
 fermat_gcd_mod_4var
 ffmodstd_s
+fres_s
 gcd2test
 gcd3primtest
 gcd3test
@@ -99,6 +102,8 @@ gcd_univar_p_s
 gcd_univar_p_alpha_s
 modular_s
 modstd_s
+modules
+nets
 ncfactor_facNthShift1_s
 ncfactor_landau_ex_s
 ncfactor_multipleFacsSameTopAndBottom_s
