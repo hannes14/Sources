@@ -4311,7 +4311,7 @@ static BOOLEAN jjLISTRING(leftv res, leftv v)
   lists l=(lists)v->Data();
   long mm=(long)atGet(v,"maxExp",INT_CMD);
   if (mm==0) mm=0x7fff;
-  ring r=rCompose((lists)v->Data(),TRUE,mm);
+  ring r=rCompose(l,TRUE,mm);
   res->data=(char *)r;
   return (r==NULL);
 }
@@ -9109,6 +9109,13 @@ static BOOLEAN check_valid(const int p, const int op)
 // --------------------------------------------------------------------
 static BOOLEAN jjCHINREM_ID(leftv res, leftv u, leftv v)
 {
+  if ((currRing!=NULL)
+  && rField_is_Ring(currRing)
+  && (!rField_is_Z(currRing)))
+  {
+    WerrorS("not implemented for rings with rings as coeffients (except ZZ)");
+    return TRUE;
+  }
   coeffs cf;
   lists c=(lists)u->CopyD(); // list of ideal or bigint/int
   int rl=c->nr+1;

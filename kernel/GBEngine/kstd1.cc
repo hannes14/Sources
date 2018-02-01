@@ -2786,7 +2786,7 @@ ideal kStdShift(ideal F, ideal Q, tHomog h,intvec ** w, intvec *hilb,int syzComp
   if (rHasLocalOrMixedOrdering(currRing))
   {
     /* error: no local ord yet with shifts */
-    WerrorS("No local ordering possible for shifts");
+    WerrorS("No local ordering possible for shift algebra");
     return(NULL);
   }
   else
@@ -3296,6 +3296,8 @@ ideal kInterRedBba (ideal F, ideal Q, int &need_retry)
   {
     h = (tHomog)idHomModule(F,Q,&w);
   }
+  else
+    h = isNotHomog;
   if (h==isHomog)
   {
     if (strat->ak > 0 && (w!=NULL) && (w!=NULL))
@@ -3385,7 +3387,7 @@ ideal kInterRedBba (ideal F, ideal Q, int &need_retry)
 
       // reduce the tail and normalize poly
       // in the ring case we cannot expect LC(f) = 1,
-      // therefore we call pContent instead of pNorm
+      // therefore we call pCleardenom instead of pNorm
       if ((TEST_OPT_INTSTRATEGY) || (rField_is_Ring(currRing)))
       {
         strat->P.pCleardenom();
@@ -3506,7 +3508,7 @@ ideal kInterRedBba (ideal F, ideal Q, int &need_retry)
 #ifdef HAVE_TAIL_RING
         if(currRing->bitmask>strat->tailRing->bitmask)
         {
-	  // retry without T
+          // retry without T
           strat->completeReduce_retry=FALSE;
           cleanT(strat);strat->tailRing=currRing;
           int i;

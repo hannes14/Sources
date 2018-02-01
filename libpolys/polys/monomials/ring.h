@@ -11,24 +11,23 @@
 #include "omalloc/omalloc.h"
 #include "misc/auxiliary.h"
 #include "coeffs/coeffs.h"
+#include "misc/intvec.h"
+#include "misc/int64vec.h"
+#include "polys/monomials/monomials.h"
 //#include "polys/monomials/polys-impl.h"
 //
 
 /* forward declaration of types */
 class idrec; typedef idrec *   idhdl; // _only_ for idhdl ip_sring::idroot
-struct  spolyrec;
-typedef struct spolyrec    polyrec;
-typedef struct spolyrec *         poly;
-typedef struct spolyrec const *   const_poly;
+//struct  spolyrec;
+//typedef struct spolyrec    polyrec;
+//typedef struct spolyrec *         poly;
+//typedef struct spolyrec const *   const_poly;
 struct ip_sring;
 typedef struct ip_sring *         ring;
 typedef struct ip_sring const *   const_ring;
-class intvec;
-class int64vec;
 struct p_Procs_s;
 typedef struct p_Procs_s p_Procs_s;
-//class slists;
-//typedef slists *           lists;
 class kBucket;
 typedef kBucket*           kBucket_pt;
 
@@ -388,7 +387,8 @@ struct ip_sring
 ring   rDefault(int ch, int N, char **n);
 ring   rDefault(const coeffs cf, int N, char **n, const rRingOrder_t o=ringorder_lp);
 ring   rDefault(int ch, int N, char **n,int ord_size, rRingOrder_t *ord, int *block0, int *block1, int **wvhdl=NULL);
-ring   rDefault(const coeffs cf, int N, char **n,int ord_size, rRingOrder_t *ord, int *block0, int *block1, int **wvhdl=NULL);
+ring   rDefault(const coeffs cf, int N, char **n,int ord_size, rRingOrder_t *ord, int *block0, int *block1, int **wvhdl=NULL, unsigned long bitmask=0);
+unsigned long rGetExpSize(unsigned long bitmask, int & bits, int N);
 
 // #define rIsRingVar(A) r_IsRingVar(A,currRing)
 int    r_IsRingVar(const char *n, char**names, int N);

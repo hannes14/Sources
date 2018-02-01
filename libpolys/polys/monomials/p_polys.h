@@ -207,6 +207,7 @@ void      p_Norm(poly p1, const ring r);
 void      p_Normalize(poly p,const ring r);
 void      p_ProjectiveUnique(poly p,const ring r);
 
+void      p_ContentForGB(poly p, const ring r);
 void      p_Content(poly p, const ring r);
 #if 1
 // currently only used by Singular/janet
@@ -1469,6 +1470,7 @@ static inline void p_GetExpV(poly p, int *ev, const ring r)
 
   ev[0] = p_GetComp(p, r);
 }
+// p_GetExpVL is used in Singular,jl
 static inline void p_GetExpVL(poly p, int64 *ev, const ring r)
 {
   p_LmCheckPolyRing1(p, r);
@@ -1484,6 +1486,7 @@ static inline void p_SetExpV(poly p, int *ev, const ring r)
   if(ev[0]!=0) p_SetComp(p, ev[0],r);
   p_Setm(p, r);
 }
+// p_SetExpVL is used in Singular,jl
 static inline void p_SetExpVL(poly p, int64 *ev, const ring r)
 {
   p_LmCheckPolyRing1(p, r);

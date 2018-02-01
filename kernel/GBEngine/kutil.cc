@@ -587,9 +587,11 @@ void cleanT (kStrategy strat)
       {
         if (strat->T[j].t_p != NULL)
         {
-          assume(p_shallow_copy_delete != NULL);
-          pNext(p) = p_shallow_copy_delete(pNext(p),strat->tailRing,currRing,
+          if (p_shallow_copy_delete!=NULL)
+          {
+            pNext(p) = p_shallow_copy_delete(pNext(p),strat->tailRing,currRing,
                                            currRing->PolyBin);
+          }
           p_LmFree(strat->T[j].t_p, strat->tailRing);
         }
         break;
@@ -1363,7 +1365,7 @@ static void enterOnePairRing (int i,poly p,int /*ecart*/, int isFromQ,kStrategy 
         if ((strat->fromQ==NULL) || (isFromQ==0) || (strat->fromQ[i]==0))
         {
           #ifdef ADIDEBUG
-          printf("\nGelöscht h\n");
+          printf("\ndelete h\n");
           #endif
           strat->c3++;
           pLmDelete(h.lcm);
@@ -1374,7 +1376,7 @@ static void enterOnePairRing (int i,poly p,int /*ecart*/, int isFromQ,kStrategy 
       if(compareCoeff == pDivComp_GREATER)
       {
         #ifdef ADIDEBUG
-        printf("\nGelöscht: B[j]\n");
+        printf("\ndelete: B[j]\n");
         #endif
         deleteInL(strat->B,&strat->Bl,j,strat);
         strat->c3++;
@@ -1384,7 +1386,7 @@ static void enterOnePairRing (int i,poly p,int /*ecart*/, int isFromQ,kStrategy 
         if ((strat->fromQ==NULL) || (isFromQ==0) || (strat->fromQ[i]==0))
         {
           #ifdef ADIDEBUG
-          printf("\nGelöscht h\n");
+          printf("\ndelete h\n");
           #endif
           strat->c3++;
           pLmDelete(h.lcm);
@@ -1400,7 +1402,7 @@ static void enterOnePairRing (int i,poly p,int /*ecart*/, int isFromQ,kStrategy 
         if ((strat->fromQ==NULL) || (isFromQ==0) || (strat->fromQ[i]==0))
         {
           #ifdef ADIDEBUG
-          printf("\nGelöscht h\n");
+          printf("\ndelete h\n");
           #endif
           strat->c3++;
           pLmDelete(h.lcm);
@@ -1411,7 +1413,7 @@ static void enterOnePairRing (int i,poly p,int /*ecart*/, int isFromQ,kStrategy 
       if(compare == pDivComp_GREATER)
       {
         #ifdef ADIDEBUG
-        printf("\nGelöscht: B[j]\n");
+        printf("\ndelete B[j]\n");
         #endif
         deleteInL(strat->B,&strat->Bl,j,strat);
         strat->c3++;
@@ -7634,13 +7636,13 @@ poly redtailBba (LObject* L, int end_pos, kStrategy strat, BOOLEAN withT, BOOLEA
         j = kFindDivisibleByInT(strat, &Ln);
         if (j < 0) break;
         With = &(strat->T[j]);
-	assume(With->GetpLength()==pLength(With->p != __null ? With->p : With->t_p));
+        assume(With->GetpLength()==pLength(With->p != __null ? With->p : With->t_p));
       }
       else
       {
         With = kFindDivisibleByInS_T(strat, end_pos, &Ln, &With_s);
         if (With == NULL) break;
-	assume(With->GetpLength()==pLength(With->p != __null ? With->p : With->t_p));
+        assume(With->GetpLength()==pLength(With->p != __null ? With->p : With->t_p));
       }
       cnt--;
       if (cnt==0)
@@ -8076,8 +8078,7 @@ void initS (ideal F, ideal Q, kStrategy strat)
         h.p = pCopy(Q->m[i]);
         if (TEST_OPT_INTSTRATEGY)
         {
-          //pContent(h.p);
-          h.pCleardenom(); // also does a pContent
+          h.pCleardenom(); // also does remove Content
         }
         else
         {
@@ -8119,8 +8120,7 @@ void initS (ideal F, ideal Q, kStrategy strat)
       {
         if (TEST_OPT_INTSTRATEGY)
         {
-          //pContent(h.p);
-          h.pCleardenom(); // also does a pContent
+          h.pCleardenom(); // also does remove Content
         }
         else
         {
@@ -8176,8 +8176,7 @@ void initSL (ideal F, ideal Q,kStrategy strat)
         }
         if (TEST_OPT_INTSTRATEGY)
         {
-          //pContent(h.p);
-          h.pCleardenom(); // also does a pContent
+          h.pCleardenom(); // also does remove Content
         }
         else
         {
@@ -8216,8 +8215,7 @@ void initSL (ideal F, ideal Q,kStrategy strat)
         {
           if (TEST_OPT_INTSTRATEGY)
           {
-            //pContent(h.p);
-            h.pCleardenom(); // also does a pContent
+            h.pCleardenom(); // also does remove Content
           }
           else
           {
@@ -8283,8 +8281,7 @@ void initSLSba (ideal F, ideal Q,kStrategy strat)
         }
         if (TEST_OPT_INTSTRATEGY)
         {
-          //pContent(h.p);
-          h.pCleardenom(); // also does a pContent
+          h.pCleardenom(); // also does remove Content
         }
         else
         {
@@ -8341,8 +8338,7 @@ void initSLSba (ideal F, ideal Q,kStrategy strat)
         {
           if (TEST_OPT_INTSTRATEGY)
           {
-            //pContent(h.p);
-            h.pCleardenom(); // also does a pContent
+            h.pCleardenom(); // also does remove Content
           }
           else
           {
@@ -8580,8 +8576,7 @@ void initSSpecial (ideal F, ideal Q, ideal P,kStrategy strat)
         h.p = pCopy(Q->m[i]);
         //if (TEST_OPT_INTSTRATEGY)
         //{
-        //  //pContent(h.p);
-        //  h.pCleardenom(); // also does a pContent
+        //  h.pCleardenom(); // also does remove Content
         //}
         //else
         //{
@@ -8725,8 +8720,7 @@ void initSSpecialSba (ideal F, ideal Q, ideal P,kStrategy strat)
         h.p = pCopy(Q->m[i]);
         //if (TEST_OPT_INTSTRATEGY)
         //{
-        //  //pContent(h.p);
-        //  h.pCleardenom(); // also does a pContent
+        //  h.pCleardenom(); // also does remove Content
         //}
         //else
         //{
@@ -9082,7 +9076,7 @@ void updateS(BOOLEAN toT,kStrategy strat)
               if (TEST_OPT_CONTENTSB)
               {
                 number n;
-                p_Cleardenom_n(strat->S[i], currRing, n);// also does a pContent
+                p_Cleardenom_n(strat->S[i], currRing, n);// also does remove Content
                 if (!nIsOne(n))
                 {
                   denominator_list denom=(denominator_list)omAlloc(sizeof(denominator_list_s));
@@ -9094,8 +9088,7 @@ void updateS(BOOLEAN toT,kStrategy strat)
               }
               else
               {
-                //pContent(strat->S[i]);
-                strat->S[i]=p_Cleardenom(strat->S[i], currRing);// also does a pContent
+                strat->S[i]=p_Cleardenom(strat->S[i], currRing);// also does remove Content
               }
             }
             else
@@ -9119,7 +9112,7 @@ void updateS(BOOLEAN toT,kStrategy strat)
           h.p = redtailBba(strat->S[i],i-1,strat);
           if (TEST_OPT_INTSTRATEGY)
           {
-            h.pCleardenom();// also does a pContent
+            h.pCleardenom();// also does remove Content
           }
         }
         else
@@ -9169,7 +9162,7 @@ void updateS(BOOLEAN toT,kStrategy strat)
               if (TEST_OPT_CONTENTSB)
               {
                 number n;
-                p_Cleardenom_n(strat->S[i], currRing, n);// also does a pContent
+                p_Cleardenom_n(strat->S[i], currRing, n);// also does remove Content
                 if (!nIsOne(n))
                 {
                   denominator_list denom=(denominator_list)omAlloc(sizeof(denominator_list_s));
@@ -9181,8 +9174,7 @@ void updateS(BOOLEAN toT,kStrategy strat)
               }
               else
               {
-                //pContent(strat->S[i]);
-                strat->S[i]=p_Cleardenom(strat->S[i], currRing);// also does a pContent
+                strat->S[i]=p_Cleardenom(strat->S[i], currRing);// also does remove Content
               }
             }
             else
@@ -9554,7 +9546,7 @@ void enterT(LObject &p, kStrategy strat, int atT)
   printf("\nenterT: add in position %i\n",atT);
   p_Write(p.p,strat->tailRing);p_Write(p.sig,currRing);
   #endif
-  //printf("\nenterT: neue hingefügt: länge = %i, ecart = %i\n",p.length,p.ecart);
+  //printf("\nenterT: add new: length = %i, ecart = %i\n",p.length,p.ecart);
 
   if (pNext(p.p) != NULL)
     strat->T[atT].max_exp = p_GetMaxExpP(pNext(p.p), strat->tailRing);
@@ -9640,7 +9632,7 @@ void enterT_strong(LObject &p, kStrategy strat, int atT)
   printf("\nenterT_strong: add in position %i\n",atT);
   pWrite(p.p);
   #endif
-  //printf("\nenterT_strong: neue hingefügt: länge = %i, ecart = %i\n",p.length,p.ecart);
+  //printf("\nenterT_strong: add new: length = %i, ecart = %i\n",p.length,p.ecart);
 
   if (pNext(p.p) != NULL)
     strat->T[atT].max_exp = p_GetMaxExpP(pNext(p.p), strat->tailRing);
@@ -10716,7 +10708,7 @@ void completeReduce (kStrategy strat, BOOLEAN withT)
         if (TEST_OPT_CONTENTSB)
         {
           number n;
-          p_Cleardenom_n(strat->S[i], currRing, n);// also does a pContent
+          p_Cleardenom_n(strat->S[i], currRing, n);// also does remove Content
           if (!nIsOne(n))
           {
             denominator_list denom=(denominator_list)omAlloc(sizeof(denominator_list_s));
@@ -10728,8 +10720,7 @@ void completeReduce (kStrategy strat, BOOLEAN withT)
         }
         else
         {
-          //pContent(strat->S[i]);
-          strat->S[i]=p_Cleardenom(strat->S[i], currRing);// also does a pContent
+          strat->S[i]=p_Cleardenom(strat->S[i], currRing);// also does remove Content
         }
       }
       #ifdef KDEBUG
@@ -12088,7 +12079,7 @@ void updateSShift(kStrategy strat,int uptodeg,int lV)
   for (i=0; i<=strat->sl; i++)
   {
     memset(&h,0,sizeof(h));
-    h.p =  strat->S[i]; // lm in currRing, tail in TR
+    h.p =  strat->S[i];
     strat->initEcart(&h);
     h.sev = strat->sevS[i];
     h.t_p = NULL;
@@ -12741,13 +12732,11 @@ void enterTShift(LObject p, kStrategy strat, int atT, int uptodeg, int lV)
   for (i=1; i<=toInsert; i++) // toIns - 1?
   {
     qq      = p; //qq.Copy();
-    qq.p    = NULL;
+    qq.t_p=NULL;
     qq.max_exp  = NULL;
-    if (p.t_p!=NULL)
-      qq.t_p = p_LPshift(p_Copy(p.t_p,strat->tailRing), i, uptodeg, lV, strat->tailRing); // direct shift
-    else
+    if (p.p!=NULL)
       qq.p = p_LPshift(p_Copy(p.p,currRing), i, uptodeg, lV, currRing); // direct shift
-    qq.GetP();
+    qq.GetTP();
     // update q.sev
     qq.sev = pGetShortExpVector(qq.p);
     #ifdef KTEST
