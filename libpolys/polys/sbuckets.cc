@@ -116,11 +116,7 @@ void sBucketDeleteAndDestroy(sBucket_pt *bucket_pt)
   int i;
   for (i=0; i<= bucket->max_bucket; i++)
   {
-
-    if (bucket->buckets[i].p != NULL)
-    {
-      p_Delete(&(bucket->buckets[i].p), bucket->bucket_ring);
-    }
+    p_Delete(&(bucket->buckets[i].p), bucket->bucket_ring);
   }
   omFreeBin(bucket, sBucket_bin);
   *bucket_pt = NULL;
@@ -144,7 +140,7 @@ void sBucket_Merge_m(sBucket_pt bucket, poly p)
     bucket->buckets[i].p = NULL;
     bucket->buckets[i].length = 0;
     i++;
-    assume(LOG2(length) == i);
+    assume(SI_LOG2(length) == i);
   }
 
   bucket->buckets[i].p = p;
@@ -160,7 +156,7 @@ void sBucket_Merge_p(sBucket_pt bucket, poly p, int length)
   if (p == NULL) return;
   if (length <= 0) length = pLength(p);
 
-  int i = LOG2(length);
+  int i = SI_LOG2(length);
 
   while (bucket->buckets[i].p != NULL)
   {
@@ -169,7 +165,7 @@ void sBucket_Merge_p(sBucket_pt bucket, poly p, int length)
     bucket->buckets[i].p = NULL;
     bucket->buckets[i].length = 0;
     i++;
-    assume(LOG2(length) == i);
+    assume(SI_LOG2(length) == i);
   }
 
   bucket->buckets[i].p = p;
@@ -184,7 +180,7 @@ void sBucket_Add_m(sBucket_pt bucket, poly p)
 
   int length = 1;
 
-  int i = 0; //LOG2(length);
+  int i = 0; //SI_LOG2(length);
 
   while (bucket->buckets[i].p != NULL)
   {
@@ -199,7 +195,7 @@ void sBucket_Add_m(sBucket_pt bucket, poly p)
       if (i > bucket->max_bucket) bucket->max_bucket = i;
       return;
     }
-    i = LOG2(length);
+    i = SI_LOG2(length);
   }
 
   bucket->buckets[i].p = p;
@@ -215,7 +211,7 @@ void sBucket_Add_p(sBucket_pt bucket, poly p, int length)
   if (p == NULL) return;
   if (length <= 0) length = pLength(p);
 
-  int i = LOG2(length);
+  int i = SI_LOG2(length);
 
   while (bucket->buckets[i].p != NULL)
   {
@@ -230,7 +226,7 @@ void sBucket_Add_p(sBucket_pt bucket, poly p, int length)
       if (i > bucket->max_bucket) bucket->max_bucket = i;
       return;
     }
-    i = LOG2(length);
+    i = SI_LOG2(length);
   }
 
   bucket->buckets[i].p = p;

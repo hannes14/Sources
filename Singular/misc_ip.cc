@@ -73,8 +73,8 @@
 #endif
 
 #ifdef HAVE_NTL
-#include<NTL/version.h>
-#include<NTL/tools.h>
+#include <NTL/version.h>
+#include <NTL/tools.h>
 #ifdef NTL_CLIENT
 NTL_CLIENT
 #endif
@@ -444,14 +444,6 @@ lists primeFactorisation(const number n, const int pBound)
 *  sleep(10);
 *}
 */
-
-#include <string.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <time.h>
-
 
 void singular_example(char *str)
 {
@@ -1073,10 +1065,6 @@ void checkall()
       }
 }
 #endif
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 extern "C"
 int singular_fstat(int fd, struct stat *buf)

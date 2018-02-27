@@ -20,13 +20,6 @@
 #include "Singular/fevoices.h"
 #include "kernel/oswrapper/timer.h"
 
-// #ifdef HAVE_FANS
-// #include <callgfanlib/bbcone.h>
-// #include <callgfanlib/bbpolytope.h>
-// #include <callgfanlib/bbfan.h>
-// #include <callgfanlib/gitfan.h>
-// #endif
-
 #include "ipshell.h"
 #include "cntrlc.h"
 #include "links/silink.h"
@@ -42,11 +35,9 @@
 #include "Singular/pyobject_setup.h"
 
 #include <unistd.h>
-#include <string.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <time.h>
-#include <errno.h>
+#ifdef HAVE_NTL
+#include <NTL/config.h>
+#endif
 
 
 extern int siInit(char *);
@@ -78,6 +69,13 @@ int main(          /* main entry to Singular */
 
   siInit(argv[0]);
   init_signals();
+  #ifdef HAVE_NTL
+  #if NTL_MAJOR_VERSION>=10
+  #ifdef NTL_THREAD_BOOST
+  SetNumThreads(feOptValue(FE_OPT_CPUS));
+  #endif
+  #endif
+  #endif
 
   // parse command line options
   int optc, option_index;

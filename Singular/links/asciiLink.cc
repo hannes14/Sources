@@ -19,12 +19,6 @@
 #include "Singular/ipshell.h"
 #include "Singular/links/silink.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
 /* declarations */
 static BOOLEAN DumpAscii(FILE *fd, idhdl h,char ***list_of_libs);
 static BOOLEAN DumpAsciiIdhdl(FILE *fd, idhdl h,char ***list_of_libs);
@@ -432,7 +426,7 @@ static BOOLEAN CollectLibs(char *name, char *** list_of_libs)
   if (*list_of_libs==NULL)
   {
     #define MAX_LIBS 256
-    (*list_of_libs)=(char**)omalloc0(MAX_LIBS*sizeof(char**));
+    (*list_of_libs)=(char**)omAlloc0(MAX_LIBS*sizeof(char**));
     (*list_of_libs)[0]=name;
     (*list_of_libs)[MAX_LIBS-1]=(char*)1;
     return FALSE;
