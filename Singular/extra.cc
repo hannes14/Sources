@@ -1152,8 +1152,8 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
           WerrorS("negative shift for pLPshift");
           return TRUE;
         }
-        int L = pmLastVblock(p,lVblock);
-        if (L+sh-1 > uptodeg)
+        int L = pLastVblock(p,lVblock);
+        if (L+sh > uptodeg)
         {
           WerrorS("pLPshift: too big shift requested\n");
           return TRUE;
@@ -3775,6 +3775,28 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
         res->data=(void*)mp_Tensor((ideal)h->Data(),(ideal)h->next->Data(),currRing);
         res->rtyp=MODUL_CMD;
         return FALSE;
+      }
+      else
+        return TRUE;
+    }
+    else
+/*==================== GF(p,n) ==================================*/
+    if(strcmp(sys_cmd,"GF")==0)
+    {
+      const short t[]={3,INT_CMD,INT_CMD,STRING_CMD};
+      if (iiCheckTypes(h,t,1))
+      {
+        int p=(int)(long)h->Data();
+	int n=(int)(long)h->next->Data();
+	char *v=(char*)h->next->next->CopyD();
+	GFInfo param;
+        param.GFChar = p;
+	param.GFDegree = n;
+	param.GFPar_name = v;
+	coeffs cf= nInitChar(n_GF, &param);
+	res->rtyp=CRING_CMD;
+	res->data=cf;
+	return FALSE;
       }
       else
         return TRUE;

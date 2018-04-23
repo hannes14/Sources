@@ -532,7 +532,7 @@ BOOLEAN iiMake_proc(idhdl pn, package pack, leftv sl)
                  err=iiPStart(pn,sl);
                  break;
     case LANG_C:
-                 leftv res = (leftv)omAlloc0Bin(sleftv_bin);
+                 leftv res = (leftv)omAllocBin(sleftv_bin);
                  err = (pi->data.o.function)(res, sl);
                  memcpy(&iiRETURNEXPR,res,sizeof(iiRETURNEXPR));
                  omFreeBin((ADDRESS)res,  sleftv_bin);
@@ -1413,7 +1413,7 @@ void libstack::push(const char */*p*/, char *libn)
       ls->next = this;
       ls->libname = omStrDup(libn);
       ls->to_be_done = TRUE;
-      if(this != NULL) ls->cnt = this->cnt+1; else ls->cnt = 0;
+      if(library_stack != NULL) ls->cnt = library_stack->cnt+1; else ls->cnt = 0;
       library_stack = ls;
     }
   }

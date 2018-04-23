@@ -4713,6 +4713,8 @@ static BOOLEAN jjSLIM_GB(leftv res, leftv u)
     WerrorS("ordering must be global for slimgb");
     return TRUE;
   }
+  if (rField_is_numeric(currRing))
+    WarnS("groebner base computations with inexact coefficients can not be trusted due to rounding errors");
   intvec *w=(intvec *)atGet(u,"isHomog",INTVEC_CMD);
   // tHomog hom=testHomog;
   ideal u_id=(ideal)u->Data();
@@ -4819,6 +4821,8 @@ static BOOLEAN jjSBA_2(leftv res, leftv v, leftv u, leftv t)
 }
 static BOOLEAN jjSTD(leftv res, leftv v)
 {
+  if (rField_is_numeric(currRing))
+    WarnS("groebner base computations with inexact coefficients can not be trusted due to rounding errors");
   ideal result;
   ideal v_id=(ideal)v->Data();
   intvec *w=(intvec *)atGet(v,"isHomog",INTVEC_CMD);
@@ -6545,17 +6549,19 @@ static BOOLEAN jjCALL3ARG(leftv res, leftv u)
 
 static BOOLEAN jjCOEF_M(leftv, leftv v)
 {
-  const short t[]={5,VECTOR_CMD,POLY_CMD,MATRIX_CMD,MATRIX_CMD,IDHDL};
-  if (iiCheckTypes(v,t))
-     return TRUE;
-  idhdl c=(idhdl)v->next->next->data;
-  if (v->next->next->next->rtyp!=IDHDL) return TRUE;
-  idhdl m=(idhdl)v->next->next->next->data;
-  idDelete((ideal *)&(c->data.uideal));
-  idDelete((ideal *)&(m->data.uideal));
-  mp_Coef2((poly)v->Data(),(poly)v->next->Data(),
-    (matrix *)&(c->data.umatrix),(matrix *)&(m->data.umatrix),currRing);
-  return FALSE;
+  const short t[]={4,VECTOR_CMD,POLY_CMD,MATRIX_CMD,MATRIX_CMD};
+  if (iiCheckTypes(v,t,1))
+  {
+    idhdl c=(idhdl)v->next->next->data;
+    if (v->next->next->next->rtyp!=IDHDL) return TRUE;
+    idhdl m=(idhdl)v->next->next->next->data;
+    idDelete((ideal *)&(c->data.uideal));
+    idDelete((ideal *)&(m->data.uideal));
+    mp_Coef2((poly)v->Data(),(poly)v->next->Data(),
+      (matrix *)&(c->data.umatrix),(matrix *)&(m->data.umatrix),currRing);
+    return FALSE;
+  }
+  return TRUE;
 }
 
 static BOOLEAN jjDIVISION4(leftv res, leftv v)

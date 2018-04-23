@@ -623,7 +623,7 @@ long p_WTotaldegree(poly p, const ring r)
         break;
       case ringorder_am:
         b1=si_min(b1,r->N);
-	/* no break, continue as ringorder_a*/
+        /* no break, continue as ringorder_a*/
       case ringorder_a:
         for (k=b0 /*r->block0[i]*/;k<=b1 /*r->block1[i]*/;k++)
         { // only one line
@@ -2238,37 +2238,41 @@ poly p_Power(poly p, int i, const ring r)
 void p_Content(poly ph, const ring r)
 {
   if (ph==NULL) return;
+  const coeffs cf=r->cf;
   if (pNext(ph)==NULL)
   {
-    p_SetCoeff(ph,n_Init(1,r->cf),r);
+    p_SetCoeff(ph,n_Init(1,cf),r);
   }
-  if (r->cf->cfSubringGcd==ndGcd) /* trivial gcd*/ return;
+  if (cf->cfSubringGcd==ndGcd) /* trivial gcd*/ return;
   number h=p_InitContent(ph,r); /* first guess of a gcd of all coeffs */
-  poly p=ph;
+  poly p;
+  if(n_IsOne(h,cf))
+  {
+    goto content_finish;
+  }
+  p=ph;
   // take the SubringGcd of all coeffs
   while (p!=NULL)
   {
-    n_Normalize(pGetCoeff(p),r->cf);
-    number d=n_SubringGcd(h,pGetCoeff(p),r->cf);
-    n_Delete(&h,r->cf);
+    n_Normalize(pGetCoeff(p),cf);
+    number d=n_SubringGcd(h,pGetCoeff(p),cf);
+    n_Delete(&h,cf);
     h = d;
-    if(n_IsOne(h,r->cf))
+    if(n_IsOne(h,cf))
     {
-      break;
+      goto content_finish;
     }
     pIter(p);
   }
-  // if foundi<>1, divide by it
-  if(!n_IsOne(h,r->cf))
+  // if found<>1, divide by it
+  p = ph;
+  while (p!=NULL)
   {
-    p = ph;
-    while (p!=NULL)
-    {
-      number d = n_ExactDiv(pGetCoeff(p),h,r->cf);
-      p_SetCoeff(p,d,r);
-      pIter(p);
-    }
+    number d = n_ExactDiv(pGetCoeff(p),h,cf);
+    p_SetCoeff(p,d,r);
+    pIter(p);
   }
+content_finish:
   n_Delete(&h,r->cf);
   // and last: check leading sign:
   if(!n_GreaterZero(pGetCoeff(ph),r->cf)) ph = p_Neg(ph,r);
@@ -3445,7 +3449,7 @@ void p_TakeOutComp(poly *r_p, long comp, poly *r_q, int *lq, const ring r)
   poly p, q, p_prev;
   int l = 0;
 
-#ifdef HAVE_ASSUME
+#ifndef SING_NDEBUG
   int lp = pLength(*r_p);
 #endif
 
@@ -3480,7 +3484,7 @@ void p_TakeOutComp(poly *r_p, long comp, poly *r_q, int *lq, const ring r)
   *r_p = pNext(&pp);
   *r_q = pNext(&qq);
   *lq = l;
-#ifdef HAVE_ASSUME
+#ifndef SING_NDEBUG
   assume(pLength(*r_p) + pLength(*r_q) == lp);
 #endif
   p_Test(*r_p,r);
@@ -3533,8 +3537,33 @@ void  p_Vec2Polys(poly v, poly* *p, int *len, const ring r)
     h=p_Head(v,r);
     k=__p_GetComp(h,r);
     p_SetComp(h,0,r);
-    (*p)[k-1]=p_Add_q((*p)[k-1],h,r);
+    pNext(h)=(*p)[k-1];(*p)[k-1]=h;
     pIter(v);
+  }
+  for(int i=(*len-1);i>=0;i--)
+  {
+    if ((*p)[i]!=NULL) (*p)[i]=pReverse((*p)[i]);
+  }
+}
+
+/// julia: vector to already allocated array (len=p_MaxComp(v,r))
+void  p_Vec2Array(poly v, poly *p, int len, const ring r)
+{
+  poly h;
+  int k;
+
+  for(int i=len-1;i>=0;i--) p[i]=NULL;
+  while (v!=NULL)
+  {
+    h=p_Head(v,r);
+    k=__p_GetComp(h,r);
+    p_SetComp(h,0,r);
+    pNext(h)=p[k-1];p[k-1]=h;
+    pIter(v);
+  }
+  for(int i=len-1;i>=0;i--)
+  {
+    if (p[i]!=NULL) p[i]=pReverse(p[i]);
   }
 }
 
@@ -3615,8 +3644,6 @@ void pEnlargeSet(poly* *p, int l, int increment)
     h=(poly*)omReallocSize((poly*)*p,l*sizeof(poly),(l+increment)*sizeof(poly));
     if (increment>0)
     {
-      //for (i=l; i<l+increment; i++)
-      //  h[i]=NULL;
       memset(&(h[l]),0,increment*sizeof(poly));
     }
   }

@@ -858,9 +858,6 @@ char * versionString(/*const bool bShowDetails = false*/ )
 #if YYDEBUG
               StringAppendS("YYDEBUG=1,");
 #endif
-#ifdef HAVE_ASSUME
-             StringAppendS("ASSUME,");
-#endif
 #ifdef MDEBUG
               StringAppend("MDEBUG=%d,",MDEBUG);
 #endif
@@ -882,6 +879,7 @@ char * versionString(/*const bool bShowDetails = false*/ )
 #ifdef KDEBUG
               StringAppendS("KDEBUG,");
 #endif
+              StringAppendS("\n\t");
 #ifdef __OPTIMIZE__
               StringAppendS("CC:OPTIMIZE,");
 #endif
@@ -891,6 +889,22 @@ char * versionString(/*const bool bShowDetails = false*/ )
 #ifdef __NO_INLINE__
               StringAppendS("CC:NO_INLINE,");
 #endif
+#ifdef HAVE_GENERIC_ADD
+              StringAppendS("GenericAdd,");
+#else
+              StringAppendS("AvoidBranching,");
+#endif
+#ifdef HAVE_GENERIC_MULT
+              StringAppendS("GenericMult,");
+#else
+              StringAppendS("TableMult,");
+#endif
+#ifdef HAVE_INVTABLE
+              StringAppendS("invTable,");
+#else
+              StringAppendS("no invTable,");
+#endif
+              StringAppendS("\n\t");
 #ifdef HAVE_EIGENVAL
               StringAppendS("eigenvalues,");
 #endif
