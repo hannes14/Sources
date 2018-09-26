@@ -10,12 +10,14 @@
 
 #include <string.h>
 
+#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#ifndef XMEMORY_H
 #include "omalloc/omallocClass.h"
+#else
+#include "xalloc/omalloc.h"
 #endif
-#include "misc/mylimits.h"
 
+#include "misc/mylimits.h"
 
 #include "kernel/polys.h"
 #include "polys/operations/pShallowCopyDelete.h"
@@ -219,7 +221,7 @@ public:
 
   // does not delete bucket, just canonicalizes it
   // returned poly is such that Lm(p) \in currRing, Tail(p) \in tailRing
-  KINLINE poly CanonicalizeP();
+  KINLINE void CanonicalizeP();
 
   // makes a copy of the poly of L
   KINLINE void Copy();
@@ -260,7 +262,7 @@ public:
 extern int HCord;
 
 class skStrategy
-#ifndef XMEMORY_H
+#ifdef HAVE_OMALLOC
                  : public omallocClass
 #endif
 {
@@ -502,6 +504,7 @@ poly redNFTail (poly h,const int sl,kStrategy strat);
 int redHoney (LObject* h, kStrategy strat);
 #ifdef HAVE_RINGS
 int redRing (LObject* h,kStrategy strat);
+int redRing_Z (LObject* h,kStrategy strat);
 int redRiloc (LObject* h,kStrategy strat);
 void enterExtendedSpoly(poly h,kStrategy strat);
 void enterExtendedSpolySig(poly h,poly hSig,kStrategy strat);
@@ -589,6 +592,7 @@ int kFindInT(poly p, TSet T, int tlength);
 /// return -1 if no divisor is found
 ///        number of first divisor in T, otherwise
 int kFindDivisibleByInT(const kStrategy strat, const LObject* L, const int start=0);
+int kFindDivisibleByInT_Z(const kStrategy strat, const LObject* L, const int start=0);
 
 /// return -1 if no divisor is found
 ///        number of first divisor in S, otherwise
@@ -632,7 +636,7 @@ BOOLEAN kTest(kStrategy strat);
 // test strat, and test that S is contained in T
 BOOLEAN kTest_TS(kStrategy strat);
 // test LObject
-BOOLEAN kTest_L(LObject* L, ring tailRing = NULL,
+BOOLEAN kTest_L(LObject* L, ring tailRing,
                  BOOLEAN testp = FALSE, int lpos = -1,
                  TSet T = NULL, int tlength = -1);
 // test TObject
@@ -644,7 +648,7 @@ BOOLEAN kTest_S(kStrategy strat);
 #define kTest_TS(A)     (TRUE)
 #define kTest_T(T)      (TRUE)
 #define kTest_S(T)      (TRUE)
-#define kTest_L(T)      (TRUE)
+#define kTest_L(T,R)    (TRUE)
 #endif
 
 
@@ -685,6 +689,12 @@ void f5c (kStrategy strat, int& olddeg, int& minimcnt, int& hilbeledeg,
 //         -1 tailRing change could not be performed due to exceeding exp
 //            bound of currRing
 int ksReducePoly(LObject* PR,
+                 TObject* PW,
+                 poly spNoether = NULL,
+                 number *coef = NULL,
+                 kStrategy strat = NULL);
+
+int ksReducePolyLC(LObject* PR,
                  TObject* PW,
                  poly spNoether = NULL,
                  number *coef = NULL,
@@ -840,4 +850,18 @@ ideal bbaShift(ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat, int upto
 extern  int (*test_PosInT)(const TSet T,const int tl,LObject &h);
 extern  int (*test_PosInL)(const LSet set, const int length,
                 LObject* L,const kStrategy strat);
+
+static inline void kDeleteLcm(LObject *P)
+{
+ if (P->lcm!=NULL)
+ {
+ #ifdef HAVE_RINGS
+   if (rField_is_Ring(currRing))
+     pLmDelete(P->lcm);
+   else
+ #endif
+     pLmFree(P->lcm);
+   P->lcm=NULL;
+ }
+}
 #endif

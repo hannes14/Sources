@@ -317,6 +317,32 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
       return TRUE;
     }
     else
+  /*==================== flatten =============================*/
+    if(strcmp(sys_cmd,"flatten")==0)
+    {
+      if ((h!=NULL) &&(h->Typ()==SMATRIX_CMD))
+      {
+        res->data=(char*)sm_Flatten((ideal)h->Data(),currRing);
+        res->rtyp=SMATRIX_CMD;
+        return FALSE;
+      }
+      else
+        WerrorS("smatrix expected");
+    }
+    else
+  /*==================== unflatten =============================*/
+    if(strcmp(sys_cmd,"unflatten")==0)
+    {
+      const short t1[]={2,SMATRIX_CMD,INT_CMD};
+      if (iiCheckTypes(h,t1,1))
+      {
+        res->data=(char*)sm_UnFlatten((ideal)h->Data(),(int)(long)h->next->Data(),currRing);
+        res->rtyp=SMATRIX_CMD;
+        return res->data==NULL;
+      }
+      else return TRUE;
+    }
+    else
   /*==================== neworder =============================*/
     if(strcmp(sys_cmd,"neworder")==0)
     {
@@ -1478,8 +1504,11 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
     if (strcmp(sys_cmd, "freegb") == 0)
     {
       const short t[]={3,IDEAL_CMD,INT_CMD,INT_CMD};
-      if (iiCheckTypes(h,t,1))
+      const short tM[]={3,MODUL_CMD,INT_CMD,INT_CMD};
+      if (iiCheckTypes(h,tM,0)
+      || (iiCheckTypes(h,t,0)))
       {
+        res->rtyp=h->Typ();
         ideal I=(ideal)h->CopyD();
         h=h->next;
         int uptodeg=(int)((long)(h->Data()));
@@ -1491,10 +1520,13 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
           /* that is there were input errors */
           res->data = I;
         }
-        res->rtyp = IDEAL_CMD;
         return FALSE;
       }
-      else return TRUE;
+      else
+      {
+        WerrorS("system(\"freegb\",`ideal/module`,`int`,`int`) expected");
+        return TRUE;
+      }
     }
     else
   #endif /*SHIFTBBA*/
@@ -3766,20 +3798,6 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
         return TRUE;
     }
     else
-/*==================== tensor =================*/
-    if(strcmp(sys_cmd,"tensor")==0)
-    {
-      const short t[]={2,MODUL_CMD,MODUL_CMD};
-      if (iiCheckTypes(h,t,1))
-      {
-        res->data=(void*)mp_Tensor((ideal)h->Data(),(ideal)h->next->Data(),currRing);
-        res->rtyp=MODUL_CMD;
-        return FALSE;
-      }
-      else
-        return TRUE;
-    }
-    else
 /*==================== GF(p,n) ==================================*/
     if(strcmp(sys_cmd,"GF")==0)
     {
@@ -3787,16 +3805,16 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
       if (iiCheckTypes(h,t,1))
       {
         int p=(int)(long)h->Data();
-	int n=(int)(long)h->next->Data();
-	char *v=(char*)h->next->next->CopyD();
-	GFInfo param;
+        int n=(int)(long)h->next->Data();
+        char *v=(char*)h->next->next->CopyD();
+        GFInfo param;
         param.GFChar = p;
-	param.GFDegree = n;
-	param.GFPar_name = v;
-	coeffs cf= nInitChar(n_GF, &param);
-	res->rtyp=CRING_CMD;
-	res->data=cf;
-	return FALSE;
+        param.GFDegree = n;
+        param.GFPar_name = v;
+        coeffs cf= nInitChar(n_GF, &param);
+        res->rtyp=CRING_CMD;
+        res->data=cf;
+        return FALSE;
       }
       else
         return TRUE;

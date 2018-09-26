@@ -60,7 +60,6 @@ long sba_interreduction_operations;
 
 #include "kernel/GBEngine/kutil.h"
 #include "misc/options.h"
-#include "omalloc/omalloc.h"
 #include "kernel/polys.h"
 #include "kernel/ideals.h"
 #include "kernel/GBEngine/kstd1.h"
@@ -80,6 +79,82 @@ long sba_interreduction_operations;
   int (*test_PosInT)(const TSet T,const int tl,LObject &h);
   int (*test_PosInL)(const LSet set, const int length,
                 LObject* L,const kStrategy strat);
+
+// return -1 if no divisor is found
+//        number of first divisor, otherwise
+int kFindDivisibleByInT_Z(const kStrategy strat, const LObject* L, const int start)
+{
+  unsigned long not_sev = ~L->sev;
+  int j = start;
+
+  const TSet T=strat->T;
+  const unsigned long* sevT=strat->sevT;
+  number rest, mult;
+  if (L->p!=NULL)
+  {
+    const ring r=currRing;
+    const poly p=L->p;
+
+    pAssume(~not_sev == p_GetShortExpVector(p, r));
+
+    loop
+    {
+      if (j > strat->tl) return -1;
+#if defined(PDEBUG) || defined(PDIV_DEBUG)
+      if (p_LmShortDivisibleBy(T[j].p, sevT[j],p, not_sev, r))
+      {
+        mult= n_QuotRem(pGetCoeff(p), pGetCoeff(T[j].p),
+            &rest, currRing->cf);
+        if (!n_IsZero(mult, currRing)) {
+          return j;
+        }
+      }
+#else
+      if (!(sevT[j] & not_sev) &&
+          p_LmDivisibleBy(T[j].p, p, r))
+      {
+        mult = n_QuotRem(pGetCoeff(p), pGetCoeff(T[j].p),
+            &rest, currRing->cf);
+        if (!n_IsZero(mult, currRing)) {
+          return j;
+        }
+      }
+#endif
+      j++;
+    }
+  }
+  else
+  {
+    const poly p=L->t_p;
+    const ring r=strat->tailRing;
+    loop
+    {
+      if (j > strat->tl) return -1;
+#if defined(PDEBUG) || defined(PDIV_DEBUG)
+      if (p_LmShortDivisibleBy(T[j].t_p, sevT[j],
+            p, not_sev, r))
+      {
+        mult = n_QuotRem(pGetCoeff(p), pGetCoeff(T[j].p),
+            &rest, currRing->cf);
+        if (!n_IsZero(mult, currRing)) {
+          return j;
+        }
+      }
+#else
+      if (!(sevT[j] & not_sev) &&
+          p_LmDivisibleBy(T[j].t_p, p, r))
+      {
+        mult = n_QuotRem(pGetCoeff(p), pGetCoeff(T[j].p),
+            &rest, currRing->cf);
+        if (!n_IsZero(mult, currRing)) {
+          return j;
+        }
+      }
+#endif
+      j++;
+    }
+  }
+}
 
 // return -1 if no divisor is found
 //        number of first divisor, otherwise
@@ -435,6 +510,138 @@ poly kFindZeroPoly(poly input_p, ring leadRing, ring tailRing)
 /*2
 *  reduction procedure for the ring Z/2^m
 */
+int redRing_Z (LObject* h,kStrategy strat)
+{
+  if (h->IsNull()) return 0; // spoly is zero (can only occure with zero divisors)
+  if (strat->tl<0) return 1;
+
+  number mult, rest;
+  int at/*,i*/;
+  long d;
+  int j = 0;
+  int pass = 0;
+  // poly zeroPoly = NULL;
+
+// TODO warum SetpFDeg notwendig?
+  h->SetpFDeg();
+  assume(h->pFDeg() == h->FDeg);
+  long reddeg = h->GetpFDeg();
+
+  h->SetShortExpVector();
+  TObject tj; // probably needed as special reducer
+  loop
+  {
+    /* we do not check divisibility of lead coefficients over rings.
+     * this is postponed and checked directly before deciding how to reduce h */
+    j = kFindDivisibleByInT(strat, h);
+    if (j < 0) {
+      j = kFindDivisibleByInT_Z(strat, h);
+      if (j < 0)
+      {
+        // over ZZ: cleanup coefficients by complete reduction with monomials
+        postReduceByMon(h, strat);
+        if(h->p == NULL)
+        {
+          if (h->lcm!=NULL) pLmDelete(h->lcm);
+          h->Clear();
+          tj.Clear();
+          return 0;
+        }
+        if(nIsZero(pGetCoeff(h->p))) return 2;
+        j = kFindDivisibleByInT(strat, h);
+        if(j < 0)
+        {
+          if(strat->tl >= 0)
+              h->i_r1 = strat->tl;
+          else
+              h->i_r1 = -1;
+          if (h->GetLmTailRing() == NULL)
+          {
+            if (h->lcm!=NULL) pLmDelete(h->lcm);
+            h->Clear();
+            tj.Clear();
+            return 0;
+          }
+          return 1;
+        }
+      } else {
+        /* not(lc(reducer) | lc(poly)) && not(lc(poly) | lc(reducer))
+        * => gcd-poly reduction */
+
+        /* first copy T[j] in order to multiply it with a coefficient later on */
+        tj  = strat->T[j];
+        tj.Copy();
+        /* compute division with remainder of lc(h) and lc(T[j]) */
+        rest = n_QuotRem(pGetCoeff(h->p), pGetCoeff(strat->T[j].p),
+            &mult, currRing->cf);
+        /* set corresponding new lead coefficient already. we do not
+        * remove the lead term in ksReducePolyLC, but only apply
+        * a lead coefficient reduction */
+        tj.Mult_nn(rest);
+        ksReducePolyLC(h, &tj, NULL, &mult, strat);
+        tj.Delete();
+      }
+    } else {
+      ksReducePoly(h, &(strat->T[j]), NULL, NULL, strat);
+    }
+    /* printf("\nAfter small red: ");pWrite(h->p); */
+    if (h->GetLmTailRing() == NULL)
+    {
+      if (h->lcm!=NULL) pLmDelete(h->lcm);
+#ifdef KDEBUG
+      h->lcm=NULL;
+#endif
+      h->Clear();
+      tj.Clear();
+      return 0;
+    }
+    h->SetShortExpVector();
+    d = h->SetpFDeg();
+    /*- try to reduce the s-polynomial -*/
+    pass++;
+    if (!TEST_OPT_REDTHROUGH &&
+        (strat->Ll >= 0) && ((d > reddeg) || (pass > strat->LazyPass)))
+    {
+      h->SetLmCurrRing();
+      if (strat->posInLDependsOnLength)
+        h->SetLength(strat->length_pLength);
+      at = strat->posInL(strat->L,strat->Ll,h,strat);
+      if (at <= strat->Ll)
+      {
+#ifdef KDEBUG
+        if (TEST_OPT_DEBUG) Print(" ->L[%d]\n",at);
+#endif
+        enterL(&strat->L,&strat->Ll,&strat->Lmax,*h,at);     // NOT RING CHECKED OLIVER
+        h->Clear();
+        tj.Clear();
+        return -1;
+      }
+    }
+    if (d != reddeg)
+    {
+      if (d >= (long)strat->tailRing->bitmask)
+      {
+        if (h->pTotalDeg() >= (long)strat->tailRing->bitmask)
+        {
+          strat->overflow=TRUE;
+          //Print("OVERFLOW in redRing d=%ld, max=%ld\n",d,strat->tailRing->bitmask);
+          h->GetP();
+          at = strat->posInL(strat->L,strat->Ll,h,strat);
+          enterL(&strat->L,&strat->Ll,&strat->Lmax,*h,at);
+          h->Clear();
+          tj.Clear();
+          return -1;
+        }
+      }
+      else if ((TEST_OPT_PROT) && (strat->Ll < 0))
+      {
+        Print(".%ld",d);mflush();
+        reddeg = d;
+      }
+    }
+  }
+}
+
 int redRing (LObject* h,kStrategy strat)
 {
   if (h->IsNull()) return 0; // spoly is zero (can only occure with zero divisors)
@@ -461,7 +668,7 @@ int redRing (LObject* h,kStrategy strat)
       postReduceByMon(h, strat);
       if(h->p == NULL)
       {
-        if (h->lcm!=NULL) pLmDelete(h->lcm);
+        kDeleteLcm(h);
         h->Clear();
         return 0;
       }
@@ -475,7 +682,7 @@ int redRing (LObject* h,kStrategy strat)
             h->i_r1 = -1;
         if (h->GetLmTailRing() == NULL)
         {
-          if (h->lcm!=NULL) pLmDelete(h->lcm);
+          kDeleteLcm(h);
           h->Clear();
           return 0;
         }
@@ -488,10 +695,7 @@ int redRing (LObject* h,kStrategy strat)
     //printf("\nAfter small red: ");pWrite(h->p);
     if (h->GetLmTailRing() == NULL)
     {
-      if (h->lcm!=NULL) pLmDelete(h->lcm);
-#ifdef KDEBUG
-      h->lcm=NULL;
-#endif
+      kDeleteLcm(h);
       h->Clear();
       return 0;
     }
@@ -634,10 +838,7 @@ int redHomog (LObject* h,kStrategy strat)
     h_p = h->GetLmTailRing();
     if (h_p == NULL)
     {
-      if (h->lcm!=NULL) pLmFree(h->lcm);
-#ifdef KDEBUG
-      h->lcm=NULL;
-#endif
+      kDeleteLcm(h);
       return 0;
     }
     h->SetShortExpVector();
@@ -838,10 +1039,7 @@ int redSig (LObject* h,kStrategy strat)
       h_p = h->GetLmTailRing();
       if (h_p == NULL)
       {
-        if (h->lcm!=NULL) pLmFree(h->lcm);
-#ifdef KDEBUG
-        h->lcm=NULL;
-#endif
+        kDeleteLcm(h);
         return 0;
       }
       h->SetShortExpVector();
@@ -946,7 +1144,7 @@ int redSigRing (LObject* h,kStrategy strat)
             h->i_r1 = -1;
         if (h->GetLmTailRing() == NULL)
         {
-          if (h->lcm!=NULL) pLmDelete(h->lcm);
+          kDeleteLcm(h);
           h->Clear();
           return 0;
         }
@@ -1090,10 +1288,7 @@ int redSigRing (LObject* h,kStrategy strat)
       h_p = h->GetLmTailRing();
       if (h_p == NULL)
       {
-        if (h->lcm!=NULL) pLmFree(h->lcm);
-#ifdef KDEBUG
-        h->lcm=NULL;
-#endif
+        kDeleteLcm(h);
         return 0;
       }
       h->SetShortExpVector();
@@ -1243,7 +1438,7 @@ poly redtailSba (LObject* L, int pos, kStrategy strat, BOOLEAN withT, BOOLEAN no
   }
   //if (TEST_OPT_PROT) { PrintS("N"); mflush(); }
   //L->Normalize(); // HANNES: should have a test
-  kTest_L(L);
+  kTest_L(L,strat->tailRing);
   return L->GetLmCurrRing();
 }
 
@@ -1340,10 +1535,7 @@ int redLazy (LObject* h,kStrategy strat)
 
     if (h_p == NULL)
     {
-      if (h->lcm!=NULL) pLmFree(h->lcm);
-#ifdef KDEBUG
-      h->lcm=NULL;
-#endif
+      kDeleteLcm(h);
       return 0;
     }
     h->SetShortExpVector();
@@ -1513,11 +1705,8 @@ int redHoney (LObject* h, kStrategy strat)
 #endif
     if(h->IsNull())
     {
+      kDeleteLcm(h);
       h->Clear();
-      if (h->lcm!=NULL) pLmFree(h->lcm);
-      #ifdef KDEBUG
-      h->lcm=NULL;
-      #endif
       return 0;
     }
     if (TEST_OPT_IDLIFT)
@@ -1685,7 +1874,7 @@ poly redNF (poly h,int &max_ind,int nonorm,kStrategy strat)
       if (rIsPluralRing(currRing))
       {
         number coef;
-        nc_kBucketPolyRed(P.bucket,strat->S[j],&coef);
+        nc_kBucketPolyRed_NF(P.bucket,strat->S[j],&coef);
         nDelete(&coef);
       }
       else
@@ -1840,7 +2029,7 @@ poly redNFBound (poly h,int &max_ind,int nonorm,kStrategy strat,int bound)
       if (rIsPluralRing(currRing))
       {
         number coef;
-        nc_kBucketPolyRed(P.bucket,strat->S[j],&coef);
+        nc_kBucketPolyRed_NF(P.bucket,strat->S[j],&coef);
         nDelete(&coef);
       }
       else
@@ -2033,7 +2222,7 @@ ideal bba (ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
       strat->P.PrepareRed(strat->use_buckets);
     }
 
-    if (strat->P.p == NULL && strat->P.t_p == NULL)
+    if ((strat->P.p == NULL) && (strat->P.t_p == NULL))
     {
       red_result = 0;
     }
@@ -2143,12 +2332,7 @@ ideal bba (ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
       }
       if (hilb!=NULL) khCheck(Q,w,hilb,hilbeledeg,hilbcount,strat);
 //      Print("[%d]",hilbeledeg);
-      if (strat->P.lcm!=NULL)
-      {
-        if (rField_is_Ring(currRing)) pLmDelete(strat->P.lcm);
-        else                          pLmFree(strat->P.lcm);
-        strat->P.lcm=NULL;
-      }
+      kDeleteLcm(&strat->P);
       if (strat->s_poly!=NULL)
       {
         // the only valid entries are: strat->P.p,
@@ -2226,9 +2410,12 @@ ideal bba (ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
     }
   }
   else if (TEST_OPT_PROT) PrintLn();
+  /* release temp data-------------------------------- */
+  exitBuchMora(strat);
+  /* postprocessing for GB over ZZ --------------------*/
   if (!errorreported)
   {
-    if(rField_is_Ring_Z(currRing))
+    if(rField_is_Z(currRing))
     {
       for(int i = 0;i<=strat->sl;i++)
       {
@@ -2238,19 +2425,17 @@ ideal bba (ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
         }
       }
       finalReduceByMon(strat);
-      for(int i = 0;i<=strat->sl;i++)
+      for(int i = 0;i<IDELEMS(strat->Shdl);i++)
       {
-        if(!nGreaterZero(pGetCoeff(strat->S[i])))
+        if(!nGreaterZero(pGetCoeff(strat->Shdl->m[i])))
         {
-          strat->S[i] = pNeg(strat->S[i]);
+          strat->S[i] = pNeg(strat->Shdl->m[i]);
         }
       }
     }
-    else if (rField_is_Ring(currRing))
-      finalReduceByMon(strat);
+    //else if (rField_is_Ring(currRing))
+    //  finalReduceByMon(strat);
   }
-  /* release temp data-------------------------------- */
-  exitBuchMora(strat);
 //  if (TEST_OPT_WEIGHTM)
 //  {
 //    pRestoreDegProcs(currRing,pFDegOld, pLDegOld);
@@ -2262,6 +2447,7 @@ ideal bba (ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
 //  }
   if ((TEST_OPT_PROT) || (TEST_OPT_DEBUG)) messageStat(hilbcount,strat);
   SI_RESTORE_OPT1(save);
+  /* postprocessing for GB over Q-rings ------------------*/
   if ((Q!=NULL)&&(!errorreported)) updateResult(strat->Shdl,Q,strat);
 
   idTest(strat->Shdl);
@@ -2586,8 +2772,7 @@ ideal sba (ideal F0, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
 #endif
           int pos = posInSyz(strat, strat->P.sig);
           enterSyz(strat->P, strat, pos);
-          if (strat->P.lcm!=NULL)
-            pLmFree(strat->P.lcm);
+          kDeleteLcm(&strat->P);
           red_result = 2;
         }
         else
@@ -2890,7 +3075,7 @@ ideal sba (ideal F0, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
       if(strat->sbaOrder == 0 || strat->sbaOrder == 3)
       {
         int cmp     = pGetComp(strat->P.sig);
-        int max_cmp = IDELEMS(F);
+        unsigned max_cmp = IDELEMS(F);
         int* vv = (int*)omAlloc((currRing->N+1)*sizeof(int));
         p_GetExpV (strat->P.p,vv,currRing);
         LObject Q;
@@ -2917,7 +3102,7 @@ ideal sba (ideal F0, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
         {
           // if the element is not the first one in the given index we build all
           // possible syzygies with elements of higher index
-          for (int i=cmp+1; i<=max_cmp; ++i)
+          for (unsigned i=cmp+1; i<=max_cmp; ++i)
           {
             pos = -1;
             for (int j=0; j<strat->sl; ++j)
@@ -2984,12 +3169,7 @@ ideal sba (ideal F0, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
 #endif
       if (hilb!=NULL) khCheck(Q,w,hilb,hilbeledeg,hilbcount,strat);
 //      Print("[%d]",hilbeledeg);
-      if (strat->P.lcm!=NULL)
-#ifdef HAVE_RINGS
-        pLmDelete(strat->P.lcm);
-#else
-        pLmFree(strat->P.lcm);
-#endif
+      kDeleteLcm(&strat->P);
       if (strat->sl>srmax) srmax = strat->sl;
     }
     else
@@ -3761,12 +3941,7 @@ void f5c (kStrategy strat, int& olddeg, int& minimcnt, int& hilbeledeg,
         if (hilb!=NULL) khCheck(Q,w,hilb,hilbeledeg,hilbcount,strat);
       }
       //      Print("[%d]",hilbeledeg);
-      if (strat->P.lcm!=NULL)
-#ifdef HAVE_RINGS
-        pLmDelete(strat->P.lcm);
-#else
-      pLmFree(strat->P.lcm);
-#endif
+      kDeleteLcm(&strat->P);
       if (strat->sl>srmax) srmax = strat->sl;
     }
     else
@@ -4133,7 +4308,7 @@ ideal bbaShift(ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat, int upto
 
       if (hilb!=NULL) khCheck(Q,w,hilb,hilbeledeg,hilbcount,strat);
 //      Print("[%d]",hilbeledeg);
-      if (strat->P.lcm!=NULL) pLmFree(strat->P.lcm);
+      kDeleteLcm(&strat->P);
     }
     else
     {
@@ -4315,7 +4490,7 @@ int redFirstShift (LObject* h,kStrategy strat)
 #endif
     if (h->IsNull())
     {
-      if (h->lcm!=NULL) pLmFree(h->lcm);
+      kDeleteLcm(h);
       h->Clear();
       return 0;
     }

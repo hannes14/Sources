@@ -70,6 +70,7 @@ void   mp_Monomials(matrix c, int r, int var, matrix m, const ring R);
 matrix mp_Coeffs(ideal I, int var, const ring r);
 
 matrix mp_CoeffProc (poly f, poly vars, const ring r);
+matrix mp_CoeffProcId (ideal I, poly vars, const ring R);
 /// corresponds to Macauley's coef:
 /// the exponent vector of vars has to contain the variables, eg 'xy';
 /// then the poly f is searched for monomials in x and y, these monimials
@@ -93,5 +94,17 @@ extern omBin ip_smatrix_bin;
 
 int mp_Compare(matrix a, matrix b, const ring r);
 
-ideal mp_Tensor(ideal A, ideal B, const ring r);
+// -------------------------------------------------------
+ideal sm_Add(ideal a, ideal b, const ring R);
+ideal sm_Sub(ideal a, ideal b, const ring R);
+ideal sm_Mult(ideal a, ideal b, const ring R);
+ideal sm_Flatten(ideal a, const ring R);
+ideal sm_UnFlatten(ideal a, int col, const ring R);
+poly sm_Trace ( ideal a, const ring R);
+int sm_Compare(ideal a, ideal b, const ring R);
+BOOLEAN sm_Equal(ideal a, ideal b, const ring R);
+ideal sm_Tensor(ideal A, ideal B, const ring r);
+
+#define SMATELEM(A,i,j,R) p_Vec2Poly(A->m[j],i+1,R)
+
 #endif/* MATPOL_H */

@@ -6,7 +6,6 @@
 */
 
 #include "misc/auxiliary.h"
-#include "omalloc/omalloc.h"
 
 #include "factory/factory.h"
 
@@ -163,8 +162,8 @@ number npDiv (number a,number b, const coeffs r)
 #ifndef HAVE_GENERIC_MULT
   int s = r->npLogTable[(long)a] - r->npLogTable[(long)b];
   #ifdef HAVE_GENERIC_ADD
-  if (s < 0)
-    s += r->npPminus1M;
+    if (s < 0)
+      s += r->npPminus1M;
   #else
     #if SIZEOF_LONG == 8
     s += ((long)s >> 63) & r->npPminus1M;
@@ -263,23 +262,9 @@ void npPower (number a, int i, number * result, const coeffs r)
 }
 #endif
 
-static const char* npEati(const char *s, int *i, const coeffs r)
+static inline const char* npEati(const char *s, int *i, const coeffs r)
 {
-  if (((*s) >= '0') && ((*s) <= '9'))
-  {
-    unsigned long ii=0L;
-    do
-    {
-      ii *= 10;
-      ii += *s++ - '0';
-      if (ii >= (MAX_INT_VAL / 10)) ii = ii % r->ch;
-    }
-    while (((*s) >= '0') && ((*s) <= '9'));
-    if (ii >= (unsigned long)r->ch) ii = ii % r->ch;
-    *i=(int)ii;
-  }
-  else (*i) = 1;
-  return s;
+  return nEati((char *)s,i,(int)r->ch);
 }
 
 const char * npRead (const char *s, number *a, const coeffs r)
@@ -343,8 +328,7 @@ static BOOLEAN npCoeffsEqual(const coeffs r, n_coeffType n, void * parameter)
 CanonicalForm npConvSingNFactoryN( number n, BOOLEAN setChar, const coeffs r )
 {
   if (setChar) setCharacteristic( r->ch );
-  CanonicalForm term(npInt( n,r ));
-  return term;
+  return CanonicalForm(npInt( n,r ));
 }
 
 number npConvFactoryNSingN( const CanonicalForm n, const coeffs r)
@@ -372,16 +356,16 @@ static char* npCoeffString(const coeffs cf)
   return omStrDup(npCoeffName(cf));
 }
 
-static void npWriteFd(number n, FILE* f, const coeffs)
+static void npWriteFd(number n, const ssiInfo* d, const coeffs)
 {
-  fprintf(f,"%d ",(int)(long)n);
+  fprintf(d->f_write,"%d ",(int)(long)n);
 }
 
-static number npReadFd(s_buff f, const coeffs)
+static number npReadFd(const ssiInfo *d, const coeffs)
 {
   // read int
   int dd;
-  dd=s_readint(f);
+  dd=s_readint(d->f_read);
   return (number)(long)dd;
 }
 
@@ -674,11 +658,11 @@ nMapFunc npSetMap(const coeffs src, const coeffs dst)
   {
     return npMapMachineInt;
   }
-  if (src->rep==n_rep_gmp) //nCoeff_is_Ring_Z(src) || nCoeff_is_Ring_PtoM(src) || nCoeff_is_Ring_ModN(src))
+  if (src->rep==n_rep_gmp) //nCoeff_is_Z(src) || nCoeff_is_Ring_PtoM(src) || nCoeff_is_Zn(src))
   {
     return npMapGMP;
   }
-  if (src->rep==n_rep_gap_gmp) //nCoeff_is_Ring_Z(src)
+  if (src->rep==n_rep_gap_gmp) //nCoeff_is_Z(src)
   {
     return npMapZ;
   }

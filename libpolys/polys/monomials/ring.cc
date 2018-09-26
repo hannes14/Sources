@@ -8,8 +8,6 @@
 /* includes */
 #include <cmath>
 
-#include "omalloc/omalloc.h"
-
 #include "misc/auxiliary.h"
 #include "misc/mylimits.h"
 #include "misc/options.h"
@@ -411,18 +409,16 @@ void   rWrite(ring r, BOOLEAN details)
 
       if (Q!=NULL)
       {
-//        if (r==currRing)
-//        {
-//          PrintLn();
           iiWriteMatrix((matrix)Q,"scaQ",1,r,0);
-//        }
-//        else
-//            PrintS(" ...");
       }
       else
         PrintS(" (NULL)");
     }
 #endif
+  }
+  if (r->isLPring)
+  {
+    PrintS("\n// letterplace ring");
   }
 #endif
   if (r->qideal!=NULL)
@@ -752,6 +748,23 @@ int rSumInternal(ring r1, ring r2, ring &sum, BOOLEAN vartest, BOOLEAN dp_dp)
       else
       {
         WerrorS("Z/p+...");
+        return -1;
+      }
+    }
+    else if ((getCoeffType(r1->cf)==n_Zn)||(getCoeffType(r1->cf)==n_Znm))
+    {
+      if (getCoeffType(r2->cf)==n_Q)
+      {
+        tmpR.cf=nCopyCoeff(r1->cf);
+      }
+      else if (nCoeff_is_Extension(r2->cf)
+      && (mpz_cmp(r1->cf->modNumber,r2->cf->extRing->cf->modNumber)==0))
+      { // covers transext.cc and algext.cc
+        tmpR.cf=nCopyCoeff(r2->cf);
+      }
+      else
+      {
+        WerrorS("Z/n+...");
         return -1;
       }
     }
@@ -1888,7 +1901,7 @@ BOOLEAN rOrd_is_Totaldegree_Ordering(const ring r)
             rOrder_is_DegOrdering(( rRingOrder_t)r->order[1]))) ||
            (rHasSimpleOrderAA(r) &&
             (rOrder_is_DegOrdering((rRingOrder_t)r->order[1]) ||
-	    ((r->order[1]!=0) &&
+            ((r->order[1]!=0) &&
              rOrder_is_DegOrdering((rRingOrder_t)r->order[2]))))));
 }
 
@@ -2979,8 +2992,11 @@ void rKillModified_Wp_Ring(ring r)
 static void rSetOutParams(ring r)
 {
   r->VectorOut = (r->order[0] == ringorder_c);
-  r->CanShortOut = TRUE;
+  if (rIsNCRing(r))
+    r->CanShortOut=FALSE;
+  else
   {
+    r->CanShortOut = TRUE;
     int i;
     if (rParameter(r)!=NULL)
     {
@@ -5109,8 +5125,8 @@ n_coeffType rFieldType(ring r)
   if (rField_is_Zp_a(r))   return getCoeffType(r->cf);
   if (rField_is_Q_a(r))    return getCoeffType(r->cf);
   if (rField_is_long_C(r)) return n_long_C;
-  if (rField_is_Ring_Z(r)) return n_Z;
-  if (rField_is_Ring_ModN(r)) return n_Zn;
+  if (rField_is_Z(r))         return n_Z;
+  if (rField_is_Zn(r))        return n_Zn;
   if (rField_is_Ring_PtoM(r)) return n_Znm;
   if (rField_is_Ring_2toM(r)) return  n_Z2m;
 

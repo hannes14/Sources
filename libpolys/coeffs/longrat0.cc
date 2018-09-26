@@ -10,7 +10,6 @@
 #include <string.h>
 
 #include "misc/auxiliary.h"
-#include "omalloc/omalloc.h"
 #include "reporter/reporter.h"
 
 #include "coeffs/coeffs.h"
@@ -25,28 +24,6 @@ omBin rnumber_bin = omGetSpecBin(sizeof(snumber)); // TODO: move this into coeff
 //#define INT_TO_SR(INT)  ((number) (((long)INT << 2) + SR_INT))
 #define SR_TO_INT(SR)   (((long)SR) >> 2)
 
-
-/*2
-* extracts a long integer from s, returns the rest
-*/
-const char * nlEatLong(char *s, mpz_ptr i)
-{
-  const char * start=s;
-
-  while (*s >= '0' && *s <= '9') s++;
-  if (*s=='\0')
-  {
-    mpz_set_str(i,start,10);
-  }
-  else
-  {
-    char c=*s;
-    *s='\0';
-    mpz_set_str(i,start,10);
-    *s=c;
-  }
-  return s;
-}
 
 /*2
 * extracts the number a from s, returns the rest
@@ -67,13 +44,13 @@ const char * nlRead (const char *s, number *a, const coeffs r)
     mpz_ptr z=(*a)->z;
     mpz_ptr n=(*a)->n;
     mpz_init(z);
-    s = nlEatLong((char *)s, z);
+    s = nEatLong((char *)s, z);
     if (*s == '/')
     {
       mpz_init(n);
       (*a)->s = 0;
       s++;
-      s = nlEatLong((char *)s, n);
+      s = nEatLong((char *)s, n);
       if (mpz_cmp_si(n,0L)==0)
       {
         WerrorS(nDivBy0);

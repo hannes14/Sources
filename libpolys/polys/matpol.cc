@@ -8,7 +8,6 @@
 
 #include "misc/auxiliary.h"
 
-#include "omalloc/omalloc.h"
 #include "misc/mylimits.h"
 
 #include "misc/intvec.h"
@@ -31,6 +30,7 @@
 
 static poly mp_Exdiv ( poly m, poly d, poly vars, const ring);
 static poly mp_Select (poly fro, poly what, const ring);
+static poly mp_SelectId (ideal I, poly what, const ring R);
 
 /// create a r x c zero-matrix
 matrix mpNew(int r, int c)
@@ -410,7 +410,7 @@ matrix mp_CoeffProc (poly f, poly vars, const ring R)
   {
     co = mpNew(2, 1);
     MATELEM(co,1,1) = p_One(R);
-    MATELEM(co,2,1) = NULL;
+    //MATELEM(co,2,1) = NULL;
     return co;
   }
   sel = mp_Select(f, vars, R);
@@ -425,7 +425,7 @@ matrix mp_CoeffProc (poly f, poly vars, const ring R)
       pIter(sel);
       pNext(h)=NULL;
       MATELEM(co,1,i) = h;
-      MATELEM(co,2,i) = NULL;
+      //MATELEM(co,2,i) = NULL;
       if (p_IsConstant(h, R)) pos_of_1 = i;
     }
   }
@@ -437,7 +437,7 @@ matrix mp_CoeffProc (poly f, poly vars, const ring R)
       pIter(sel);
       pNext(h)=NULL;
       MATELEM(co,1,i) = h;
-      MATELEM(co,2,i) = NULL;
+      //MATELEM(co,2,i) = NULL;
       if (p_IsConstant(h, R)) pos_of_1 = i;
     }
   }
@@ -471,6 +471,86 @@ matrix mp_CoeffProc (poly f, poly vars, const ring R)
       i ++;
     }
     pIter(f);
+  }
+  return co;
+}
+
+matrix mp_CoeffProcId (ideal I, poly vars, const ring R)
+{
+  assume(vars!=NULL);
+  poly sel, h;
+  int l, i;
+  int pos_of_1 = -1;
+  matrix co;
+
+  if (idIs0(I))
+  {
+    co = mpNew(IDELEMS(I)+1,1);
+    MATELEM(co,1,1) = p_One(R);
+    return co;
+  }
+  sel = mp_SelectId(I, vars, R);
+  l = pLength(sel);
+  co = mpNew(IDELEMS(I)+1, l);
+
+  if (rHasLocalOrMixedOrdering(R))
+  {
+    for (i=l; i>=1; i--)
+    {
+      h = sel;
+      pIter(sel);
+      pNext(h)=NULL;
+      MATELEM(co,1,i) = h;
+      //MATELEM(co,2,i) = NULL;
+      if (p_IsConstant(h, R)) pos_of_1 = i;
+    }
+  }
+  else
+  {
+    for (i=1; i<=l; i++)
+    {
+      h = sel;
+      pIter(sel);
+      pNext(h)=NULL;
+      MATELEM(co,1,i) = h;
+      //MATELEM(co,2,i) = NULL;
+      if (p_IsConstant(h, R)) pos_of_1 = i;
+    }
+  }
+  for(int j=0;j<IDELEMS(I);j++)
+  {
+    poly f=I->m[j];
+    while (f!=NULL)
+    {
+      i = 1;
+      loop
+      {
+        if (i!=pos_of_1)
+        {
+          h = mp_Exdiv(f, MATELEM(co,1,i),vars, R);
+          if (h!=NULL)
+          {
+            MATELEM(co,j+2,i) = p_Add_q(MATELEM(co,j+2,i), h, R);
+            break;
+          }
+        }
+        if (i == l)
+        {
+          // check monom 1 last:
+          if (pos_of_1 != -1)
+          {
+            h = mp_Exdiv(f, MATELEM(co,1,pos_of_1),vars, R);
+            if (h!=NULL)
+            {
+              MATELEM(co,j+2,pos_of_1) = p_Add_q(MATELEM(co,j+2,pos_of_1), h, R);
+            }
+          }
+          break;
+        }
+        i ++;
+      }
+      pIter(f);
+    }
   }
   return co;
 }
@@ -681,6 +761,28 @@ static poly mp_Select (poly fro, poly what, const ring R)
     p_Setm(h, R);
     res = p_Insert(h, res, R);
     fro = fro->next;
+  }
+  return res;
+}
+
+static poly mp_SelectId (ideal I, poly what, const ring R)
+{
+  int i;
+  poly h, res;
+  res = NULL;
+  for(int j=0;j<IDELEMS(I);j++)
+  {
+    poly fro=I->m[j];
+    while (fro!=NULL)
+    {
+      h = p_One(R);
+      for (i=1; i<=rVar(R); i++)
+        p_SetExp(h,i, p_GetExp(fro,i, R) * p_GetExp(what, i, R), R);
+      p_SetComp(h, p_GetComp(fro, R), R);
+      p_Setm(h, R);
+      res = p_Insert(h, res, R);
+      fro = fro->next;
+    }
   }
   return res;
 }
@@ -1698,26 +1800,9 @@ matrix mp_Wedge(matrix a, int ar, const ring R)
   return (result);
 }
 
-static void p_DecomposeComp(poly p, poly *a, int l, const ring r)
-{
-  poly h=p;
-  while(h!=NULL)
-  {
-    poly hh=pNext(h);
-    pNext(h)=a[__p_GetComp(h,r)-1];
-    a[__p_GetComp(h,r)-1]=h;
-    p_SetComp(h,0,r);
-    p_SetmComp(h,r);
-    h=hh;
-  }
-  for(int i=0;i<l;i++)
-  {
-    if(a[i]!=NULL) a[i]=pReverse(a[i]);
-  }
-}
-// helper for mp_Tensor
+// helper for sm_Tensor
 // destroyes f, keeps B
-static ideal mp_MultAndShift(poly f, ideal B, int s, const ring r)
+static ideal sm_MultAndShift(poly f, ideal B, int s, const ring r)
 {
   assume(f!=NULL);
   ideal res=idInit(IDELEMS(B),B->rank+s);
@@ -1734,9 +1819,9 @@ static ideal mp_MultAndShift(poly f, ideal B, int s, const ring r)
   p_Delete(&f,r);
   return res;
 }
-// helper for mp_Tensor
+// helper for sm_Tensor
 // updates res, destroyes contents of sm
-static void mp_AddSubMat(ideal res, ideal sm, int col, const ring r)
+static void sm_AddSubMat(ideal res, ideal sm, int col, const ring r)
 {
   for(int i=0;i<IDELEMS(sm);i++)
   {
@@ -1745,9 +1830,9 @@ static void mp_AddSubMat(ideal res, ideal sm, int col, const ring r)
   }
 }
 
-ideal mp_Tensor(ideal A, ideal B, const ring r)
+ideal sm_Tensor(ideal A, ideal B, const ring r)
 {
-  // size of the result n*q x m*p
+  // size of the result m*p x n*q
   int n=IDELEMS(A); // m x n
   int m=A->rank;
   int q=IDELEMS(B); // p x q
@@ -1757,21 +1842,187 @@ ideal mp_Tensor(ideal A, ideal B, const ring r)
   for(int i=0; i<n; i++)
   {
     memset(a,0,m*sizeof(poly));
-    p_DecomposeComp(p_Copy(A->m[i],r),a,m,r);
+    p_Vec2Array(A->m[i],a,m,r);
     for(int j=0;j<m;j++)
     {
       if (a[j]!=NULL)
       {
-        ideal sm=mp_MultAndShift(a[j], // A_i_j
+        ideal sm=sm_MultAndShift(a[j], // A_i_j
                                  B,
                                  j*p, // shift j*p down
                                  r);
-        mp_AddSubMat(res,sm,i*q,r); // add this columns to col i*q ff
+        sm_AddSubMat(res,sm,i*q,r); // add this columns to col i*q ff
         id_Delete(&sm,r); // delete the now empty ideal
       }
     }
   }
   omFreeSize(a,m*sizeof(poly));
   return res;
+}
+// --------------------------------------------------------------------------
+/****************************************
+*  Computer Algebra System SINGULAR     *
+****************************************/
+
+/*
+* ABSTRACT: basic operation for sparse matrices:
+* type: ideal (of column vectors)
+* nrows: I->rank, ncols: IDELEMS(I)
+*/
+
+ideal sm_Add(ideal a, ideal b, const ring R)
+{
+  assume(IDELEMS(a)==IDELEMS(b));
+  assume(a->rank==b->rank);
+  ideal c=idInit(IDELEMS(a),a->rank);
+  for (int k=IDELEMS(a)-1; k>=0; k--)
+    c->m[k] = p_Add_q(p_Copy(a->m[k], R), p_Copy(b->m[k], R), R);
+  return c;
+}
+
+ideal sm_Sub(ideal a, ideal b, const ring R)
+{
+  assume(IDELEMS(a)==IDELEMS(b));
+  assume(a->rank==b->rank);
+  ideal c=idInit(IDELEMS(a),a->rank);
+  for (int k=IDELEMS(a)-1; k>=0; k--)
+    c->m[k] = p_Sub(p_Copy(a->m[k], R), p_Copy(b->m[k], R), R);
+  return c;
+}
+
+ideal sm_Mult(ideal a, ideal b, const ring R)
+{
+  int i, j, k;
+  int m = a->rank;
+  int p = IDELEMS(a);
+  int q = IDELEMS(b);
+
+  assume (IDELEMS(a)==b->rank);
+  ideal c = idInit(q,m);
+
+  for (i=0; i<m; i++)
+  {
+    for (k=0; k<p; k++)
+    {
+      poly aik;
+      if ((aik=SMATELEM(a,i,k,R))!=NULL)
+      {
+        for (j=0; j<q; j++)
+        {
+          poly bkj=SMATELEM(b,k,j,R);
+          if (bkj!=NULL)
+          {
+            poly s = p_Mult_q(p_Copy(aik,R) /*SMATELEM(a,i,k)*/, bkj/*SMATELEM(b,k,j)*/, R);
+            if (s!=NULL) p_SetComp(s,i+1,R);
+            c->m[j]=p_Add_q(c->m[j],s, R);
+          }
+        }
+        p_Delete(&aik,R);
+      }
+    }
+  }
+  for(i=q-1;i>=0;i--) p_Normalize(c->m[i], R);
+  return c;
+}
+
+ideal sm_Flatten(ideal a, const ring R)
+{
+  if (IDELEMS(a)==0) return id_Copy(a,R);
+  ideal res=idInit(1,IDELEMS(a)*a->rank);
+  for(int i=0;i<IDELEMS(a);i++)
+  {
+    if(a->m[i]!=NULL)
+    {
+      poly p=p_Copy(a->m[i],R);
+      if (i==0) res->m[0]=p;
+      else
+      {
+        p_Shift(&p,i*a->rank,R);
+        res->m[0]=p_Add_q(res->m[0],p,R);
+      }
+    }
+  }
+  return res;
+}
+
+ideal sm_UnFlatten(ideal a, int col, const ring R)
+{
+  if ((IDELEMS(a)!=1)
+  ||((a->rank % col)!=0))
+  {
+    Werror("wrong format: %d x %d for unflatten",(int)a->rank,IDELEMS(a));
+    return NULL;
+  }
+  int row=a->rank/col;
+  ideal res=idInit(col,row);
+  poly p=a->m[0];
+  while(p!=NULL)
+  {
+    poly h=p_Head(p,R);
+    int comp=p_GetComp(h,R);
+    int c=(comp-1)/row;
+    int r=comp%row; if (r==0) r=row;
+    p_SetComp(h,r,R); p_SetmComp(h,R);
+    res->m[c]=p_Add_q(res->m[c],h,R);
+    pIter(p);
+  }
+  return res;
+}
+
+/*2
+*returns the trace of matrix a
+*/
+poly sm_Trace ( ideal a, const ring R)
+{
+  int i;
+  int n = (IDELEMS(a)<a->rank) ? IDELEMS(a) : a->rank;
+  poly  t = NULL;
+
+  for (i=0; i<=n; i++)
+    t = p_Add_q(t, p_Copy(SMATELEM(a,i,i,R), R), R);
+  return t;
+}
+
+int sm_Compare(ideal a, ideal b, const ring R)
+{
+  if (IDELEMS(a)<IDELEMS(b)) return -1;
+  else if (IDELEMS(a)>IDELEMS(b)) return 1;
+  if ((a->rank)<(b->rank)) return -1;
+  else if ((a->rank)<(b->rank)) return 1;
+
+  unsigned ii=IDELEMS(a)-1;
+  unsigned j=0;
+  int r=0;
+  while (j<=ii)
+  {
+    r=p_Compare(a->m[j],b->m[j],R);
+    if (r!=0) return r;
+    j++;
+  }
+  return r;
+}
+
+BOOLEAN sm_Equal(ideal a, ideal b, const ring R)
+{
+  if ((a->rank!=b->rank) || (IDELEMS(a)!=IDELEMS(b)))
+    return FALSE;
+  int i=IDELEMS(a)-1;
+  while (i>=0)
+  {
+    if (a->m[i]==NULL)
+    {
+      if (b->m[i]!=NULL) return FALSE;
+    }
+    else if (b->m[i]==NULL) return FALSE;
+    else if (p_Cmp(a->m[i],b->m[i], R)!=0) return FALSE;
+    i--;
+  }
+  i=IDELEMS(a)-1;
+  while (i>=0)
+  {
+    if(!p_EqualPolys(a->m[i],b->m[i], R)) return FALSE;
+    i--;
+  }
+  return TRUE;
 }
 

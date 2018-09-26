@@ -11,7 +11,6 @@
 #ifndef P_PROCS_H
 #define P_PROCS_H
 
-#include "omalloc/omalloc.h"
 #include "polys/monomials/ring.h"
 
 /*------------- p_Proc stuff ----------------------*/
@@ -46,8 +45,10 @@ typedef struct p_Procs_s
   p_Mult_nn_Proc_Ptr                    p_Mult_nn;
   pp_Mult_nn_Proc_Ptr                   pp_Mult_nn;
   pp_Mult_mm_Proc_Ptr                   pp_Mult_mm;
+  pp_Mult_mm_Proc_Ptr                   pp_mm_Mult;
   pp_Mult_mm_Noether_Proc_Ptr           pp_Mult_mm_Noether;
   p_Mult_mm_Proc_Ptr                    p_Mult_mm;
+  p_Mult_mm_Proc_Ptr                    p_mm_Mult;
   p_Add_q_Proc_Ptr                      p_Add_q;
   p_Minus_mm_Mult_qq_Proc_Ptr           p_Minus_mm_Mult_qq;
   p_Neg_Proc_Ptr                        p_Neg;

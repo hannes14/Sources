@@ -6,7 +6,7 @@
 *           transcendental variables t_1, ..., t_s, where s >= 1.
 *           Denoting the implemented coeffs object by cf, then these numbers
 *           are represented as quotients of polynomials living in the
-*           polynomial ring K[t_1, .., t_s] represented by cf->extring.
+*           polynomial ring K[t_1, .., t_s] represented by cf->extRing.
 *
 *           An element of K(t_1, .., t_s) may have numerous representations,
 *           due to the possibility of common polynomial factors in the
@@ -34,7 +34,6 @@
 
 #include "misc/auxiliary.h"
 
-#include "omalloc/omalloc.h"
 #include "factory/factory.h"
 
 #include "reporter/reporter.h"
@@ -61,7 +60,7 @@
 /* constants for controlling the complexity of numbers */
 #define ADD_COMPLEXITY 1   /**< complexity increase due to + and - */
 #define MULT_COMPLEXITY 2   /**< complexity increase due to * and / */
-#define DIFF_COMPLEXITY 2   /**< complexity increase due to * and / */
+#define DIFF_COMPLEXITY 2   /**< complexity increase due to diff */
 #define BOUND_COMPLEXITY 10   /**< maximum complexity of a number */
 
 /// TRUE iff num. represents 1
@@ -272,6 +271,19 @@ static BOOLEAN ntDBTest(number a, const char *f, const int l, const coeffs cf)
   return TRUE;
 }
 #endif
+
+poly gcd_over_Q ( poly f, poly g, const ring r)
+{
+  poly res;
+  f=p_Copy(f,r);
+  p_Cleardenom(f, r);
+  g=p_Copy(g,r);
+  p_Cleardenom(g, r);
+  res=singclap_gcd_r(f,g,r);
+  p_Delete(&f, r);
+  p_Delete(&g, r);
+  return res;
+}
 
 /* returns the bottom field in this field extension tower; if the tower
    is flat, i.e., if there is no extension, then r itself is returned;
@@ -1050,13 +1062,12 @@ static number ntMult(number a, number b, const coeffs cf)
 
     if(da == NULL)
     { // both fa && fb are ?? // NULL!
-      assume (da == NULL && db == NULL);
       DEN(result) = NULL;
       COM(result) = 0;
+      p_Normalize(g,ntRing);
     }
     else
     {
-      assume (da != NULL && db == NULL);
       DEN(result) = p_Copy(da, ntRing);
       COM(result) = COM(fa) + MULT_COMPLEXITY;
       heuristicGcdCancellation((number)result, cf);
@@ -1067,7 +1078,6 @@ static number ntMult(number a, number b, const coeffs cf)
   { // b = ?? / ??
     if (da == NULL)
     { // a == ? // NULL
-      assume( db != NULL && da == NULL);
       DEN(result) = p_Copy(db, ntRing);
       COM(result) = COM(fb) + MULT_COMPLEXITY;
       heuristicGcdCancellation((number)result, cf);
@@ -1075,7 +1085,6 @@ static number ntMult(number a, number b, const coeffs cf)
     }
     else /* both den's are != 1 */
     {
-      assume (da != NULL && db != NULL);
       DEN(result) = pp_Mult_qq(da, db, ntRing);
       COM(result) = COM(fa) + COM(fb) + MULT_COMPLEXITY;
       heuristicGcdCancellation((number)result, cf);
@@ -1470,15 +1479,21 @@ static void definiteGcdCancellation(number a, const coeffs cf,
        remove those nested fractions, in case there are any. */
     if (nCoeff_is_Zp(ntCoeffs))
     {
-      NUM (f) = p_Div_nn (NUM (f), p_GetCoeff (DEN(f),ntRing), ntRing);
+      number d=p_GetCoeff (DEN(f),ntRing);
+      BOOLEAN d_not_1=FALSE;
+      if (!n_IsOne(d,ntCoeffs))
+      {
+        NUM (f) = p_Div_nn (NUM (f), d, ntRing);
+        d_not_1=TRUE;
+      }
       if (p_IsConstant (DEN (f), ntRing))
       {
         p_Delete(&DEN (f), ntRing);
         DEN (f) = NULL;
       }
-      else
+      else if (d_not_1)
       {
-        p_Norm (DEN (f),ntRing);
+        DEN (f) = p_Div_nn (DEN (f), d, ntRing);
       }
     } else if (nCoeff_is_Q(ntCoeffs)) handleNestedFractionsOverQ(f, cf);
   }
@@ -1679,15 +1694,13 @@ static number ntNormalizeHelper(number a, number b, const coeffs cf)
       n_Delete(&contentpb, ntCoeffs);
       contentpa= tmp;
 
-      /* singclap_gcd destroys its arguments; we hence need copies: */
-      pGcd = singclap_gcd(p_Copy(NUM(fa),ntRing), p_Copy(DEN(fb),ntRing), ntRing);
+      pGcd = gcd_over_Q(NUM(fa), DEN(fb), ntRing);
       pGcd= __p_Mult_nn (pGcd, contentpa, ntRing);
       n_Delete(&contentpa, ntCoeffs);
     }
   }
   else
-    /* singclap_gcd destroys its arguments; we hence need copies: */
-    pGcd = singclap_gcd(p_Copy(NUM(fa),ntRing), p_Copy(DEN(fb),ntRing), cf->extRing);
+    pGcd = singclap_gcd_r(NUM(fa), DEN(fb), ntRing);
 
   /* Note that, over Q, singclap_gcd will remove the denominators in all
      rational coefficients of pa and pb, before starting to compute
@@ -1764,14 +1777,13 @@ static number ntGcd(number a, number b, const coeffs cf)
       n_Delete(&contentpb, ntCoeffs);
       contentpa= tmp;
 
-      /* singclap_gcd destroys its arguments; we hence need copies: */
-      pGcd = singclap_gcd(p_Copy(NUM(fa),ntRing), p_Copy(NUM(fb),ntRing), ntRing);
+      pGcd = gcd_over_Q(NUM(fa), NUM(fb), ntRing);
       pGcd= __p_Mult_nn (pGcd, contentpa, ntRing);
       n_Delete(&contentpa, ntCoeffs);
     }
   }
   else
-    pGcd = singclap_gcd(p_Copy(NUM(fa),ntRing), p_Copy(NUM(fb),ntRing), ntRing);
+    pGcd = singclap_gcd_r(NUM(fa), NUM(fb), ntRing);
   /* Note that, over Q, singclap_gcd will remove the denominators in all
      rational coefficients of pa and pb, before starting to compute
      the gcd. Thus, we do not need to ensure that the coefficients of
@@ -2084,6 +2096,10 @@ nMapFunc ntSetMap(const coeffs src, const coeffs dst)
       if (src->ch == dst->ch) return ntMapPP;         /// Z/p     --> Z/p(T)
       else return ntMapUP;                            /// Z/u     --> Z/p(T)
     }
+    if (nCoeff_is_Zn(src) && nCoeff_is_Zn(bDst))
+    {
+      if (mpz_cmp(src->modNumber,bDst->modNumber)==0) return ntMapPP;         /// Z/p     --> Z/p(T)
+    }
   }
   if (h != 1) return NULL;
   //if ((!nCoeff_is_Zp(bDst)) && (!nCoeff_is_Q(bDst))) return NULL;
@@ -2262,7 +2278,11 @@ static void ntClearContent(ICoeffsEnumerator& numberCollectionEnumerator, number
     if( cand == NULL )
       cand = p_Copy(num, R);
     else
-      cand = singclap_gcd(cand, p_Copy(num, R), R); // gcd(cand, num)
+    {
+      poly tmp = singclap_gcd_r(cand, num, R); // gcd(cand, num)
+      p_Delete(&cand,R);
+      cand=tmp;
+    }
 
     if( p_IsConstant(cand, R) )
       break;
@@ -2353,7 +2373,7 @@ static void ntClearDenominators(ICoeffsEnumerator& numberCollectionEnumerator, n
       // cand === LCM( cand, den )!!!!
       // NOTE: maybe it's better to make the product and clearcontent afterwards!?
       // TODO: move the following to factory?
-      poly gcd = singclap_gcd(p_Copy(cand, R), p_Copy(den, R), R); // gcd(cand, den) is monic no mater leading coeffs! :((((
+      poly gcd = singclap_gcd_r(cand, den, R); // gcd(cand, den) is monic no mater leading coeffs! :((((
       if (nCoeff_is_Q (Q))
       {
         number LcGcd= n_SubringGcd (p_GetCoeff (cand, R), p_GetCoeff(den, R), Q);
@@ -2532,8 +2552,8 @@ BOOLEAN ntInitChar(coeffs cf, void * infoStruct)
   cf->cfFarey        = ntFarey;
   cf->cfChineseRemainder = ntChineseRemainder;
   cf->cfInt          = ntInt;
-  cf->cfInpNeg          = ntNeg;
   cf->cfAdd          = ntAdd;
+  cf->cfInpNeg       = ntNeg;
   cf->cfSub          = ntSub;
   cf->cfMult         = ntMult;
   cf->cfDiv          = ntDiv;

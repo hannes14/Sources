@@ -7,7 +7,11 @@
 
 #include "kernel/mod2.h"
 
+#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
+#else
+#include "xalloc/omalloc.h"
+#endif
 
 #include "misc/intvec.h"
 #include "misc/options.h"
@@ -36,6 +40,7 @@
 #include "Singular/attrib.h"
 #include "Singular/links/silink.h"
 #include "Singular/attrib.h"
+#include "Singular/ipprint.h"
 #include "Singular/subexpr.h"
 #include "Singular/blackbox.h"
 #include "Singular/number2.h"
@@ -115,6 +120,24 @@ void sleftv::Print(leftv store, int spaces)
         case BIGINTMAT_CMD:
           ((bigintmat *)d)->pprint(colmax);
           break;
+        case BUCKET_CMD:
+          {
+            sBucket_pt b=(sBucket_pt)d;
+            if ((e==NULL)
+            && (TEST_V_QRING)
+            &&(currRing->qideal!=NULL))
+            {
+              poly p=pCopy(sBucketPeek(b));
+              jjNormalizeQRingP(p);
+              PrintNSpaces(spaces);
+              pWrite0(p);
+              pDelete(&p);
+              break;
+            }
+            else
+              sBucketPrint(b);
+          }
+          break;
         case UNKNOWN:
         case DEF_CMD:
           PrintNSpaces(spaces);
@@ -141,6 +164,13 @@ void sleftv::Print(leftv store, int spaces)
         case MATRIX_CMD:
           iiWriteMatrix((matrix)d,n,2, currRing, spaces);
           break;
+        case SMATRIX_CMD:
+        {
+          matrix m = id_Module2Matrix(id_Copy((ideal)d,currRing),currRing);
+          ipPrint_MA0(m, n);
+          id_Delete((ideal *) &m,currRing);
+          break;
+        }
         case MODUL_CMD:
         case IDEAL_CMD:
           if ((TEST_V_QRING)  &&(currRing->qideal!=NULL)
@@ -297,7 +327,7 @@ void sleftv::Print(leftv store, int spaces)
     else if (t!=LIST_CMD) PrintS(" ");
     next->Print(NULL,spaces);
   }
-  else if (t!=LIST_CMD)
+  else if ((t!=LIST_CMD)&&(t!=SMATRIX_CMD))
   {
     PrintLn();
   }
@@ -426,11 +456,14 @@ static inline void * s_internalCopy(const int t,  void *d)
 #endif
     case BIGINTMAT_CMD:
       return (void*)bimCopy((bigintmat *)d);
+    case BUCKET_CMD:
+      return (void*)sBucketCopy((sBucket_pt)d);
     case INTVEC_CMD:
     case INTMAT_CMD:
       return (void *)ivCopy((intvec *)d);
     case MATRIX_CMD:
       return (void *)mp_Copy((matrix)d, currRing);
+    case SMATRIX_CMD:
     case IDEAL_CMD:
     case MODUL_CMD:
       return  (void *)idCopy((ideal)d);
@@ -527,6 +560,12 @@ void s_internalDelete(const int t,  void *d, const ring r)
       delete v;
       break;
     }
+    case BUCKET_CMD:
+    {
+      sBucket_pt b=(sBucket_pt)d;
+      sBucketDeleteAndDestroy(&b);
+      break;
+    }
     case INTVEC_CMD:
     case INTMAT_CMD:
     {
@@ -541,6 +580,7 @@ void s_internalDelete(const int t,  void *d, const ring r)
       m->preimage=NULL;
       /* no break: continue as IDEAL*/
     }
+    case SMATRIX_CMD:
     case MATRIX_CMD:
     case IDEAL_CMD:
     case MODUL_CMD:
@@ -688,7 +728,13 @@ void sleftv::Copy(leftv source)
   void *d=source->Data();
   if(!errorreported)
   {
-    data=s_internalCopy(rtyp,d);
+    if (rtyp==BUCKET_CMD)
+    {
+      rtyp=POLY_CMD;
+      data=(void*)pCopy(sBucketPeek((sBucket_pt)d));
+    }
+    else
+      data=s_internalCopy(rtyp,d);
     if ((source->attribute!=NULL)||(source->e!=NULL))
       attribute=source->CopyA();
     flag=source->flag;
@@ -843,7 +889,8 @@ char *  sleftv::String(void *d, BOOLEAN typed, int dim)
           StringAppendS((char*) (typed ? ")" : ""));
           return StringEndS();
           }
-
+        case BUCKET_CMD:
+          return sBucketString((sBucket_pt)d);
         case MATRIX_CMD:
           s= iiStringMatrix((matrix)d,dim, currRing);
           if (typed)
@@ -859,14 +906,18 @@ char *  sleftv::String(void *d, BOOLEAN typed, int dim)
             return omStrDup(s);
           }
 
-        case MODUL_CMD:
         case IDEAL_CMD:
         case MAP_CMD:
+        case MODUL_CMD:
+        case SMATRIX_CMD:
           s= iiStringMatrix((matrix)d,dim, currRing);
           if (typed)
           {
             char* ns = (char*) omAlloc(strlen(s) + 10);
-            sprintf(ns, "%s(%s)", (t/*Typ()*/==MODUL_CMD ? "module" : "ideal"), s);
+            if ((t/*Typ()*/==IDEAL_CMD)||(t==MAP_CMD))
+              sprintf(ns, "ideal(%s)", s);
+            else /*MODUL_CMD, SMATRIX_CMD */
+              sprintf(ns, "module(%s)", s);
             omFree(s);
             omCheckAddr(ns);
             return ns;
@@ -1053,6 +1104,7 @@ int  sleftv::Typ()
     case IDEAL_CMD:
     case MATRIX_CMD:
     case MAP_CMD:
+    case SMATRIX_CMD:
       r=POLY_CMD;
       break;
     case MODUL_CMD:
@@ -1276,6 +1328,45 @@ void * sleftv::Data()
       }
       else
         r=(char *)I->m[index-1];
+      break;
+    }
+    case SMATRIX_CMD:
+    {
+      ideal I=(ideal)d;
+      int c;
+      sleftv tmp;
+      tmp.Init();
+      tmp.rtyp=POLY_CMD;
+      if ((index>0)&& (index<=I->rank)
+      && (e->next!=NULL)
+      && ((c=e->next->start)>0) &&(c<=IDELEMS(I)))
+      {
+        r=(char*)SMATELEM(I,index-1,c-1,currRing);
+      }
+      else
+      {
+        r=NULL;
+      }
+      tmp.data=r;
+      if ((rtyp==IDHDL)||(rtyp==SMATRIX_CMD))
+      {
+        tmp.next=next; next=NULL;
+        d=NULL;
+        CleanUp();
+        memcpy(this,&tmp,sizeof(tmp));
+      }
+      // and, remember, r is also the result...
+      else
+      {
+        // ???
+        // here we still have a memory leak...
+        // example: list L="123","456";
+        // L[1][2];
+        // therefore, it should never happen:
+        assume(0);
+        // but if it happens: here is the temporary fix:
+        // omMarkAsStaticAddr(r);
+      }
       break;
     }
     case STRING_CMD:

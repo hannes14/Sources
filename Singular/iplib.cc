@@ -10,7 +10,6 @@
 #include "Singular/tok.h"
 #include "misc/options.h"
 #include "Singular/ipid.h"
-#include "omalloc/omalloc.h"
 #include "polys/monomials/ring.h"
 #include "Singular/subexpr.h"
 #include "Singular/ipid.h"
@@ -532,7 +531,7 @@ BOOLEAN iiMake_proc(idhdl pn, package pack, leftv sl)
                  err=iiPStart(pn,sl);
                  break;
     case LANG_C:
-                 leftv res = (leftv)omAllocBin(sleftv_bin);
+                 leftv res = (leftv)omAlloc0Bin(sleftv_bin);
                  err = (pi->data.o.function)(res, sl);
                  memcpy(&iiRETURNEXPR,res,sizeof(iiRETURNEXPR));
                  omFreeBin((ADDRESS)res,  sleftv_bin);
@@ -1139,6 +1138,7 @@ BOOLEAN load_modules(const char *newlib, char *fullname, BOOLEAN autoexport)
   else
   {
     pl = enterid( plib,0, PACKAGE_CMD, &IDROOT, TRUE );
+    omFree(plib); /* enterid copied plib*/
     IDPACKAGE(pl)->libname=omStrDup(newlib);
   }
   IDPACKAGE(pl)->language = LANG_C;

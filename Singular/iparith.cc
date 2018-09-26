@@ -10,8 +10,6 @@
 
 #include "kernel/mod2.h"
 
-#include "omalloc/omalloc.h"
-
 #include "factory/factory.h"
 
 #include "coeffs/bigintmat.h"
@@ -80,18 +78,16 @@
 
 #include <ctype.h>
 
-ring rCompose(const lists  L, const BOOLEAN check_comp=TRUE, const long bitmask=0x7fff);
-
-// defaults for all commands: NO_PLURAL | NO_RING | ALLOW_ZERODIVISOR
+// defaults for all commands: NO_NC | NO_RING | ALLOW_ZERODIVISOR
 
 #ifdef HAVE_PLURAL
   #include "kernel/GBEngine/ratgring.h"
   #include "kernel/GBEngine/nc.h"
   #include "polys/nc/nc.h"
   #include "polys/nc/sca.h"
-  #define  PLURAL_MASK 3
+  #define  NC_MASK (3+64)
 #else /* HAVE_PLURAL */
-  #define  PLURAL_MASK     0
+  #define  NC_MASK     0
 #endif /* HAVE_PLURAL */
 
 #ifdef HAVE_RINGS
@@ -102,12 +98,14 @@ ring rCompose(const lists  L, const BOOLEAN check_comp=TRUE, const long bitmask=
   #define ZERODIVISOR_MASK 0
 #endif
 #define ALLOW_PLURAL     1
-#define NO_PLURAL        0
+#define NO_NC            0
 #define COMM_PLURAL      2
 #define ALLOW_RING       4
 #define NO_RING          0
 #define NO_ZERODIVISOR   8
 #define ALLOW_ZERODIVISOR  0
+#define ALLOW_LP         64
+#define ALLOW_NC         ALLOW_LP|ALLOW_PLURAL
 
 #define ALLOW_ZZ (ALLOW_RING|NO_ZERODIVISOR)
 
@@ -774,9 +772,31 @@ static BOOLEAN jjPLUS_N(leftv res, leftv u, leftv v)
   res->data = (char *)(nAdd((number)u->Data(), (number)v->Data()));
   return jjPLUSMINUS_Gen(res,u,v);
 }
-static BOOLEAN jjPLUS_P(leftv res, leftv u, leftv v)
+static BOOLEAN jjPLUS_V(leftv res, leftv u, leftv v)
 {
   res->data = (char *)(pAdd((poly)u->CopyD(POLY_CMD) , (poly)v->CopyD(POLY_CMD)));
+  return jjPLUSMINUS_Gen(res,u,v);
+}
+static BOOLEAN jjPLUS_B(leftv res, leftv u, leftv v)
+{
+  //res->data = (char *)(pAdd((poly)u->CopyD(POLY_CMD) , (poly)v->CopyD(POLY_CMD)));
+  sBucket_pt b=sBucketCreate(currRing);
+  poly p=(poly)u->CopyD(POLY_CMD);
+  int l=pLength(p);
+  sBucket_Add_p(b,p,l);
+  p= (poly)v->CopyD(POLY_CMD);
+  l=pLength(p);
+  sBucket_Add_p(b,p,l);
+  res->data=(void*)b;
+  return jjPLUSMINUS_Gen(res,u,v);
+}
+static BOOLEAN jjPLUS_B_P(leftv res, leftv u, leftv v)
+{
+  sBucket_pt b=(sBucket_pt)u->CopyD(BUCKET_CMD);
+  poly p= (poly)v->CopyD(POLY_CMD);
+  int l=pLength(p);
+  sBucket_Add_p(b,p,l);
+  res->data=(void*)b;
   return jjPLUSMINUS_Gen(res,u,v);
 }
 static BOOLEAN jjPLUS_IV(leftv res, leftv u, leftv v)
@@ -807,6 +827,18 @@ static BOOLEAN jjPLUS_MA(leftv res, leftv u, leftv v)
   {
      Werror("matrix size not compatible(%dx%d, %dx%d)",
              MATROWS(A),MATCOLS(A),MATROWS(B),MATCOLS(B));
+     return TRUE;
+  }
+  return jjPLUSMINUS_Gen(res,u,v);
+}
+static BOOLEAN jjPLUS_SM(leftv res, leftv u, leftv v)
+{
+  ideal A=(ideal)u->Data(); ideal B=(ideal)v->Data();
+  res->data = (char *)(sm_Add(A , B, currRing));
+  if (res->data==NULL)
+  {
+     Werror("matrix size not compatible(%dx%d, %dx%d)",
+             (int)A->rank,IDELEMS(A),(int)B->rank,IDELEMS(B));
      return TRUE;
   }
   return jjPLUSMINUS_Gen(res,u,v);
@@ -867,9 +899,32 @@ static BOOLEAN jjMINUS_N(leftv res, leftv u, leftv v)
   res->data = (char *)(nSub((number)u->Data(), (number)v->Data()));
   return jjPLUSMINUS_Gen(res,u,v);
 }
-static BOOLEAN jjMINUS_P(leftv res, leftv u, leftv v)
+static BOOLEAN jjMINUS_V(leftv res, leftv u, leftv v)
 {
   res->data = (char *)(pSub((poly)u->CopyD(POLY_CMD) , (poly)v->CopyD(POLY_CMD)));
+  return jjPLUSMINUS_Gen(res,u,v);
+}
+static BOOLEAN jjMINUS_B_P(leftv res, leftv u, leftv v)
+{
+  sBucket_pt b=(sBucket_pt)u->CopyD(BUCKET_CMD);
+  poly p= (poly)v->CopyD(POLY_CMD);
+  int l=pLength(p);
+  p=p_Neg(p,currRing);
+  sBucket_Add_p(b,p,l);
+  res->data=(void*)b;
+  return jjPLUSMINUS_Gen(res,u,v);
+}
+static BOOLEAN jjMINUS_B(leftv res, leftv u, leftv v)
+{
+  sBucket_pt b=sBucketCreate(currRing);
+  poly p=(poly)u->CopyD(POLY_CMD);
+  int l=pLength(p);
+  sBucket_Add_p(b,p,l);
+  p= (poly)v->CopyD(POLY_CMD);
+  p=p_Neg(p,currRing);
+  l=pLength(p);
+  sBucket_Add_p(b,p,l);
+  res->data=(void*)b;
   return jjPLUSMINUS_Gen(res,u,v);
 }
 static BOOLEAN jjMINUS_IV(leftv res, leftv u, leftv v)
@@ -900,6 +955,19 @@ static BOOLEAN jjMINUS_MA(leftv res, leftv u, leftv v)
   {
      Werror("matrix size not compatible(%dx%d, %dx%d)",
              MATROWS(A),MATCOLS(A),MATROWS(B),MATCOLS(B));
+     return TRUE;
+  }
+  return jjPLUSMINUS_Gen(res,u,v);
+  return FALSE;
+}
+static BOOLEAN jjMINUS_SM(leftv res, leftv u, leftv v)
+{
+  ideal A=(ideal)u->Data(); ideal B=(ideal)v->Data();
+  res->data = (char *)(sm_Sub(A , B, currRing));
+  if (res->data==NULL)
+  {
+     Werror("matrix size not compatible(%dx%d, %dx%d)",
+             (int)A->rank,IDELEMS(A),(int)B->rank,IDELEMS(B));
      return TRUE;
   }
   return jjPLUSMINUS_Gen(res,u,v);
@@ -1084,6 +1152,21 @@ static BOOLEAN jjTIMES_MA(leftv res, leftv u, leftv v)
     return jjOP_REST(res,u,v);
   return FALSE;
 }
+static BOOLEAN jjTIMES_SM(leftv res, leftv u, leftv v)
+{
+  ideal A=(ideal)u->Data(); ideal B=(ideal)v->Data();
+  res->data = (char *)sm_Mult(A,B,currRing);
+  if (res->data==NULL)
+  {
+     Werror("matrix size not compatible(%dx%d, %dx%d) in *",
+             (int)A->rank,IDELEMS(A),(int)B->rank,IDELEMS(B));
+     return TRUE;
+  }
+  id_Normalize((ideal)res->data,currRing);
+  if ((v->next!=NULL) || (u->next!=NULL))
+    return jjOP_REST(res,u,v);
+  return FALSE;
+}
 static BOOLEAN jjGE_BI(leftv res, leftv u, leftv v)
 {
   number h=n_Sub((number)u->Data(),(number)v->Data(),coeffs_BIGINT);
@@ -1251,6 +1334,12 @@ static BOOLEAN jjEQUAL_Ma(leftv res, leftv u, leftv v)
   jjEQUAL_REST(res,u,v);
   return FALSE;
 }
+static BOOLEAN jjEQUAL_SM(leftv res, leftv u, leftv v)
+{
+  res->data = (char *)((long)sm_Equal((ideal)u->Data(),(ideal)v->Data(),currRing));
+  jjEQUAL_REST(res,u,v);
+  return FALSE;
+}
 static BOOLEAN jjEQUAL_R(leftv res, leftv u, leftv v)
 {
   res->data = (char *)(long)(u->Data()==v->Data());
@@ -1369,6 +1458,29 @@ static BOOLEAN jjINDEX_P(leftv res, leftv u, leftv v)
   }
   return FALSE;
 }
+static BOOLEAN jjINDEX_PBu(leftv res, leftv u, leftv v)
+{
+  sBucket_pt b=(sBucket_pt)u->CopyD();
+  sBucketCanonicalize(b);
+  int l; poly p,pp;
+  sBucketDestroyAdd(b, &pp, &l);
+  int i=(int)(long)v->Data();
+  int j=0;
+  p=pp;
+  while (p!=NULL)
+  {
+    j++;
+    if (j==i)
+    {
+      res->data=(char *)pHead(p);
+      p_Delete(&pp,currRing);
+      return FALSE;
+    }
+    pIter(p);
+  }
+  p_Delete(&pp,currRing);
+  return FALSE;
+}
 static BOOLEAN jjINDEX_P_IV(leftv res, leftv u, leftv v)
 {
   poly p=(poly)u->Data();
@@ -1400,32 +1512,9 @@ static BOOLEAN jjINDEX_P_IV(leftv res, leftv u, leftv v)
 }
 static BOOLEAN jjINDEX_V(leftv res, leftv u, leftv v)
 {
-  poly p=(poly)u->CopyD(VECTOR_CMD);
-  poly r=p; // pointer to the beginning of component i
-  poly o=NULL;
+  poly p=(poly)u->Data();
   int i=(int)(long)v->Data();
-  while (p!=NULL)
-  {
-    if (pGetComp(p)!=i)
-    {
-      if (r==p) r=pNext(p);
-      if (o!=NULL)
-      {
-        if (pNext(o)!=NULL) pLmDelete(&pNext(o));
-        p=pNext(o);
-      }
-      else
-        pLmDelete(&p);
-    }
-    else
-    {
-      pSetComp(p, 0);
-      p_SetmComp(p, currRing);
-      o=p;
-      p=pNext(o);
-    }
-  }
-  res->data=(char *)r;
+  res->data=(char *)p_Vec2Poly(p,i,currRing);
   return FALSE;
 }
 static BOOLEAN jjINDEX_V_IV(leftv res, leftv u, leftv v)
@@ -1705,6 +1794,13 @@ static BOOLEAN jjCOEF(leftv res, leftv u, leftv v)
   res->data=(char *)mp_CoeffProc((poly)u->Data(),p /*(poly)v->Data()*/,currRing);
   return FALSE;
 }
+static BOOLEAN jjCOEF_Id(leftv res, leftv u, leftv v)
+{
+  poly p=(poly)v->Data();
+  if ((p==NULL)||(pNext(p)!=NULL)) return TRUE;
+  res->data=(char *)mp_CoeffProcId((ideal)u->Data(),p /*(poly)v->Data()*/,currRing);
+  return FALSE;
+}
 static BOOLEAN jjCOEFFS_Id(leftv res, leftv u, leftv v)
 {
   int i=pVar((poly)v->Data());
@@ -1823,7 +1919,7 @@ static BOOLEAN jjDIM2(leftv res, leftv v, leftv w)
     /* drop degree zero generator from vv (if any) */
     if (i != -1) pDelete(&vv->m[i]);
     long d = (long)scDimInt(vv, ww);
-    if (rField_is_Ring_Z(currRing) && (i == -1)) d++;
+    if (rField_is_Z(currRing) && (i == -1)) d++;
     res->data = (char *)d;
     idDelete(&vv); idDelete(&ww);
     return FALSE;
@@ -2083,13 +2179,9 @@ static BOOLEAN jjFETCH(leftv res, leftv u, leftv v)
     if ((nMap=n_SetMap(r->cf,currRing->cf))==NULL)
     {
       // Allow imap/fetch to be make an exception only for:
-      if ( (rField_is_Q_a(r) &&  // Q(a..) -> Q(a..) || Q || Zp || Zp(a)
-            (rField_is_Q(currRing) || rField_is_Q_a(currRing) ||
-             (rField_is_Zp(currRing) || rField_is_Zp_a(currRing))))
-           ||
-           (rField_is_Zp_a(r) &&  // Zp(a..) -> Zp(a..) || Zp
-            (rField_is_Zp(currRing, r->cf->ch) ||
-             rField_is_Zp_a(currRing, r->cf->ch))) )
+      if (nCoeff_is_Extension(r->cf) &&  // Q(a..) -> Q(a..) || Q || Zp || Zp(a)
+         ((n_SetMap(r->cf->extRing->cf,currRing->cf)!=NULL)
+         || (nCoeff_is_Extension(currRing->cf) && (n_SetMap(r->cf->extRing->cf,currRing->cf->extRing->cf)!=NULL))))
       {
         par_perm_size=rPar(r);
       }
@@ -2286,7 +2378,7 @@ static BOOLEAN jjGCD_P(leftv res, leftv u, leftv v)
 static BOOLEAN jjHILBERT2(leftv res, leftv u, leftv v)
 {
 #ifdef HAVE_RINGS
-  if (rField_is_Ring_Z(currRing))
+  if (rField_is_Z(currRing))
   {
     PrintS("// NOTE: computation of Hilbert series etc. is being\n");
     PrintS("//       performed for generic fibre, that is, over Q\n");
@@ -3208,13 +3300,14 @@ static BOOLEAN jjSTD_1(leftv res, leftv u, leftv v)
   ideal result;
   assumeStdFlag(u);
   ideal i1=(ideal)(u->Data());
+  int ii1=idElem(i1); /* size of i1 */
   ideal i0;
   int r=v->Typ();
   if ((/*v->Typ()*/r==POLY_CMD) ||(r==VECTOR_CMD))
   {
-    i0=idInit(1,i1->rank); // TODO: rank is wrong (if v is a vector!)
-    i0->m[0]=(poly)v->Data();
-    int ii0=idElem(i0); /* size of i0 */
+    poly p=(poly)v->Data();
+    i0=idInit(1,i1->rank);
+    i0->m[0]=p;
     i1=idSimpleAdd(i1,i0); //
     memset(i0->m,0,sizeof(poly)*IDELEMS(i0));
     idDelete(&i0);
@@ -3238,9 +3331,9 @@ static BOOLEAN jjSTD_1(leftv res, leftv u, leftv v)
     BITSET save1;
     SI_SAVE_OPT1(save1);
     si_opt_1|=Sy_bit(OPT_SB_1);
-    /* ii0 appears to be the position of the first element of il that
+    /* ii1 appears to be the position of the first element of il that
        does not belong to the old SB ideal */
-    result=kStd(i1,currRing->qideal,hom,&w,NULL,0,ii0);
+    result=kStd(i1,currRing->qideal,hom,&w,NULL,0,ii1);
     SI_RESTORE_OPT1(save1);
     idDelete(&i1);
     idSkipZeroes(result);
@@ -3250,7 +3343,6 @@ static BOOLEAN jjSTD_1(leftv res, leftv u, leftv v)
   else /*IDEAL/MODULE*/
   {
     i0=(ideal)v->CopyD();
-    int ii0=idElem(i0); /* size of i0 */
     i1=idSimpleAdd(i1,i0); //
     memset(i0->m,0,sizeof(poly)*IDELEMS(i0));
     idDelete(&i0);
@@ -3264,6 +3356,7 @@ static BOOLEAN jjSTD_1(leftv res, leftv u, leftv v)
         // no warnung: this is legal, if i in std(i,p)
         // is homogeneous, but p not
         w=NULL;
+        hom=isNotHomog;
       }
       else
       {
@@ -3271,20 +3364,13 @@ static BOOLEAN jjSTD_1(leftv res, leftv u, leftv v)
         hom=isHomog;
       }
     }
-    if (ii0*4 >= 3*IDELEMS(i1)) // MAGIC: add few poly to large SB: 3/4
-    {
-      BITSET save1;
-      SI_SAVE_OPT1(save1);
-      si_opt_1|=Sy_bit(OPT_SB_1);
-      /* ii0 appears to be the position of the first element of il that
-       does not belong to the old SB ideal */
-      result=kStd(i1,currRing->qideal,hom,&w,NULL,0,ii0);
-      SI_RESTORE_OPT1(save1);
-    }
-    else
-    {
-      result=kStd(i1,currRing->qideal,hom,&w);
-    }
+    BITSET save1;
+    SI_SAVE_OPT1(save1);
+    si_opt_1|=Sy_bit(OPT_SB_1);
+    /* ii1 appears to be the position of the first element of i1 that
+     does not belong to the old SB ideal */
+    result=kStd(i1,currRing->qideal,hom,&w,NULL,0,ii1);
+    SI_RESTORE_OPT1(save1);
     idDelete(&i1);
     idSkipZeroes(result);
     if (w!=NULL) atSet(res,omStrDup("isHomog"),w,INTVEC_CMD);
@@ -3303,7 +3389,32 @@ static BOOLEAN jjSYZ_2(leftv res, leftv u, leftv v)
   if (w!=NULL) delete w;
   if (TEST_OPT_RETURN_SB) setFlag(res,FLAG_STD);
   return FALSE;
-
+}
+static BOOLEAN jjTENSOR(leftv res, leftv u, leftv v)
+{
+  ideal A=(ideal)u->Data();
+  ideal B=(ideal)v->Data();
+  res->data = (char *)sm_Tensor(A,B,currRing);
+  return FALSE;
+}
+static BOOLEAN jjTENSOR_Ma(leftv res, leftv u, leftv v)
+{
+  sleftv tmp_u,tmp_v,tmp_res;
+  int index=iiTestConvert(MATRIX_CMD,SMATRIX_CMD,dConvertTypes);
+  iiConvert(MATRIX_CMD,SMATRIX_CMD,index,u,&tmp_u,dConvertTypes);
+  iiConvert(MATRIX_CMD,SMATRIX_CMD,index,v,&tmp_v,dConvertTypes);
+  tmp_res.Init();
+  tmp_res.rtyp=SMATRIX_CMD;
+  BOOLEAN bo=jjTENSOR(&tmp_res,&tmp_u,&tmp_v);
+  if (!bo)
+  {
+    index=iiTestConvert(SMATRIX_CMD,MATRIX_CMD,dConvertTypes);
+    iiConvert(SMATRIX_CMD,MATRIX_CMD,index,&tmp_res,res,dConvertTypes);
+  }
+  tmp_u.CleanUp();
+  tmp_v.CleanUp();
+  tmp_res.CleanUp();
+  return bo;
 }
 static BOOLEAN jjVARSTR2(leftv res, leftv u, leftv v)
 {
@@ -3675,7 +3786,7 @@ static BOOLEAN jjDEGREE(leftv res, leftv v)
 {
   SPrintStart();
 #ifdef HAVE_RINGS
-  if (rField_is_Ring_Z(currRing))
+  if (rField_is_Z(currRing))
   {
     PrintS("// NOTE: computation of degree is being performed for\n");
     PrintS("//       generic fibre, that is, over Q\n");
@@ -3824,7 +3935,7 @@ static BOOLEAN jjDIM(leftv res, leftv v)
     if(j == -1)
     {
       d = (long)scDimInt(vv, currRing->qideal);
-      if(rField_is_Ring_Z(currRing))
+      if(rField_is_Z(currRing))
         d++;
     }
     else
@@ -3858,7 +3969,7 @@ static BOOLEAN jjDIM(leftv res, leftv v)
         if (j != -1) pDelete(&vc->m[j]);
         dcurr = (long)scDimInt(vc, currRing->qideal);
         // the following assumes the ground rings to be either zero- or one-dimensional
-        if((j==-1) && rField_is_Ring_Z(currRing))
+        if((j==-1) && rField_is_Z(currRing))
         {
           // should also be activated for other euclidean domains as groundfield
           dcurr++;
@@ -3914,7 +4025,7 @@ static BOOLEAN jjEXECUTE(leftv, leftv v)
 static BOOLEAN jjFACSTD(leftv res, leftv v)
 {
   lists L=(lists)omAllocBin(slists_bin);
-  if (currRing->cf->convSingNFactoryN!=NULL) /* conversion to factory*/
+  if (currRing->cf->convSingNFactoryN!=ndConvSingNFactoryN) /* conversion to factory*/
   {
     ideal_list p,h;
     h=kStdfac((ideal)v->Data(),NULL,testHomog,NULL);
@@ -4038,7 +4149,7 @@ static BOOLEAN jjHIGHCORNER_M(leftv res, leftv v)
 static BOOLEAN jjHILBERT(leftv, leftv v)
 {
 #ifdef HAVE_RINGS
-  if (rField_is_Ring_Z(currRing))
+  if (rField_is_Z(currRing))
   {
     PrintS("// NOTE: computation of Hilbert series etc. is being\n");
     PrintS("//       performed for generic fibre, that is, over Q\n");
@@ -4053,7 +4164,7 @@ static BOOLEAN jjHILBERT(leftv, leftv v)
 static BOOLEAN jjHILBERT_IV(leftv res, leftv v)
 {
 #ifdef HAVE_RINGS
-  if (rField_is_Ring_Z(currRing))
+  if (rField_is_Z(currRing))
   {
     PrintS("// NOTE: computation of Hilbert series etc. is being\n");
     PrintS("//       performed for generic fibre, that is, over Q\n");
@@ -4313,7 +4424,14 @@ static BOOLEAN jjLISTRING(leftv res, leftv v)
   lists l=(lists)v->Data();
   long mm=(long)atGet(v,"maxExp",INT_CMD);
   if (mm==0) mm=0x7fff;
-  ring r=rCompose(l,TRUE,mm);
+  int isLetterplace=(int)(long)atGet(v,"isLetterplaceRing",INT_CMD);
+  ring r=rCompose(l,TRUE,mm,isLetterplace);
+  if (isLetterplace)
+  {
+    r->ShortOut=FALSE;
+    r->CanShortOut=FALSE;
+    r->isLPring=TRUE;
+  }
   res->data=(char *)r;
   return (r==NULL);
 }
@@ -4976,6 +5094,7 @@ static BOOLEAN jjTYPEOF(leftv res, leftv v)
     case MAP_CMD:
     case PROC_CMD:
     case RING_CMD:
+    case SMATRIX_CMD:
     //case QRING_CMD:
     case INTMAT_CMD:
     case BIGINTMAT_CMD:
@@ -4984,6 +5103,7 @@ static BOOLEAN jjTYPEOF(leftv res, leftv v)
     case CNUMBER_CMD:
     #endif
     case BIGINT_CMD:
+    case BUCKET_CMD:
     case LIST_CMD:
     case PACKAGE_CMD:
     case LINK_CMD:
@@ -5396,6 +5516,35 @@ static BOOLEAN jjBRACK_Ma(leftv res, leftv u, leftv v,leftv w)
   }
   return FALSE;
 }
+static BOOLEAN jjBRACK_SM(leftv res, leftv u, leftv v,leftv w)
+{
+  ideal m= (ideal)u->Data();
+  int   r = (int)(long)v->Data();
+  int   c = (int)(long)w->Data();
+  //Print("gen. elem %d, %d\n",r,c);
+  if ((r<1)||(r>m->rank)||(c<1)||(c>IDELEMS(m)))
+  {
+    Werror("wrong range[%d,%d] in matrix %s(%d x %d)",r,c,u->Fullname(),
+      (int)m->rank,IDELEMS(m));
+    return TRUE;
+  }
+  res->data=u->data; u->data=NULL;
+  res->rtyp=u->rtyp; u->rtyp=0;
+  res->name=u->name; u->name=NULL;
+  Subexpr e=jjMakeSub(v);
+          e->next=jjMakeSub(w);
+  if (u->e==NULL)
+    res->e=e;
+  else
+  {
+    Subexpr h=u->e;
+    while (h->next!=NULL) h=h->next;
+    h->next=e;
+    res->e=u->e;
+    u->e=NULL;
+  }
+  return FALSE;
+}
 static BOOLEAN jjBRACK_Ma_I_IV(leftv res, leftv u, leftv v,leftv w)
 {
   sleftv t;
@@ -5703,7 +5852,7 @@ static BOOLEAN jjHILBERT3(leftv res, leftv u, leftv v, leftv w)
     return TRUE;
   }
 #ifdef HAVE_RINGS
-  if (rField_is_Ring_Z(currRing))
+  if (rField_is_Z(currRing))
   {
     PrintS("// NOTE: computation of Hilbert series etc. is being\n");
     PrintS("//       performed for generic fibre, that is, over Q\n");
@@ -6191,6 +6340,19 @@ static BOOLEAN jjSUBST_Test(leftv v,leftv w,
   }
   return FALSE;
 }
+static BOOLEAN jjSUBST_Bu(leftv res, leftv u, leftv v,leftv w)
+{
+  // generic conversion from polyBucket to poly:
+  // force this to be the first try everytime
+  poly p; int l;
+  sBucket_pt bu=(sBucket_pt)w->CopyD();
+  sBucketDestroyAdd(bu,&p,&l);
+  sleftv tmpw;
+  tmpw.Init();
+  tmpw.rtyp=POLY_CMD;
+  tmpw.data=p;
+  return iiExprArith3(res, iiOp, u, v, &tmpw);
+}
 static BOOLEAN jjSUBST_P(leftv res, leftv u, leftv v,leftv w)
 {
   int ringvar;
@@ -6306,7 +6468,7 @@ static BOOLEAN jjMATRIX_Mo(leftv res, leftv u, leftv v,leftv w)
 {
   int mi=(int)(long)v->Data();
   int ni=(int)(long)w->Data();
-  if ((mi<1)||(ni<1))
+  if ((mi<0)||(ni<1))
   {
     Werror("converting module to matrix: dimensions must be positive(%dx%d)",mi,ni);
     return TRUE;
@@ -6339,6 +6501,19 @@ static BOOLEAN jjMATRIX_Ma(leftv res, leftv u, leftv v,leftv w)
   }
   id_Delete((ideal *)&I,currRing);
   res->data = (char *)m;
+  return FALSE;
+}
+static BOOLEAN jjSMATRIX_Mo(leftv res, leftv u, leftv v,leftv w)
+{
+  int mi=(int)(long)v->Data();
+  int ni=(int)(long)w->Data();
+  if ((mi<0)||(ni<1))
+  {
+    Werror("converting to smatrix: dimensions must be positive(%dx%d)",mi,ni);
+    return TRUE;
+  }
+  res->data = (char *)id_ResizeModule((ideal)u->CopyD(),
+           mi,ni,currRing);
   return FALSE;
 }
 static BOOLEAN jjLIFT3(leftv res, leftv u, leftv v, leftv w)
@@ -6737,13 +6912,9 @@ static BOOLEAN jjFETCH_M(leftv res, leftv u)
     if ((nMap=n_SetMap(r->cf,currRing->cf))==NULL)
     {
       // Allow imap/fetch to be make an exception only for:
-      if ( (rField_is_Q_a(r) &&  // Q(a..) -> Q(a..) || Q || Zp || Zp(a)
-            (rField_is_Q(currRing) || rField_is_Q_a(currRing) ||
-             (rField_is_Zp(currRing) || rField_is_Zp_a(currRing))))
-           ||
-           (rField_is_Zp_a(r) &&  // Zp(a..) -> Zp(a..) || Zp
-            (rField_is_Zp(currRing, r->cf->ch) ||
-             rField_is_Zp_a(currRing, r->cf->ch))) )
+      if (nCoeff_is_Extension(r->cf) &&  // Q(a..) -> Q(a..) || Q || Zp || Zp(a)
+         ((n_SetMap(r->cf->extRing->cf,currRing->cf)!=NULL)
+         || (nCoeff_is_Extension(currRing->cf) && (n_SetMap(r->cf->extRing->cf,currRing->cf->extRing->cf)!=NULL))))
       {
         par_perm_size=rPar(r);
       }
@@ -7376,6 +7547,8 @@ static BOOLEAN jjREDUCE4(leftv res, leftv u)
   leftv u2=u1->next;
   leftv u3=u2->next;
   leftv u4=u3->next;
+  int u1t=u1->Typ(); if (u1t==BUCKET_CMD) u1t=POLY_CMD;
+  int u2t=u2->Typ(); if (u2t==BUCKET_CMD) u2t=POLY_CMD;
   if((u3->Typ()==INT_CMD)&&(u4->Typ()==INTVEC_CMD))
   {
     int save_d=Kstd1_deg;
@@ -7393,7 +7566,7 @@ static BOOLEAN jjREDUCE4(leftv res, leftv u)
     return r;
   }
   else
-  if((u1->Typ()==IDEAL_CMD)&&(u2->Typ()==MATRIX_CMD)&&(u3->Typ()==IDEAL_CMD)&&
+  if((u1t==IDEAL_CMD)&&(u2t==MATRIX_CMD)&&(u3->Typ()==IDEAL_CMD)&&
      (u4->Typ()==INT_CMD))
   {
     assumeStdFlag(u3);
@@ -7412,18 +7585,24 @@ static BOOLEAN jjREDUCE4(leftv res, leftv u)
     return FALSE;
   }
   else
-  if((u1->Typ()==POLY_CMD)&&(u2->Typ()==POLY_CMD)&&(u3->Typ()==IDEAL_CMD)&&
+  if((u1t==POLY_CMD)&&(u2t==POLY_CMD)&&(u3->Typ()==IDEAL_CMD)&&
      (u4->Typ()==INT_CMD))
   {
+    poly u1p;
+    if (u1->Typ()==BUCKET_CMD) u1p=sBucketPeek((sBucket_pt)u1->Data());
+    else                     u1p=(poly)u1->Data();
+    poly u2p;
+    if (u2->Typ()==BUCKET_CMD) u2p=sBucketPeek((sBucket_pt)u2->Data());
+    else                     u2p=(poly)u2->Data();
     assumeStdFlag(u3);
-    if(!pIsUnit((poly)u2->Data()))
+    if(!pIsUnit(u2p))
     {
       WerrorS("2nd argument must be a unit");
       return TRUE;
     }
     res->rtyp=POLY_CMD;
-    res->data=(char*)redNF(idCopy((ideal)u3->Data()),pCopy((poly)u1->Data()),
-                           pCopy((poly)u2->Data()),(int)(long)u4->Data());
+    res->data=(char*)redNF((ideal)u3->CopyD(),pCopy(u1p),
+                           pCopy(u2p),(int)(long)u4->Data());
     return FALSE;
   }
   else
@@ -9085,17 +9264,25 @@ static BOOLEAN check_valid(const int p, const int op)
   #ifdef HAVE_PLURAL
   if (rIsPluralRing(currRing))
   {
-    if ((p & PLURAL_MASK)==0 /*NO_PLURAL*/)
+    if ((p & NC_MASK)==NO_NC)
     {
       WerrorS("not implemented for non-commutative rings");
       return TRUE;
     }
-    else if ((p & PLURAL_MASK)==2 /*, COMM_PLURAL */)
+    else if ((p & NC_MASK)==COMM_PLURAL)
     {
       Warn("assume commutative subalgebra for cmd `%s` in >>%s<<",Tok2Cmdname(op),my_yylinebuf);
       return FALSE;
     }
     /* else, ALLOW_PLURAL */
+  }
+  else if (currRing->isLPring)
+  {
+    if ((p & ALLOW_LP)==0)
+    {
+      Werror("`%s` not implemented for letterplace rings in >>%s<<",Tok2Cmdname(op),my_yylinebuf);
+      return TRUE;
+    }
   }
   #endif
 #ifdef HAVE_RINGS

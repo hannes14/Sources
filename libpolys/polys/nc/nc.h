@@ -42,11 +42,6 @@ void nc_rKill(ring r);
 BOOLEAN nc_CheckSubalgebra(poly PolyVar, ring r);
 
 // NC pProcs:
-typedef poly (*mm_Mult_p_Proc_Ptr)(const poly m, poly p, const ring r);
-typedef poly (*mm_Mult_pp_Proc_Ptr)(const poly m, const poly p, const ring r);
-
-
-
 typedef poly (*SPoly_Proc_Ptr)(const poly p1, const poly p2, const ring r);
 typedef poly (*SPolyReduce_Proc_Ptr)(const poly p1, poly p2, const ring r);
 
@@ -55,11 +50,8 @@ typedef void (*bucket_Proc_Ptr)(kBucket_pt b, poly p, number *c);
 struct nc_pProcs
 {
 public:
-  mm_Mult_p_Proc_Ptr                    mm_Mult_p;
-  mm_Mult_pp_Proc_Ptr                   mm_Mult_pp;
-
-  bucket_Proc_Ptr                       BucketPolyRed;
-  bucket_Proc_Ptr                       BucketPolyRed_Z;
+  bucket_Proc_Ptr                       BucketPolyRed_NF; /* reduce b with p, c==1*/
+  bucket_Proc_Ptr                       BucketPolyRed_Z; /* reduce c*b with p, return also c */
 
   SPoly_Proc_Ptr                        SPoly;
   SPolyReduce_Proc_Ptr                  ReduceSPoly;
@@ -231,10 +223,9 @@ poly nc_p_Plus_mm_Mult_qq(poly p, const poly m, const poly q, int &lp,
 // returns m*p, does neither destroy p nor m
 static inline poly nc_mm_Mult_pp(const poly m, const poly p, const ring r)
 {
-  assume(rIsPluralRing(r));
-  assume(r->GetNC()->p_Procs.mm_Mult_pp!=NULL);
-  return r->GetNC()->p_Procs.mm_Mult_pp(m, p, r);
-//  return pp_Mult_mm( p, m, r);
+  assume(rIsNCRing(r));
+  assume(r->p_Procs->pp_mm_Mult!=NULL);
+  return r->p_Procs->pp_mm_Mult(p, m, r);
 }
 
 
@@ -242,8 +233,8 @@ static inline poly nc_mm_Mult_pp(const poly m, const poly p, const ring r)
 static inline poly nc_mm_Mult_p(const poly m, poly p, const ring r)
 {
   assume(rIsPluralRing(r));
-  assume(r->GetNC()->p_Procs.mm_Mult_p!=NULL);
-  return r->GetNC()->p_Procs.mm_Mult_p(m, p, r);
+  assume(r->p_Procs->p_mm_Mult!=NULL);
+  return r->p_Procs->p_mm_Mult(p, m, r);
 //   return p_Mult_mm( p, m, r);
 }
 
@@ -281,18 +272,18 @@ static inline void nc_PolyReduce(poly &b, const poly p, number *c, const ring r)
 }
 */
 
-static inline void nc_kBucketPolyRed(kBucket_pt b, poly p, number *c)
+static inline void nc_kBucketPolyRed_NF(kBucket_pt b, poly p, number *c)
 {
   const ring r = b->bucket_ring;
   assume(rIsPluralRing(r));
 
 //   return gnc_kBucketPolyRedNew(b, p, c);
 
-  assume(r->GetNC()->p_Procs.BucketPolyRed!=NULL);
-  return r->GetNC()->p_Procs.BucketPolyRed(b, p, c);
+  assume(r->GetNC()->p_Procs.BucketPolyRed_NF!=NULL);
+  return r->GetNC()->p_Procs.BucketPolyRed_NF(b, p, c);
 }
 
-static inline void nc_BucketPolyRed_Z(kBucket_pt b, poly p, number *c)
+static inline void nc_kBucketPolyRed_Z(kBucket_pt b, poly p, number *c)
 {
   const ring r = b->bucket_ring;
   assume(rIsPluralRing(r));

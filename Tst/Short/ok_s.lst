@@ -1,8 +1,10 @@
 arr
 abusalem
 branchTo
+bug_bucket
 bug_curvepar
 bug_ecart
+bug_mem_Z
 bug_misc
 bug_minpoly
 bug_minpoly2
@@ -83,6 +85,7 @@ bug_tr785
 bug_tr806
 bug_tr820
 bug_tr822
+bug_tr834
 bug_genus_etc
 conv_bi
 facstd
@@ -104,6 +107,7 @@ gcd5primtest
 gcd5test
 gcd_univar_p_s
 gcd_univar_p_alpha_s
+homalg
 modular_s
 modstd_s
 modules
@@ -138,4 +142,6 @@ nchilb_test5
 combinat
 methods
 sets
+ssi_Z
+
 

@@ -7,7 +7,6 @@
 
 #include "kernel/mod2.h"
 
-#include "omalloc/omalloc.h"
 #include "misc/mylimits.h"
 #include "libpolys/misc/intvec.h"
 #include <assert.h>
@@ -803,7 +802,7 @@ std::vector<std::vector<int> > soleli1( std::vector<std::vector<int> > eqs)
   }
   //listsprint(pre);
   std::vector<int> yaya;
-  for(i=0;i<re.size(),pre.size()>0;i++)
+  for(i=0;(i<re.size()) && (pre.size()>0);i++)
   {
     yaya=eli1(re[i],pre[0]);
     //listprint(yaya);
@@ -3135,7 +3134,7 @@ void firstorderdef_setup(SModulFunctions* p)
 
 
 
-extern "C" int SI_MOD_INIT(stanleyreisnerlib)(SModulFunctions* p)
+extern "C" int SI_MOD_INIT(cohomo)(SModulFunctions* p)
 {
   firstorderdef_setup(p);
   return MAX_TOK;

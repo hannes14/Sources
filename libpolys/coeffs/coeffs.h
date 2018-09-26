@@ -10,7 +10,11 @@
 #define COEFFS_H
 
 #include "misc/auxiliary.h"
+#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
+#else
+#include "xalloc/omalloc.h"
+#endif
 
 #include "misc/sirandom.h"
 /* for assume: */
@@ -54,9 +58,8 @@ struct snumber;
 typedef struct snumber *   number;
 
 /* standard types */
-struct ip_sring;
-typedef struct ip_sring *         ring;
-typedef struct ip_sring const *   const_ring;
+//struct ip_sring;
+//typedef struct ip_sring *         ring; /* already needed in s_buff.h*/
 
 /// @class coeffs coeffs.h coeffs/coeffs.h
 ///
@@ -275,8 +278,8 @@ struct n_Procs_s
    //CF: tries to find a canonical map from src -> dst
    nMapFunc (*cfSetMap)(const coeffs src, const coeffs dst);
 
-   void    (*cfWriteFd)(number a, FILE *f, const coeffs r);
-   number  (*cfReadFd)( s_buff f, const coeffs r);
+   void    (*cfWriteFd)(number a, const ssiInfo *f, const coeffs r);
+   number  (*cfReadFd)( const ssiInfo *f, const coeffs r);
 
    /// Inplace: a *= b
    void    (*cfInpMult)(number &a, number b, const coeffs r);
@@ -747,22 +750,14 @@ static FORCE_INLINE void   n_CoeffWrite(const coeffs r, BOOLEAN details = TRUE)
 static FORCE_INLINE BOOLEAN nCoeff_is_Ring_2toM(const coeffs r)
 { assume(r != NULL); return (getCoeffType(r)==n_Z2m); }
 
-static FORCE_INLINE BOOLEAN nCoeff_is_Ring_ModN(const coeffs r)
-{ assume(r != NULL); return (getCoeffType(r)==n_Zn); }
-
 static FORCE_INLINE BOOLEAN nCoeff_is_Ring_PtoM(const coeffs r)
 { assume(r != NULL); return (getCoeffType(r)==n_Znm); }
-
-static FORCE_INLINE BOOLEAN nCoeff_is_Ring_Z(const coeffs r)
-{ assume(r != NULL); return (getCoeffType(r)==n_Z); }
 
 static FORCE_INLINE BOOLEAN nCoeff_is_Ring(const coeffs r)
 { assume(r != NULL); return (r->is_field==0); }
 #else
 #define nCoeff_is_Ring_2toM(A) 0
-#define nCoeff_is_Ring_ModN(A) 0
 #define nCoeff_is_Ring_PtoM(A) 0
-#define nCoeff_is_Ring_Z(A)    0
 #define nCoeff_is_Ring(A)      0
 #endif
 
@@ -835,10 +830,27 @@ static FORCE_INLINE BOOLEAN nCoeff_is_Zp(const coeffs r, int p)
 { assume(r != NULL); return ((getCoeffType(r)==n_Zp) && (r->ch == p)); }
 
 static FORCE_INLINE BOOLEAN nCoeff_is_Q(const coeffs r)
-{ assume(r != NULL); return getCoeffType(r)==n_Q && (r->is_field); }
+{
+  assume(r != NULL);
+  #if SI_INTEGER_VARIANT==1
+  return getCoeffType(r)==n_Q && (r->is_field);
+  #else
+  return getCoeffType(r)==n_Q;
+  #endif
+}
 
 static FORCE_INLINE BOOLEAN nCoeff_is_Z(const coeffs r)
-{ assume(r != NULL); return getCoeffType(r)==n_Z || ((getCoeffType(r)==n_Q) && (!r->is_field)); }
+{
+  assume(r != NULL);
+  #if SI_INTEGER_VARIANT==1
+  return ((getCoeffType(r)==n_Q) && (!r->is_field));
+  #else
+  return getCoeffType(r)==n_Z;
+  #endif
+}
+
+static FORCE_INLINE BOOLEAN nCoeff_is_Zn(const coeffs r)
+{ assume(r != NULL); return getCoeffType(r)==n_Zn; }
 
 static FORCE_INLINE BOOLEAN nCoeff_is_Q_or_BI(const coeffs r)
 { assume(r != NULL); return getCoeffType(r)==n_Q; }
@@ -981,11 +993,11 @@ static FORCE_INLINE number n_Random(siRandProc p, number p1, number p2, const co
 { STATISTIC(n_Random); assume( cf != NULL ); assume( cf->cfRandom != NULL );  return cf->cfRandom(p, p1, p2, cf); }
 
 /// io via ssi:
-static FORCE_INLINE void n_WriteFd(number a, FILE *f, const coeffs r)
+static FORCE_INLINE void n_WriteFd(number a, const ssiInfo *f, const coeffs r)
 { STATISTIC(n_WriteFd); assume(r != NULL); assume(r->cfWriteFd != NULL); return r->cfWriteFd(a, f, r); }
 
 /// io via ssi:
-static FORCE_INLINE number n_ReadFd( s_buff f, const coeffs r)
+static FORCE_INLINE number n_ReadFd( const ssiInfo *f, const coeffs r)
 { STATISTIC(n_ReadFd); assume(r != NULL); assume(r->cfReadFd != NULL); return r->cfReadFd(f, r); }
 
 

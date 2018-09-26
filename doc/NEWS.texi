@@ -23,7 +23,8 @@
 New libraries:
 @itemize
 @item fpalgebras.lib: Generation of various algebras in the letterplace case
-(@nref{fpalgebras_lib})
+@item ncrat.lib: non-commutatie rational functions
+(@nref{ncrat_lib})
 @end itemize
 
 Changed libraries:
@@ -32,6 +33,16 @@ Changed libraries:
 @item schreyer.lib: deprecated 
 @item goettsche.lib: new, extended version (The Nakajima-Yoshioka formula up to n-th degree,Poincare Polynomial of the punctual Quot-scheme of rank r on n planar points Betti numbers of the punctual Quot-scheme of rank r on n planar points)(@nref{goettsche_lib})
 @item grobcov.lib: small bug fix (@nref{grobcov_lib})
+@end itemize
+
+Changes in the kernel/build system:
+@itemize
+@item improved reading of long polynomials
+@item improved groebner bases over Z coefficients
+@item pseudo type @code{polyBucket}
+@item new type @code{smatrix}: sparse matrix (experimental) (@nref{smatrix}).
+@item extended @code{coef} to ideals (@nref{coef}).
+@item error and signal handling in @code{libSingular} (@nref{libSingular}).
 @end itemize
 
 @heading News for version 4-1-1
@@ -84,7 +95,7 @@ Changes in the kernel/build system:
 @item port to polymake 3.x.x
 @item port to NTL 10 with threads (needs also C++11: gcc6 or -std=c++11)
 @item p_Invers is only a helper for p_Series: now static
-@item p_Divide is now p_MDivide, pDivive is a new routine
+@item p_Divide is now p_MDivide, pDivide/p_Divide is a new routine
 @end itemize
 
 @heading News for version 4-1-0

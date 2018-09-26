@@ -12,8 +12,6 @@
 
 #include "kernel/mod2.h"
 
-#include "omalloc/omalloc.h"
-
 #include "misc/options.h"
 #include "misc/intvec.h"
 
@@ -138,6 +136,14 @@ void *idrecDataInit(int t)
 #endif
     case BIGINTMAT_CMD:
       return (void *)new bigintmat();
+    case BUCKET_CMD:
+      if (currRing!=NULL)
+      return (void*)sBucketCreate(currRing);
+      else
+      {
+        WerrorS("need basering for polyBucket");
+	return NULL;
+      }
     case INTVEC_CMD:
     case INTMAT_CMD:
       return (void *)new intvec();
@@ -151,6 +157,7 @@ void *idrecDataInit(int t)
     case IDEAL_CMD:
     case MODUL_CMD:
     case MATRIX_CMD:
+    case SMATRIX_CMD:
       return (void*) idInit(1,1);
     case MAP_CMD:
     {
@@ -223,6 +230,7 @@ idhdl idrec::set(const char * s, int level, int t, BOOLEAN init)
   IDNEXT(h) = this;
   BOOLEAN at_start=(this==IDROOT);
   h->id_i=iiS2I(s);
+  if (t==BUCKET_CMD) WarnS("defining polyBucket");
   if (init)
   {
     if ((t==IDEAL_CMD)||(t==MODUL_CMD))

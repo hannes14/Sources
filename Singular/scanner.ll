@@ -8,7 +8,11 @@
 #include <ctype.h>
 
 #include "kernel/mod2.h"
+#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
+#else
+#include "xalloc/omalloc.h"
+#endif
 #include "Singular/tok.h"
 #include "Singular/stype.h"
 #include "Singular/ipshell.h"
@@ -128,7 +132,7 @@ parname        #
                            yy_noeof=noeof_comment;
                            loop
                            {
-                             register int c;
+                             REGISTER int c;
                              while ( (c = yyinput()) != '*' && c != EOF );
                              if ( c == '*' )
                              {
@@ -348,7 +352,7 @@ newline                  {
 
 .                       {
                            /*if (*yytext == '\n') REJECT;*/
-                           register char ch= *yytext;
+                           REGISTER char ch= *yytext;
                            lvalp->i = ch;
                            switch(ch)
                            {

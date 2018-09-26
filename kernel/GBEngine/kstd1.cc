@@ -15,8 +15,6 @@
 
 #include "kernel/mod2.h"
 
-#include "omalloc/omalloc.h"
-
 #include "misc/options.h"
 #include "misc/intvec.h"
 
@@ -257,7 +255,7 @@ int redEcart (LObject* h,kStrategy strat)
     if (h->IsNull())
     {
       assume(!rField_is_Ring(currRing));
-      if (h->lcm!=NULL) pLmFree(h->lcm);
+      kDeleteLcm(h);
       h->Clear();
       return 0;
     }
@@ -360,7 +358,7 @@ int redRiloc (LObject* h,kStrategy strat)
       postReduceByMon(h, strat);
       if(h->p == NULL)
       {
-        if (h->lcm!=NULL) pLmDelete(h->lcm);
+        kDeleteLcm(h);
         h->Clear();
         return 0;
       }
@@ -371,7 +369,7 @@ int redRiloc (LObject* h,kStrategy strat)
           h->i_r1 = -1;
       if (h->GetLmTailRing() == NULL)
       {
-        if (h->lcm!=NULL) pLmDelete(h->lcm);
+        kDeleteLcm(h);
         h->Clear();
         return 0;
       }
@@ -453,7 +451,7 @@ int redRiloc (LObject* h,kStrategy strat)
     // are we done ???
     if (h->IsNull())
     {
-      if (h->lcm!=NULL) pLmDelete(h->lcm);
+      kDeleteLcm(h);
       h->Clear();
       return 0;
     }
@@ -574,7 +572,7 @@ int redFirst (LObject* h,kStrategy strat)
     if (h->IsNull())
     {
       assume(!rField_is_Ring(currRing));
-      if (h->lcm!=NULL) pLmFree(h->lcm);
+      kDeleteLcm(h);
       h->Clear();
       return 0;
     }
@@ -992,10 +990,8 @@ BOOLEAN hasPurePower (LObject *L,int last, int *length,kStrategy strat)
 {
   if (L->bucket != NULL)
   {
-    poly p = L->CanonicalizeP();
-    BOOLEAN ret = hasPurePower(p, last, length, strat);
-    pNext(p) = NULL;
-    return ret;
+    poly p = L->GetP();
+    return hasPurePower(p, last, length, strat);
   }
   else
   {
@@ -1351,7 +1347,10 @@ void initBba(kStrategy strat)
   }
   if (rField_is_Ring(currRing))
   {
-    strat->red = redRing;
+    if (rField_is_Z(currRing))
+      strat->red = redRing_Z;
+    else
+      strat->red = redRing;
   }
   if (currRing->pLexOrder && strat->honey)
     strat->initEcart = initEcartNormal;
@@ -1702,14 +1701,7 @@ ideal mora (ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
       }
 
       // clear strat->P
-      if (strat->P.lcm!=NULL)
-      {
-        if (rField_is_Ring(currRing))
-          pLmDelete(strat->P.lcm);
-        else
-          pLmFree(strat->P.lcm);
-        strat->P.lcm=NULL;
-      }
+      kDeleteLcm(&strat->P);
 
 #ifdef KDEBUG
       // make sure kTest_TS does not complain about strat->P
@@ -1763,7 +1755,7 @@ ideal mora (ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
 //      ecartWeights=NULL;
 //    }
 //  }
-  if(nCoeff_is_Ring_Z(currRing->cf))
+  if(nCoeff_is_Z(currRing->cf))
     finalReduceByMon(strat);
   if (Q!=NULL) updateResult(strat->Shdl,Q,strat);
   SI_RESTORE_OPT1(save1);
@@ -2180,7 +2172,7 @@ ideal kStd(ideal F, ideal Q, tHomog h,intvec ** w, intvec *hilb,int syzComp,
   {
     #if PRE_INTEGER_CHECK
     //the preinteger check strategy is not for modules
-    if(rField_is_Ring(currRing) && nCoeff_is_Ring_Z(currRing->cf) && strat->ak <= 0)
+    if(nCoeff_is_Z(currRing->cf) && strat->ak <= 0)
     {
       ideal FCopy = idCopy(F);
       poly pFmon = preIntegerCheck(FCopy, Q);
@@ -2197,7 +2189,10 @@ ideal kStd(ideal F, ideal Q, tHomog h,intvec ** w, intvec *hilb,int syzComp,
             }
             else if (!TEST_OPT_DEGBOUND)
             {
+              if (w!=NULL)
                 h = (tHomog)idHomModule(FCopy,Q,w);
+              else
+                h = (tHomog)idHomIdeal(FCopy,Q);
             }
         }
         currRing->pLexOrder=b;
@@ -2330,7 +2325,10 @@ ideal kSba(ideal F, ideal Q, tHomog h,intvec ** w, int sbaOrder, int arri, intve
       }
       else if (!TEST_OPT_DEGBOUND)
       {
-        h = (tHomog)idHomModule(F,Q,w);
+        if (w!=NULL)
+          h = (tHomog)idHomModule(F,Q,w);
+        else
+          h = (tHomog)idHomIdeal(F,Q);
       }
     }
     currRing->pLexOrder=b;
@@ -2478,7 +2476,10 @@ ideal kSba(ideal F, ideal Q, tHomog h,intvec ** w, int sbaOrder, int arri, intve
         }
         else if (!TEST_OPT_DEGBOUND)
         {
-          h = (tHomog)idHomModule(F,Q,w);
+          if (w!=NULL)
+            h = (tHomog)idHomModule(F,Q,w);
+          else
+            h = (tHomog)idHomIdeal(F,Q);
         }
       }
       currRing->pLexOrder=b;
@@ -2568,6 +2569,7 @@ ideal kStdShift(ideal F, ideal Q, tHomog h,intvec ** w, intvec *hilb,int syzComp
   BOOLEAN b=currRing->pLexOrder,toReset=FALSE;
   BOOLEAN delete_w=(w==NULL);
   kStrategy strat=new skStrategy;
+  intvec* temp_w=NULL;
 
   if(!TEST_OPT_RETURN_SB)
     strat->syzComp = syzComp;
@@ -2593,6 +2595,11 @@ ideal kStdShift(ideal F, ideal Q, tHomog h,intvec ** w, intvec *hilb,int syzComp
   }
   if (h==testHomog)
   {
+    if (delete_w)
+    {
+      temp_w=new intvec((strat->ak)+1);
+      w = &temp_w;
+    }
     if (strat->ak == 0)
     {
       h = (tHomog)idHomIdeal(F,Q);
@@ -2600,7 +2607,10 @@ ideal kStdShift(ideal F, ideal Q, tHomog h,intvec ** w, intvec *hilb,int syzComp
     }
     else if (!TEST_OPT_DEGBOUND)
     {
-      h = (tHomog)idHomModule(F,Q,w);
+      if (w!=NULL)
+        h = (tHomog)idHomModule(F,Q,w);
+      else
+        h = (tHomog)idHomIdeal(F,Q);
     }
   }
   currRing->pLexOrder=b;
@@ -3117,7 +3127,6 @@ ideal kInterRedBba (ideal F, ideal Q, int &need_retry)
   // BOOLEAN toReset=FALSE;
   kStrategy strat=new skStrategy;
   tHomog h;
-  intvec * w=NULL;
 
   if (rField_has_simple_inverse(currRing))
     strat->LazyPass=20;
@@ -3131,24 +3140,15 @@ ideal kInterRedBba (ideal F, ideal Q, int &need_retry)
   if (strat->ak == 0)
   {
     h = (tHomog)idHomIdeal(F,Q);
-    w=NULL;
   }
   else if (!TEST_OPT_DEGBOUND)
   {
-    h = (tHomog)idHomModule(F,Q,&w);
+    h = (tHomog)idHomIdeal(F,Q);
   }
   else
     h = isNotHomog;
   if (h==isHomog)
   {
-    if (strat->ak > 0 && (w!=NULL) && (w!=NULL))
-    {
-      strat->kModW = kModW = w;
-      strat->pOrigFDeg = currRing->pFDeg;
-      strat->pOrigLDeg = currRing->pLDeg;
-      pSetDegProcs(currRing,kModDeg);
-      // toReset = TRUE;
-    }
     strat->LazyPass*=2;
   }
   strat->homog=h;
@@ -3312,12 +3312,7 @@ ideal kInterRedBba (ideal F, ideal Q, int &need_retry)
       {
         // clean P
       }
-      if (strat->P.lcm!=NULL)
-#ifdef HAVE_RINGS
-        pLmDelete(strat->P.lcm);
-#else
-        pLmFree(strat->P.lcm);
-#endif
+      kDeleteLcm(&strat->P);
     }
 
 #ifdef KDEBUG
@@ -3381,7 +3376,6 @@ ideal kInterRedBba (ideal F, ideal Q, int &need_retry)
   ideal res=strat->Shdl;
   strat->Shdl=NULL;
   delete strat;
-  if (w!=NULL) delete w;
   return res;
 }
 ideal kInterRed (ideal F, ideal Q)

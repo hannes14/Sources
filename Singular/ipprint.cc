@@ -6,7 +6,6 @@
 */
 
 #include "kernel/mod2.h"
-#include "omalloc/omalloc.h"
 
 #include "misc/intvec.h"
 
@@ -28,9 +27,8 @@
 /*2
 * print for: intvec
 */
-static BOOLEAN ipPrint_INTVEC(leftv u)
+static BOOLEAN ipPrint_INTVEC(intvec* v)
 {
-  intvec *v=(intvec *)u->Data();
   v->show();
   PrintLn();
   return FALSE;
@@ -39,9 +37,8 @@ static BOOLEAN ipPrint_INTVEC(leftv u)
 /*2
 * print for: intmat
 */
-static BOOLEAN ipPrint_INTMAT(leftv u)
+static BOOLEAN ipPrint_INTMAT(intvec* v)
 {
-  intvec *v=(intvec *)u->Data();
   int i,j;
   for(i=0;i<v->rows();i++)
   {
@@ -57,7 +54,7 @@ static BOOLEAN ipPrint_INTMAT(leftv u)
 /*2
 * internal print for: matrix
 */
-static void ipPrint_MA0(matrix m, const char *name)
+void ipPrint_MA0(matrix m, const char *name)
 {
   if ((MATCOLS(m)>0)&&(MATROWS(m)>0))
   {
@@ -193,9 +190,8 @@ static BOOLEAN ipPrint_MA(leftv u)
 /*2
 * print for: ring
 */
-static BOOLEAN ipPrint_RING(leftv u)
+static BOOLEAN ipPrint_RING(ring r)
 {
-  ring r=(ring)u->Data();
   PrintS("polynomial ring, over a ");
   if (rField_is_Ring(r))
   {
@@ -211,9 +207,8 @@ static BOOLEAN ipPrint_RING(leftv u)
   return FALSE;
 }
 
-static BOOLEAN ipPrint_CRING(leftv u)
+static BOOLEAN ipPrint_CRING(coeffs r)
 {
-  coeffs r=(coeffs)u->Data();
   if (nCoeff_is_Ring(r))
   {
     if (nCoeff_is_Domain(r)) PrintS("domain: ");
@@ -226,12 +221,12 @@ static BOOLEAN ipPrint_CRING(leftv u)
 /*2
 * print for: vector
 */
-static BOOLEAN ipPrint_V(leftv u)
+static BOOLEAN ipPrint_V(poly u)
 {
   polyset m=NULL;
   int l,j;
   /*convert into an array of the components*/
-  p_Vec2Polys((poly)u->Data(), &m, &l, currRing);
+  p_Vec2Polys(u, &m, &l, currRing);
   /*output*/
   PrintS("[");
   j=0;
@@ -256,14 +251,15 @@ BOOLEAN jjPRINT(leftv res, leftv u)
 {
   SPrintStart();
   BOOLEAN bo=FALSE;
+  void *d=u->Data();
   switch(u->Typ())
   {
       case INTVEC_CMD:
-        bo=ipPrint_INTVEC(u);
+        bo=ipPrint_INTVEC((intvec*)d);
         break;
 
       case INTMAT_CMD:
-        bo=ipPrint_INTMAT(u);
+        bo=ipPrint_INTMAT((intvec*)d);
         break;
 
       case MATRIX_CMD:
@@ -281,22 +277,22 @@ BOOLEAN jjPRINT(leftv res, leftv u)
 
       case MODUL_CMD:
       {
-        matrix m = id_Module2Matrix(id_Copy((ideal) u->Data(),currRing),currRing);
+        matrix m = id_Module2Matrix(id_Copy((ideal)d,currRing),currRing);
         ipPrint_MA0(m, u->Name());
         id_Delete((ideal *) &m,currRing);
         break;
       }
 
       case VECTOR_CMD:
-        bo=ipPrint_V(u);
+        bo=ipPrint_V((poly)d);
         break;
 
       case RING_CMD:
-        bo=ipPrint_RING(u);
+        bo=ipPrint_RING((ring)d);
         break;
 
       case CRING_CMD:
-        bo=ipPrint_CRING(u);
+        bo=ipPrint_CRING((coeffs)d);
         break;
 
       default:

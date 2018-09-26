@@ -10,8 +10,6 @@
 
 #include <ctype.h>
 
-#include "omalloc/omalloc.h"
-
 #include "misc/auxiliary.h"
 
 #include "misc/options.h"
@@ -2182,7 +2180,7 @@ poly p_Power(poly p, int i, const ring r)
         else
         {
 #ifdef HAVE_PLURAL
-          if (rIsPluralRing(r)) /* in the NC case nothing helps :-( */
+          if (rIsNCRing(r)) /* in the NC case nothing helps :-( */
           {
             int j=i;
             rc = p_Copy(p,r);
@@ -2597,63 +2595,40 @@ number p_InitContent(poly ph, const ring r)
 }
 #else
 {
+  /* ph has al least 2 terms */
   number d=pGetCoeff(ph);
-  int s;
-  int s2=-1;
-  if(rField_is_Q(r))
+  int s=n_Size(d,r->cf);
+  pIter(ph);
+  number d2=pGetCoeff(ph);
+  int s2=n_Size(d2,r->cf);
+  pIter(ph);
+  if (ph==NULL)
   {
-    if  (SR_HDL(d)&SR_INT) return d;
-    s=mpz_size1(d->z);
+    if (s<s2) return n_Copy(d,r->cf);
+    else      return n_Copy(d2,r->cf);
   }
-  else
-    s=n_Size(d,r->cf);
-  number d2=d;
-  loop
+  do
   {
-    pIter(ph);
-    if(ph==NULL)
+    number nd=pGetCoeff(ph);
+    int ns=n_Size(nd,r->cf);
+    if (ns<=2)
     {
-      if (s2==-1) return n_Copy(d,r->cf);
+      s2=s;
+      d2=d;
+      d=nd;
+      s=ns;
       break;
     }
-    if (rField_is_Q(r))
+    else if (ns<s)
     {
-      if (SR_HDL(pGetCoeff(ph))&SR_INT)
-      {
-        s2=s;
-        d2=d;
-        s=0;
-        d=pGetCoeff(ph);
-        if (s2==0) break;
-      }
-      else if (mpz_size1((pGetCoeff(ph)->z))<=s)
-      {
-        s2=s;
-        d2=d;
-        d=pGetCoeff(ph);
-        s=mpz_size1(d->z);
-      }
+      s2=s;
+      d2=d;
+      d=nd;
+      s=ns;
     }
-    else
-    {
-      int ns=n_Size(pGetCoeff(ph),r->cf);
-      if (ns<=3)
-      {
-        s2=s;
-        d2=d;
-        d=pGetCoeff(ph);
-        s=ns;
-        if (s2<=3) break;
-      }
-      else if (ns<s)
-      {
-        s2=s;
-        d2=d;
-        d=pGetCoeff(ph);
-        s=ns;
-      }
-    }
+    pIter(ph);
   }
+  while(ph!=NULL);
   return n_SubringGcd(d,d2,r->cf);
 }
 #endif
@@ -3519,6 +3494,52 @@ void p_DeleteComp(poly * p,int k, const ring r)
   }
 }
 
+poly p_Vec2Poly(poly v, int k, const ring r)
+{
+  poly h;
+  poly res=NULL;
+
+  while (v!=NULL)
+  {
+    if (__p_GetComp(v,r)==k)
+    {
+      h=p_Head(v,r);
+      p_SetComp(h,0,r);
+      pNext(h)=res;res=h;
+    }
+    pIter(v);
+  }
+  if (res!=NULL) res=pReverse(res);
+  return res;
+}
+
+/// vector to already allocated array (len>=p_MaxComp(v,r))
+// also used for p_Vec2Polys
+void  p_Vec2Array(poly v, poly *p, int len, const ring r)
+{
+  poly h;
+  int k;
+
+  for(int i=len-1;i>=0;i--) p[i]=NULL;
+  while (v!=NULL)
+  {
+    h=p_Head(v,r);
+    k=__p_GetComp(h,r);
+    if (k>len) { Werror("wrong rank:%d, should be %d",len,k); }
+    else
+    {
+      p_SetComp(h,0,r);
+      p_Setm(h,r);
+      pNext(h)=p[k-1];p[k-1]=h;
+    }
+    pIter(v);
+  }
+  for(int i=len-1;i>=0;i--)
+  {
+    if (p[i]!=NULL) p[i]=pReverse(p[i]);
+  }
+}
+
 /*2
 * convert a vector to a set of polys,
 * allocates the polyset, (entries 0..(*len)-1)
@@ -3532,39 +3553,7 @@ void  p_Vec2Polys(poly v, poly* *p, int *len, const ring r)
   *len=p_MaxComp(v,r);
   if (*len==0) *len=1;
   *p=(poly*)omAlloc0((*len)*sizeof(poly));
-  while (v!=NULL)
-  {
-    h=p_Head(v,r);
-    k=__p_GetComp(h,r);
-    p_SetComp(h,0,r);
-    pNext(h)=(*p)[k-1];(*p)[k-1]=h;
-    pIter(v);
-  }
-  for(int i=(*len-1);i>=0;i--)
-  {
-    if ((*p)[i]!=NULL) (*p)[i]=pReverse((*p)[i]);
-  }
-}
-
-/// julia: vector to already allocated array (len=p_MaxComp(v,r))
-void  p_Vec2Array(poly v, poly *p, int len, const ring r)
-{
-  poly h;
-  int k;
-
-  for(int i=len-1;i>=0;i--) p[i]=NULL;
-  while (v!=NULL)
-  {
-    h=p_Head(v,r);
-    k=__p_GetComp(h,r);
-    p_SetComp(h,0,r);
-    pNext(h)=p[k-1];p[k-1]=h;
-    pIter(v);
-  }
-  for(int i=len-1;i>=0;i--)
-  {
-    if (p[i]!=NULL) p[i]=pReverse(p[i]);
-  }
+  p_Vec2Array(v,*p,*len,r);
 }
 
 //

@@ -6,7 +6,6 @@
 /*
 * ABSTRACT - all basic methods to manipulate ideals
 */
-#include "omalloc/omalloc.h"
 #include "polys/monomials/ring.h"
 #include "polys/matpol.h"
 
@@ -130,6 +129,7 @@ ideal id_JetW(const ideal i,int d, intvec * iv, const ring R);
 ideal  id_Subst(ideal id, int n, poly e, const ring r);
 matrix id_Module2Matrix(ideal mod, const ring R);
 matrix id_Module2formatedMatrix(ideal mod,int rows, int cols, const ring R);
+ideal id_ResizeModule(ideal mod,int rows, int cols, const ring R);
 ideal id_Matrix2Module(matrix mat, const ring R);
 ideal id_Vec2Ideal(poly vec, const ring R);
 

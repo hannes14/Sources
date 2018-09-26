@@ -8,8 +8,6 @@
 
 #include "kernel/mod2.h"
 
-#include "omalloc/omalloc.h"
-
 #include "misc/options.h"
 #include "misc/intvec.h"
 
@@ -259,7 +257,7 @@ BOOLEAN atATTRIB1(leftv res,leftv v)
       PrintS("attr:maxExp, type int\n");
       PrintS("attr:ring_cf, type int\n");
       #ifdef HAVE_SHIFTBBA
-      PrintS("attr:isLPring, type int\n");
+      PrintS("attr:isLetterplaceRing, type int\n");
       #endif
 
       haveNoAttribute=FALSE;
@@ -326,7 +324,7 @@ BOOLEAN atATTRIB2(leftv res,leftv v,leftv b)
     if (at!=NULL) res->data=(void *)(long)(hasFlag(v,FLAG_QRING)||(hasFlag(at,FLAG_QRING)));
   }
 #ifdef HAVE_SHIFTBBA
-  else if ((strcmp(name,"isLPring")==0)
+  else if ((strcmp(name,"isLetterplaceRing")==0)
   &&(/*v->Typ()*/t==RING_CMD))
   {
     res->rtyp=INT_CMD;
@@ -426,14 +424,14 @@ BOOLEAN atATTRIB3(leftv /*res*/,leftv v,leftv b,leftv c)
     return TRUE;
   }
 #ifdef HAVE_SHIFTBBA
-  else if ((strcmp(name,"isLPring")==0)
+  else if ((strcmp(name,"isLetterplaceRing")==0)
   &&(/*v->Typ()*/t==RING_CMD))
   {
     if (c->Typ()==INT_CMD)
       ((ring)v->Data())->isLPring=(int)(long)c->Data();
     else
     {
-      WerrorS("attribute `isLPring` must be int");
+      WerrorS("attribute `isLetterplaceRing` must be int");
       return TRUE;
     }
   }

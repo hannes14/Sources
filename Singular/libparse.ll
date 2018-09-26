@@ -20,7 +20,11 @@
   #include "Singular/ipid.h"
   #include "Singular/tok.h"
   #include "misc/options.h"
+  #ifdef HAVE_OMALLOC
   #include "omalloc/omalloc.h"
+  #else
+  #include "xalloc/omalloc.h"
+  #endif
 #endif
 #include "Singular/libparse.h"
 
@@ -845,8 +849,8 @@ void reinit_yylp()
 
 void make_version(char *p,int what)
 {
-  char ver[10];
-  char date[16];
+  char ver[11];
+  char date[17];
   ver[0]='?'; ver[1]='.'; ver[2]='?'; ver[3]='\0';
   date[0]='?'; date[1]='\0';
   if(what) sscanf(p,"%*[^=]= %*s %*s %10s %16s",ver,date);

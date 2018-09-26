@@ -8,8 +8,6 @@
 
 #include "kernel/mod2.h"
 
-#include "omalloc/omalloc.h"
-
 #define TRANSEXT_PRIVATES
 #include "polys/ext_fields/transext.h"
 
@@ -686,12 +684,21 @@ static BOOLEAN jiA_POLY(leftv res, leftv a,Subexpr e)
     {
       jjNormalizeQRingP(p);
     }
-    pDelete(&MATELEM(m,i,j));
-    MATELEM(m,i,j)=p;
-    /* for module: update rank */
-    if ((p!=NULL) && (pGetComp(p)!=0))
+    if (res->rtyp==SMATRIX_CMD)
     {
-      m->rank=si_max(m->rank,pMaxComp(p));
+      p=pSub(p,SMATELEM(m,i-1,j-1,currRing));
+      pSetCompP(p,i);
+      m->m[j-1]=pAdd(m->m[j-1],p);
+    }
+    else
+    {
+      pDelete(&MATELEM(m,i,j));
+      MATELEM(m,i,j)=p;
+      /* for module: update rank */
+      if ((p!=NULL) && (pGetComp(p)!=0))
+      {
+        m->rank=si_max(m->rank,pMaxComp(p));
+      }
     }
   }
   return FALSE;
@@ -813,6 +820,18 @@ static BOOLEAN jiA_BIGINTMAT(leftv res, leftv a, Subexpr)
   jiAssignAttr(res,a);
   return FALSE;
 }
+static BOOLEAN jiA_BUCKET(leftv res, leftv a, Subexpr e)
+// there should be no assign bucket:=bucket, here we have poly:=bucket
+{
+  sBucket_pt b=(sBucket_pt)a->CopyD();
+  poly p; int l;
+  sBucketDestroyAdd(b,&p,&l);
+  sleftv tmp;
+  tmp.Init();
+  tmp.rtyp=POLY_CMD;
+  tmp.data=p;
+  return jiA_POLY(res,&tmp,e);
+}
 static BOOLEAN jiA_IDEAL(leftv res, leftv a, Subexpr)
 {
   if (res->data!=NULL) idDelete((ideal*)&res->data);
@@ -865,6 +884,22 @@ static BOOLEAN jiA_IDEAL_M(leftv res, leftv a, Subexpr)
   ((ideal)m)->rank=1;
   MATROWS(m)=1;
   id_Normalize((ideal)m, currRing);
+  res->data=(void *)m;
+  if (TEST_V_QRING && (currRing->qideal!=NULL)) jjNormalizeQRingId(res);
+  return FALSE;
+}
+static BOOLEAN jiA_IDEAL_Mo(leftv res, leftv a, Subexpr)
+{
+  ideal m=(ideal)a->CopyD(MODUL_CMD);
+  if (m->rank>1)
+  {
+    Werror("rank of module is %ld in assignment to ideal",m->rank);
+    return TRUE;
+  }
+  if (res->data!=NULL) idDelete((ideal*)&res->data);
+  id_Normalize(m, currRing);
+  id_Shift(m,-1,currRing);
+  m->rank=1;
   res->data=(void *)m;
   if (TEST_V_QRING && (currRing->qideal!=NULL)) jjNormalizeQRingId(res);
   return FALSE;
@@ -1111,6 +1146,7 @@ static BOOLEAN jiAssign_1(leftv l, leftv r, BOOLEAN toplevel)
 
   if (lt==DEF_CMD)
   {
+      
     if (TEST_V_ALLWARN
     && (rt!=RING_CMD)
     && (l->name!=NULL)
@@ -1123,19 +1159,24 @@ static BOOLEAN jiAssign_1(leftv l, leftv r, BOOLEAN toplevel)
     }
     if (l->rtyp==IDHDL)
     {
-      IDTYP((idhdl)l->data)=rt;
+      if (rt==BUCKET_CMD) IDTYP((idhdl)l->data)=POLY_CMD;
+      else                IDTYP((idhdl)l->data)=rt;
     }
     else if (l->name!=NULL)
     {
+      int rrt;
+      if (rt==BUCKET_CMD) rrt=POLY_CMD;
+      else                rrt=rt;
       sleftv ll;
-      iiDeclCommand(&ll,l,myynest,rt,&IDROOT);
+      iiDeclCommand(&ll,l,myynest,rrt,&IDROOT);
       memcpy(l,&ll,sizeof(sleftv));
     }
     else
     {
-      l->rtyp=rt;
+      if (rt==BUCKET_CMD) l->rtyp=POLY_CMD;
+      else                l->rtyp=rt;
     }
-    lt=rt;
+    lt=l->Typ();
   }
   else
   {

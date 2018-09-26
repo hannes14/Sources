@@ -6,7 +6,6 @@
 */
 
 #include "misc/auxiliary.h"
-#include "omalloc/omalloc.h"
 
 #include "factory/factory.h"
 
@@ -132,12 +131,14 @@ number nrzInit (long i, const coeffs)
   return (number) erg;
 }
 
-static void nrzDelete(number *a, const coeffs)
+void nrzDelete(number *a, const coeffs)
 {
-  if (*a == NULL) return;
-  mpz_clear((mpz_ptr) *a);
-  omFreeBin((ADDRESS) *a, gmp_nrz_bin);
-  *a = NULL;
+  if (*a != NULL)
+  {
+    mpz_clear((mpz_ptr) *a);
+    omFreeBin((ADDRESS) *a, gmp_nrz_bin);
+    *a = NULL;
+  }
 }
 
 static number nrzCopy(number a, const coeffs)
@@ -155,10 +156,13 @@ number nrzCopyMap(number a, const coeffs /*src*/, const coeffs dst)
 }
 #endif
 
-static int nrzSize(number a, const coeffs)
+int nrzSize(number a, const coeffs)
 {
-  if (a == NULL) return 0;
-  return (((mpz_ptr)a)->_mp_alloc);
+  mpz_ptr p=(mpz_ptr)a;
+  int s=p->_mp_alloc;
+  if (s==1) s=(mpz_cmp_ui(p,0)!=0);
+  return s;
+
 }
 
 /*
@@ -202,12 +206,12 @@ static BOOLEAN nrzIsZero (number  a, const coeffs)
 
 static BOOLEAN nrzIsOne (number a, const coeffs)
 {
-  return (a!=NULL) && (0 == mpz_cmp_ui((mpz_ptr) a, 1));
+  return (0 == mpz_cmp_ui((mpz_ptr) a, 1));
 }
 
 static BOOLEAN nrzIsMOne (number a, const coeffs)
 {
-  return (a!=NULL) && (0 == mpz_cmp_si((mpz_ptr) a, -1));
+  return (0 == mpz_cmp_si((mpz_ptr) a, -1));
 }
 
 static BOOLEAN nrzEqual (number a,number b, const coeffs)
@@ -266,6 +270,40 @@ static number nrzExactDiv (number a,number b, const coeffs)
   return (number) erg;
 }
 
+static number nrzSmallestQuotRem (number a, number b, number * r, const coeffs )
+{
+  mpz_ptr qq = (mpz_ptr) omAllocBin(gmp_nrz_bin);
+  mpz_init(qq);
+  mpz_ptr rr = (mpz_ptr) omAllocBin(gmp_nrz_bin);
+  mpz_init(rr);
+  int gsign = mpz_sgn((mpz_ptr) b);
+  mpz_t gg, ghalf;
+  mpz_init(gg);
+  mpz_init(ghalf);
+  mpz_abs(gg, (mpz_ptr) b);
+  mpz_fdiv_qr(qq, rr, (mpz_ptr) a, gg);
+  mpz_tdiv_q_2exp(ghalf, gg, 1);
+  if (mpz_cmp(rr, ghalf) > 0)  // r > ghalf
+    {
+      mpz_sub(rr, rr, gg);
+      mpz_add_ui(qq, qq, 1);
+    }
+  if (gsign < 0) mpz_neg(qq, qq);
+
+  mpz_clear(gg);
+  mpz_clear(ghalf);
+  if (r==NULL)
+  {
+    mpz_clear(rr);
+    omFreeBin(rr,gmp_nrz_bin);
+  }
+  else
+  {
+    *r=(number)rr;
+  }
+  return (number) qq;
+}
+
 static number nrzQuotRem (number a, number b, number * r, const coeffs )
 {
   mpz_ptr qq = (mpz_ptr) omAllocBin(gmp_nrz_bin);
@@ -302,7 +340,7 @@ static number  nrzInvers (number c, const coeffs r)
   if (!nrzIsUnit((number) c, r))
   {
     WerrorS("Non invertible element.");
-    return (number)0; //TODO
+    return (number)NULL;
   }
   return nrzCopy(c,r);
 }
@@ -341,11 +379,11 @@ static nMapFunc nrzSetMap(const coeffs src, const coeffs /*dst*/)
   /* dst = currRing */
   /* dst = nrn */
   if ((src->rep==n_rep_gmp)
-  && (nCoeff_is_Ring_Z(src) || nCoeff_is_Ring_ModN(src) || nCoeff_is_Ring_PtoM(src)))
+  && (nCoeff_is_Z(src) || nCoeff_is_Zn(src) || nCoeff_is_Ring_PtoM(src)))
   {
     return ndCopyMap; //nrzCopyMap;
   }
-  if ((src->rep==n_rep_gap_gmp) /*&& nCoeff_is_Ring_Z(src)*/)
+  if ((src->rep==n_rep_gap_gmp) /*&& nCoeff_is_Z(src)*/)
   {
     return ndCopyMap; //nrzCopyMap;
   }
@@ -447,6 +485,10 @@ static number nrzConvFactoryNSingN(const CanonicalForm n, const coeffs r)
   {
     mpz_ptr m = (mpz_ptr) omAllocBin(gmp_nrz_bin);
     gmp_numerator(n,m);
+    if (!n.den().isOne())
+    {
+      WarnS("denominator is not 1 in factory");
+    }
     return (number) m;
   }
 }
@@ -568,6 +610,20 @@ static number nrzFarey(number r, number N, const coeffs R)
   return ab;
 }
 
+void nrzWriteFd(number n, const ssiInfo* d, const coeffs)
+{
+  mpz_out_str (d->f_write,SSI_BASE, (mpz_ptr)n);
+  fputc(' ',d->f_write);
+}
+
+number nrzReadFd(const ssiInfo *d, const coeffs)
+{
+  mpz_ptr erg = (mpz_ptr) omAllocBin(gmp_nrz_bin);
+  mpz_init(erg);
+  s_readmpz_base(d->f_read,erg,SSI_BASE);
+  return (number)erg;
+}
+
 BOOLEAN nrzInitChar(coeffs r,  void *)
 {
   assume( getCoeffType(r) == n_Z );
@@ -597,7 +653,7 @@ BOOLEAN nrzInitChar(coeffs r,  void *)
   r->cfExtGcd = nrzExtGcd;
   r->cfXExtGcd = nrzXExtGcd;
   r->cfDivBy = nrzDivBy;
-  r->cfQuotRem = nrzQuotRem;
+  r->cfQuotRem = nrzSmallestQuotRem;
   r->cfInpNeg   = nrzNeg;
   r->cfInvers= nrzInvers;
   r->cfCopy  = nrzCopy;
@@ -619,6 +675,8 @@ BOOLEAN nrzInitChar(coeffs r,  void *)
   r->convFactoryNSingN=nrzConvFactoryNSingN;
   r->cfChineseRemainder=nlChineseRemainderSym;
   r->cfFarey=nrzFarey;
+  r->cfWriteFd=nrzWriteFd;
+  r->cfReadFd=nrzReadFd;
   // debug stuff
 
 #ifdef LDEBUG
@@ -684,7 +742,6 @@ static inline number nrz_short(number x)
 
 static int nrzSize(number a, const coeffs)
 {
-  if (a == NULL) return 0;
   if (a==INT_TO_SR(0)) return 0;
   if (n_Z_IS_SMALL(a)) return 1;
   return ((mpz_ptr)a)->_mp_alloc;
@@ -716,7 +773,8 @@ number _nrzMult (number a, number b, const coeffs R)
 number nrzMult (number a, number b, const coeffs R)
 #endif
 {
-  if (n_Z_IS_SMALL(a) && n_Z_IS_SMALL(b)) {
+  if (n_Z_IS_SMALL(a) && n_Z_IS_SMALL(b))
+  {
   //from longrat.cc
     if (SR_TO_INT(a)==0)
       return a;
@@ -1314,7 +1372,7 @@ static BOOLEAN nrzIsUnit (number a, const coeffs)
 
 static BOOLEAN nrzIsZero (number  a, const coeffs)
 {
-  return (a==NULL) || (a==INT_TO_SR(0));
+  return (a==INT_TO_SR(0));
 }
 
 static BOOLEAN nrzIsOne (number a, const coeffs)
@@ -1482,7 +1540,7 @@ static number  nrzInvers (number c, const coeffs r)
   if (!nrzIsUnit((number) c, r))
   {
     WerrorS("Non invertible element.");
-    return (number)0; //TODO
+    return (number)NULL;
   }
   return c; // has to be 1 or -1....
 }
@@ -1605,14 +1663,14 @@ static number nrzMapQ(number from, const coeffs /* src */, const coeffs dst)
 static nMapFunc nrzSetMap(const coeffs src, const coeffs /*dst*/)
 {
   /* dst = rintegers */
-  if (src->rep==n_rep_gmp) //nCoeff_is_Ring_ModN(src) || nCoeff_is_Ring_PtoM(src))
+  if (src->rep==n_rep_gmp) //nCoeff_is_Zn(src) || nCoeff_is_Ring_PtoM(src))
     return nrzModNMap;
 
-  if ((src->rep==n_rep_gap_gmp) && nCoeff_is_Ring_Z(src))
+  if ((src->rep==n_rep_gap_gmp) && nCoeff_is_Z(src))
   {
     return ndCopyMap; //nrzCopyMap;
   }
-  if (src->rep==n_rep_gap_rat) /*&& nCoeff_is_Ring_Z(src)) Q, bigint*/
+  if (src->rep==n_rep_gap_rat) /*&& nCoeff_is_Z(src)) Q, bigint*/
   {
     return nrzMapQ;
   }
@@ -1801,6 +1859,9 @@ static coeffs nrzQuot1(number c, const coeffs r)
     return(rr);
 }
 
+number nlReadFd(const ssiInfo *d, const coeffs);
+void nlWriteFd(number n, const ssiInfo* d, const coeffs);
+
 BOOLEAN nrzInitChar(coeffs r,  void *)
 {
   assume( getCoeffType(r) == n_Z );
@@ -1829,7 +1890,7 @@ BOOLEAN nrzInitChar(coeffs r,  void *)
   r->cfAnn = nrzAnn;
   r->cfExtGcd = nrzExtGcd; // only for ring stuff
   r->cfXExtGcd = nrzXExtGcd; // only for ring stuff
-  r->cfQuotRem = nrzQuotRem;
+  r->cfQuotRem = nrzSmallestQuotRem;
   r->cfDivBy = nrzDivBy; // only for ring stuff
   //#endif
   r->cfInpNeg   = nrzNeg;
@@ -1853,6 +1914,8 @@ BOOLEAN nrzInitChar(coeffs r,  void *)
   r->convFactoryNSingN = nrzConvFactoryNSingN;
   r->cfMPZ = nrzMPZ;
   r->cfFarey = nrzFarey;
+  r->cfWriteFd=nlWriteFd;
+  r->cfReadFd=nlReadFd;
 
   r->cfQuot1 = nrzQuot1;
   // requires conversion to factory:

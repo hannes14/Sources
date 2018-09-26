@@ -337,13 +337,16 @@ EXAMPLE: example linReduceIdeal; shows examples
              posNonZero = posNonZero,i;
           }
         }
-         posNonZero = posNonZero[2..nrows(posNonZero)];
-         posNonZero = posNonZero[lJ[2]];
-         for (i=1; i<=size(lJ[1]); i++)
-         {
-           M[i+sZeros] = gen(posNonZero[i]);
-         }
-        kill posNonZero;
+        if (size(I)>0)
+        {
+          posNonZero = posNonZero[2..nrows(posNonZero)];
+          posNonZero = posNonZero[lJ[2]];
+          for (i=1; i<=size(lJ[1]); i++)
+          {
+             M[i+sZeros] = gen(posNonZero[i]);
+          }  
+          kill posNonZero;
+        }
       }
       else
       {
@@ -477,7 +480,7 @@ example
   list l = linReduceIdeal(I,1); // reduces tails and shows reductions used
   l;
   module M = I;
-  matrix(l[1]) - M*l[2];
+  matrix(l[1]) - matrix(M)*matrix(l[2]);
 }
 
 proc linReduce(poly f, ideal I, list #)

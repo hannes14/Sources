@@ -30,12 +30,8 @@
 #define FACTORY_MAX_PRIME 536870909
 
 #ifdef USE_NTL_XGCD
-//ifdef HAVE_NTL // in ntl.a
-//extern void XGCD(long& d, long& s, long& t, long a, long b);
-#include <NTL/ZZ.h>
-#ifdef NTL_CLIENT
-NTL_CLIENT
-#endif
+// in ntl.a
+extern void XGCD(long& d, long& s, long& t, long a, long b);
 #endif
 
 struct n_Procs_s; typedef struct  n_Procs_s  *coeffs;
@@ -73,13 +69,13 @@ static inline number npMultM(number a, number b, const coeffs r)
 {
   long x = (long)r->npLogTable[(long)a]+ r->npLogTable[(long)b];
   #ifdef HAVE_GENERIC_ADD
-  if (x>r->npPminus1M) x-=r->npPminus1M;
+    if (x>=r->npPminus1M) x-=r->npPminus1M;
   #else
     x-=r->npPminus1M;
     #if SIZEOF_LONG == 8
-     x += (x >> 63) & r->npPminus1M;
+      x += (x >> 63) & r->npPminus1M;
     #else
-     x += (x >> 31) & r->npPminus1M;
+      x += (x >> 31) & r->npPminus1M;
     #endif
   #endif
   return (number)(long)r->npExpTable[x];
@@ -88,13 +84,13 @@ static inline void npInpMultM(number &a, number b, const coeffs r)
 {
   long x = (long)r->npLogTable[(long)a]+ r->npLogTable[(long)b];
   #ifdef HAVE_GENERIC_ADD
-  if (x>r->npPminus1M) x-=r->npPminus1M;
+    if (x>=r->npPminus1M) x-=r->npPminus1M;
   #else
     x-=r->npPminus1M;
     #if SIZEOF_LONG == 8
-     x += (x >> 63) & r->npPminus1M;
+      x += (x >> 63) & r->npPminus1M;
     #else
-     x += (x >> 31) & r->npPminus1M;
+      x += (x >> 31) & r->npPminus1M;
     #endif
   #endif
   a=(number)(long)r->npExpTable[x];
@@ -195,7 +191,7 @@ static inline long npInvMod(long a, const coeffs R)
    XGCD(d, s, t, a, R->ch);
    assume (d == 1);
 #else
-   long  u, v, u0, v0, u1, v1, u2, v2, q, r;
+   long  u, v, u0, v0, u1, u2, q, r;
 
    assume(a>0);
    u1=1; u2=0;
@@ -267,6 +263,8 @@ static inline number npInversM (number c, const coeffs r)
 // The folloing is reused inside gnumpc.cc, gnumpfl.cc and longrat.cc
 long    npInt         (number &n, const coeffs r);
 
+// The folloing is reused inside tgb*.cc
+number  npMult        (number a, number b, const coeffs r);
 // The following is currently used in OPAE.cc, OPAEQ.cc and OPAEp.cc for setting their SetMap...
 nMapFunc npSetMap(const coeffs src, const coeffs dst); // FIXME! BUG?
 

@@ -7,8 +7,6 @@
 
 #include "kernel/mod2.h"
 
-#include "omalloc/omalloc.h"
-
 #include "factory/factory.h"
 
 #include "misc/options.h"
@@ -183,6 +181,11 @@ static void list1(const char* s, idhdl h,BOOLEAN c, BOOLEAN fullname)
     case MATRIX_CMD:Print(" %u x %u"
                       ,MATROWS(IDMATRIX(h))
                       ,MATCOLS(IDMATRIX(h))
+                    );
+                    break;
+    case SMATRIX_CMD:Print(" %u x %u"
+                      ,(int)(IDIDEAL(h)->rank)
+                      ,IDELEMS(IDIDEAL(h))
                     );
                     break;
     case PACKAGE_CMD:
@@ -1563,7 +1566,19 @@ idhdl rDefault(const char *s)
 
   ring r = IDRING(tmp) = (ring) omAlloc0Bin(sip_sring_bin);
 
+  #ifndef TEST_ZN_AS_ZP
   r->cf = nInitChar(n_Zp, (void*)32003); //   r->cf->ch = 32003;
+  #else
+  mpz_t modBase;
+  mpz_init_set_ui(modBase, (long)32003);
+  ZnmInfo info;
+  info.base= modBase;
+  info.exp= 1;
+  r->cf=nInitChar(n_Zn,(void*) &info);
+  r->cf->is_field=1;
+  r->cf->is_domain=1;
+  r->cf->has_simple_Inverse=1;
+  #endif
   r->N      = 3;
   /*r->P     = 0; Alloc0 in idhdl::set, ipid.cc*/
   /*names*/
@@ -1792,7 +1807,7 @@ void rDecomposeRing_41(leftv h,const coeffs C)
   L->m[0].data=(void *)omStrDup("integer");
   // ----------------------------------------
   // 1: modulo
-  if (nCoeff_is_Ring_Z(C)) return;
+  if (nCoeff_is_Z(C)) return;
   lists LL=(lists)omAlloc0Bin(slists_bin);
   LL->Init(2);
   LL->m[0].rtyp=BIGINT_CMD;
@@ -1809,7 +1824,7 @@ void rDecomposeRing(leftv h,const ring R)
 {
 #ifdef HAVE_RINGS
   lists L=(lists)omAlloc0Bin(slists_bin);
-  if (rField_is_Ring_Z(R)) L->Init(1);
+  if (rField_is_Z(R)) L->Init(1);
   else                     L->Init(2);
   h->rtyp=LIST_CMD;
   h->data=(void *)L;
@@ -1821,7 +1836,7 @@ void rDecomposeRing(leftv h,const ring R)
   L->m[0].data=(void *)omStrDup("integer");
   // ----------------------------------------
   // 1: module
-  if (rField_is_Ring_Z(R)) return;
+  if (rField_is_Z(R)) return;
   lists LL=(lists)omAlloc0Bin(slists_bin);
   LL->Init(2);
   LL->m[0].rtyp=BIGINT_CMD;
@@ -2257,18 +2272,18 @@ void rComposeC(lists L, ring R)
   if (L->nr==2) // complex
     R->cf = nInitChar(n_long_C, NULL);
   else if ((r1<=SHORT_REAL_LENGTH)
-  && (r2=SHORT_REAL_LENGTH))
+  && (r2<=SHORT_REAL_LENGTH))
     R->cf = nInitChar(n_R, NULL);
   else
   {
     LongComplexInfo* p = (LongComplexInfo *)omAlloc0(sizeof(LongComplexInfo));
     p->float_len=r1;
     p->float_len2=r2;
-    R->cf = nInitChar(n_long_R, NULL);
+    R->cf = nInitChar(n_long_R, p);
   }
 
   if ((r1<=SHORT_REAL_LENGTH)   // should go into nInitChar
-  && (r2=SHORT_REAL_LENGTH))
+  && (r2<=SHORT_REAL_LENGTH))
   {
     R->cf->float_len=SHORT_REAL_LENGTH/2;
     R->cf->float_len2=SHORT_REAL_LENGTH;
@@ -2461,7 +2476,7 @@ static inline BOOLEAN rComposeVar(const lists  L, ring R)
       }
       else
       {
-        Werror("var name %d must be `string`",i+1);
+        Werror("var name %d must be `string` (not %d)",i+1, v->m[i].Typ());
         return TRUE;
       }
     }
@@ -2740,7 +2755,7 @@ static inline BOOLEAN rComposeOrder(const lists  L, const BOOLEAN check_comp, ri
   return FALSE;
 }
 
-ring rCompose(const lists  L, const BOOLEAN check_comp, const long bitmask)
+ring rCompose(const lists  L, const BOOLEAN check_comp, const long bitmask,const int isLetterplace)
 {
   if ((L->nr!=3)
 #ifdef HAVE_PLURAL
@@ -2781,7 +2796,19 @@ ring rCompose(const lists  L, const BOOLEAN check_comp, const long bitmask)
         Warn("%d is invalid characteristic of ground field. %d is used.", ch, l);
         ch = l;
       }
+      #ifndef TEST_ZN_AS_ZP
       R->cf = nInitChar(n_Zp, (void*)(long)ch);
+      #else
+      mpz_t modBase;
+      mpz_init_set_ui(modBase,(long) ch);
+      ZnmInfo info;
+      info.base= modBase;
+      info.exp= 1;
+      R->cf=nInitChar(n_Zn,(void*) &info); //exponent is missing
+      R->cf->is_field=1;
+      R->cf->is_domain=1;
+      R->cf->has_simple_Inverse=1;
+      #endif
     }
   }
   else if (L->m[0].Typ()==LIST_CMD) // something complicated...
@@ -2866,7 +2893,8 @@ ring rCompose(const lists  L, const BOOLEAN check_comp, const long bitmask)
 
   // ------------------------ ??????? --------------------
 
-  rRenameVars(R);
+  if (!isLetterplace) rRenameVars(R);
+  else R->isLPring=isLetterplace;
   if (bitmask!=0x7fff) R->bitmask=bitmask*2;
   rComplete(R);
 
@@ -2900,7 +2928,8 @@ ring rCompose(const lists  L, const BOOLEAN check_comp, const long bitmask)
           // Allow imap/fetch to be make an exception only for:
           if ( (rField_is_Q_a(orig_ring) &&  // Q(a..) -> Q(a..) || Q || Zp || Zp(a)
             (rField_is_Q(currRing) || rField_is_Q_a(currRing) ||
-             (rField_is_Zp(currRing) || rField_is_Zp_a(currRing))))
+             rField_is_Zp(currRing) || rField_is_Zp_a(currRing) ||
+	     rField_is_Zn(currRing)))
            ||
            (rField_is_Zp_a(orig_ring) &&  // Zp(a..) -> Zp(a..) || Zp
             (rField_is_Zp(currRing, rInternalChar(orig_ring)) ||
@@ -5606,7 +5635,19 @@ ring rInit(leftv pn, leftv rv, leftv ord)
           Warn("%d is invalid as characteristic of the ground field. 32003 is used.", ch);
           ch=32003;
         }
+	#ifndef TEST_ZN_AS_ZP
         cf = nInitChar(n_Zp, (void*)(long)ch);
+	#else
+        mpz_t modBase;
+        mpz_init_set_ui(modBase, (long)ch);
+        ZnmInfo info;
+        info.base= modBase;
+        info.exp= 1;
+        cf=nInitChar(n_Zn,(void*) &info);
+        cf->is_field=1;
+        cf->is_domain=1;
+        cf->has_simple_Inverse=1;
+	#endif
       }
       else
         cf = nInitChar(n_Q, (void*)(long)ch);
@@ -5718,7 +5759,7 @@ ring rInit(leftv pn, leftv rv, leftv ord)
       if (pnn->next->Typ()==INT_CMD)
       {
         pnn=pnn->next;
-        mpz_set_ui(modBase, (int)(long) pnn->Data());
+        mpz_set_ui(modBase, (long) pnn->Data());
         if ((pnn->next!=NULL) && (pnn->next->Typ()==INT_CMD))
         {
           pnn=pnn->next;

@@ -57,7 +57,6 @@
 
 #include "kernel/GBEngine/kutil.h"
 #include "polys/kbuckets.h"
-#include "omalloc/omalloc.h"
 #include "coeffs/numbers.h"
 #include "kernel/polys.h"
 #include "polys/monomials/ring.h"
@@ -244,7 +243,7 @@ void deleteHC(LObject *L, kStrategy strat, BOOLEAN fromNext)
 {
   if (strat->kHEdgeFound)
   {
-    kTest_L(L);
+    kTest_L(L,strat->tailRing);
     poly p1;
     poly p = L->GetLmTailRing();
     int l = 1;
@@ -311,7 +310,7 @@ void deleteHC(LObject *L, kStrategy strat, BOOLEAN fromNext)
       else
         kBucketDestroy(&bucket);
     }
-    kTest_L(L);
+    kTest_L(L,strat->tailRing);
   }
 }
 
@@ -767,6 +766,18 @@ BOOLEAN kTest_T(TObject * T, ring strat_tailRing, int i, char TN)
   if (T->p == NULL && T->t_p == NULL && i >= 0)
     return dReportError("%c[%d].poly is NULL", TN, i);
 
+  if (T->p!=NULL)
+  {
+    nTest(pGetCoeff(T->p));
+    if ((T->t_p==NULL)&&(pNext(T->p)!=NULL)) p_Test(pNext(T->p),currRing);
+  }
+  if (T->t_p!=NULL)
+  {
+    nTest(pGetCoeff(T->t_p));
+    if (pNext(T->t_p)!=NULL) p_Test(pNext(T->t_p),strat_tailRing);
+  }
+  if ((T->p!=NULL)&&(T->t_p!=NULL)) assume(pGetCoeff(T->p)==pGetCoeff(T->t_p));
+
   if (T->tailRing != currRing)
   {
     if (T->t_p == NULL && i > 0)
@@ -859,6 +870,27 @@ BOOLEAN kTest_T(TObject * T, ring strat_tailRing, int i, char TN)
 BOOLEAN kTest_L(LObject *L, ring strat_tailRing,
                 BOOLEAN testp, int lpos, TSet T, int tlength)
 {
+  if (L->p!=NULL)
+  {
+    if ((L->t_p==NULL)
+    &&(pNext(L->p)!=NULL)
+    &&(pGetCoeff(pNext(L->p))!=NULL)) /* !=strat->tail*/
+    {
+      p_Test(pNext(L->p),currRing);
+      nTest(pGetCoeff(L->p));
+    }
+  }
+  if (L->t_p!=NULL)
+  {
+    if ((pNext(L->t_p)!=NULL)
+    &&(pGetCoeff(pNext(L->t_p))!=NULL)) /* !=strat->tail*/
+    {
+      p_Test(pNext(L->t_p),strat_tailRing);
+      nTest(pGetCoeff(L->t_p));
+    }
+  }
+  if ((L->p!=NULL)&&(L->t_p!=NULL)) assume(pGetCoeff(L->p)==pGetCoeff(L->t_p));
+
   if (testp)
   {
     poly pn = NULL;
@@ -1153,13 +1185,7 @@ void deleteInL (LSet set, int *length, int j,kStrategy strat)
 {
   if (set[j].lcm!=NULL)
   {
-#ifdef HAVE_RINGS
-    if (rField_is_Ring(currRing)
-    && (pGetCoeff(set[j].lcm) != NULL))
-      pLmDelete(set[j].lcm);
-    else
-#endif
-      pLmFree(set[j].lcm);
+    kDeleteLcm(&set[j]);
   }
   if (set[j].sig!=NULL)
   {
@@ -1309,6 +1335,11 @@ static void enterOnePairRing (int i,poly p,int /*ecart*/, int isFromQ,kStrategy 
   h.ecart=0; h.length=0;
 #endif
   /*- computes the lcm(s[i],p) -*/
+  if(pHasNotCF(p,strat->S[i]))
+  {
+      strat->cp++;
+      return;
+  }
   h.lcm = p_Lcm(p,strat->S[i],currRing);
   pSetCoeff0(h.lcm, n_Lcm(pGetCoeff(p), pGetCoeff(strat->S[i]), currRing->cf));
   if (nIsZero(pGetCoeff(h.lcm)))
@@ -1392,10 +1423,10 @@ static void enterOnePairRing (int i,poly p,int /*ecart*/, int isFromQ,kStrategy 
   poly pm1 = pp_Mult_mm(pNext(p), m1, strat->tailRing);
   poly sim2 = pp_Mult_mm(pNext(si), m2, strat->tailRing);
   pDelete(&si);
+  p_LmDelete(m1, currRing);
+  p_LmDelete(m2, currRing);
   if(sim2 == NULL)
   {
-    pDelete(&m1);
-    pDelete(&m2);
     if(pm1 == NULL)
     {
       if(h.lcm != NULL)
@@ -1426,8 +1457,6 @@ static void enterOnePairRing (int i,poly p,int /*ecart*/, int isFromQ,kStrategy 
     gcd = p_Add_q(pm1, sim2, strat->tailRing);
   }
   p_Test(gcd, strat->tailRing);
-  //p_LmDelete(m1, strat->tailRing);
-  //p_LmDelete(m2, strat->tailRing);
 #ifdef KDEBUG
   if (TEST_OPT_DEBUG)
   {
@@ -1505,6 +1534,25 @@ static BOOLEAN enterOneStrongPoly (int i,poly p,int /*ecart*/, int /*isFromQ*/,k
   }
 
   k_GetStrongLeadTerms(p, si, currRing, m1, m2, gcd, strat->tailRing);
+
+  if (!rHasMixedOrdering(currRing)) {
+    unsigned long sev = pGetShortExpVector(gcd);
+
+    for (int j = 0; j < strat->sl; j++) {
+      if (j == i)
+        continue;
+
+      if (n_DivBy(d, pGetCoeff(strat->S[j]), currRing->cf) &&
+          !(strat->sevS[j] & ~sev) &&
+          p_LmDivisibleBy(strat->S[j], gcd, currRing)) {
+        nDelete(&d);
+        nDelete(&s);
+        nDelete(&t);
+        return FALSE;
+      }
+    }
+  }
+
   //p_Test(m1,strat->tailRing);
   //p_Test(m2,strat->tailRing);
   /*if(!enterTstrong)
@@ -3880,7 +3928,6 @@ void initenterpairsSigRing (poly h,poly hSig,int hFrom,int k,int ecart,int isFro
 #endif
   }
 }
-
 #ifdef HAVE_RINGS
 /*2
 *the pairset B of pairs of type (s[i],p) is complete now. It will be updated
@@ -5502,7 +5549,7 @@ int posInT_EcartpLength(const TSet set,const int length,LObject &p)
   int op=p.ecart;
 
   int oo=set[length].ecart;
-  if ((oo < op) || ((oo==op) && (set[length].length < ol)))
+  if ((oo < op) || ((oo==op) && (set[length].length <= ol)))
     return length+1;
 
   int i;
@@ -7488,7 +7535,7 @@ poly redtailBba (LObject* L, int end_pos, kStrategy strat, BOOLEAN withT, BOOLEA
 
   //if (TEST_OPT_PROT) { PrintS("N"); mflush(); }
   //L->Normalize(); // HANNES: should have a test
-  kTest_L(L);
+  kTest_L(L,strat->tailRing);
   return L->GetLmCurrRing();
 }
 
@@ -7603,7 +7650,7 @@ poly redtailBbaBound (LObject* L, int end_pos, kStrategy strat, int bound, BOOLE
 
   //if (TEST_OPT_PROT) { PrintS("N"); mflush(); }
   //L->Normalize(); // HANNES: should have a test
-  kTest_L(L);
+  kTest_L(L,strat->tailRing);
   return L->GetLmCurrRing();
 }
 
@@ -7718,7 +7765,7 @@ poly redtailBba_Z (LObject* L, int end_pos, kStrategy strat )
 
   //if (TEST_OPT_PROT) { PrintS("N"); mflush(); }
   //L->Normalize(); // HANNES: should have a test
-  kTest_L(L);
+  kTest_L(L,strat->tailRing);
   return L->GetLmCurrRing();
 }
 #endif
@@ -8406,7 +8453,7 @@ void initSSpecial (ideal F, ideal Q, ideal P,kStrategy strat)
       {
         deleteHC(&h,strat);
       }
-      else
+      else if (TEST_OPT_REDTAIL || TEST_OPT_REDSB)
       {
         h.p=redtailBba(h.p,strat->sl,strat);
       }
@@ -8442,7 +8489,7 @@ void initSSpecial (ideal F, ideal Q, ideal P,kStrategy strat)
         if (rHasGlobalOrdering(currRing))
         {
           h.p=redBba(h.p,strat->sl,strat);
-          if (h.p!=NULL)
+          if ((h.p!=NULL)&&(TEST_OPT_REDTAIL || TEST_OPT_REDSB))
           {
             h.p=redtailBba(h.p,strat->sl,strat);
           }
@@ -8550,7 +8597,7 @@ void initSSpecialSba (ideal F, ideal Q, ideal P,kStrategy strat)
       {
         deleteHC(&h,strat);
       }
-      else
+      else if (TEST_OPT_REDTAIL || TEST_OPT_REDSB)
       {
         h.p=redtailBba(h.p,strat->sl,strat);
       }
@@ -8586,7 +8633,7 @@ void initSSpecialSba (ideal F, ideal Q, ideal P,kStrategy strat)
         if (rHasGlobalOrdering(currRing))
         {
           h.p=redBba(h.p,strat->sl,strat);
-          if (h.p!=NULL)
+          if ((h.p!=NULL)&&(TEST_OPT_REDTAIL || TEST_OPT_REDSB))
           {
             h.p=redtailBba(h.p,strat->sl,strat);
           }
@@ -10598,8 +10645,10 @@ BOOLEAN kCheckSpolyCreation(LObject *L, kStrategy strat, poly &m1, poly &m2)
   {
     return TRUE;
   }
-  poly p1_max = (strat->R[L->i_r1])->max_exp;
-  poly p2_max = (strat->R[L->i_r2])->max_exp;
+  poly p1_max=NULL;
+  if (L->i_r1>=0) p1_max = (strat->R[L->i_r1])->max_exp;
+  poly p2_max=NULL;
+  if (L->i_r2>=0) p2_max = (strat->R[L->i_r2])->max_exp;
 
   if (((p1_max != NULL) && !p_LmExpVectorAddIsOk(m1, p1_max, strat->tailRing)) ||
       ((p2_max != NULL) && !p_LmExpVectorAddIsOk(m2, p2_max, strat->tailRing)))
@@ -10645,8 +10694,7 @@ BOOLEAN kCheckStrongCreation(int atR, poly m1, int atS, poly m2, kStrategy strat
 */
 poly preIntegerCheck(const ideal Forig, const ideal Q)
 {
-  assume(nCoeff_is_Ring_Z(currRing->cf));
-  if(!nCoeff_is_Ring_Z(currRing->cf))
+  if(!nCoeff_is_Z(currRing->cf))
     return NULL;
   ideal F = idCopy(Forig);
   idSkipZeroes(F);
@@ -10813,7 +10861,7 @@ poly preIntegerCheck(const ideal Forig, const ideal Q)
 */
 void postReduceByMon(LObject* h, kStrategy strat)
 {
-  if(!nCoeff_is_Ring_Z(currRing->cf))
+  if(!nCoeff_is_Z(currRing->cf))
       return;
   poly pH = h->GetP();
   poly p,pp;
@@ -10881,7 +10929,7 @@ void postReduceByMon(LObject* h, kStrategy strat)
 
 void postReduceByMonSig(LObject* h, kStrategy strat)
 {
-  if(!nCoeff_is_Ring_Z(currRing->cf))
+  if(!nCoeff_is_Z(currRing->cf))
       return;
   poly hSig = h->sig;
   poly pH = h->GetP();
@@ -10970,43 +11018,69 @@ void postReduceByMonSig(LObject* h, kStrategy strat)
 */
 void finalReduceByMon(kStrategy strat)
 {
-  if(!nCoeff_is_Ring_Z(currRing->cf))
+  assume(strat->tl<0); /* can only be called with no elements in T:
+                          i.e. after exitBuchMora */
+  /* do not use strat->S, strat->sl as they may be out of sync*/
+  if(!nCoeff_is_Z(currRing->cf))
       return;
   poly p,pp;
-  for(int j = 0; j<=strat->sl; j++)
+  for(int j = 0; j<IDELEMS(strat->Shdl); j++)
   {
-    if((strat->S[j]!=NULL)&&(pNext(strat->S[j]) == NULL))
+    if((strat->Shdl->m[j]!=NULL)&&(pNext(strat->Shdl->m[j]) == NULL))
     {
-      for(int i = 0; i<=strat->sl; i++)
+      for(int i = 0; i<IDELEMS(strat->Shdl); i++)
       {
-        if((i != j) && (strat->S[i] != NULL))
+        if((i != j) && (strat->Shdl->m[i] != NULL))
         {
-          p = strat->S[i];
-          if(pLmDivisibleBy(strat->S[j], p))
+          p = strat->Shdl->m[i];
+          while((p!=NULL) && pLmDivisibleBy(strat->Shdl->m[j], p))
           {
-            number dummy = n_IntMod(p->coef, strat->S[j]->coef, currRing->cf);
-            p_SetCoeff(p,dummy,currRing);
+            number dummy = n_IntMod(p->coef, strat->Shdl->m[j]->coef, currRing->cf);
+            if (!nEqual(dummy,p->coef))
+            {
+              if (nIsZero(dummy))
+              {
+                nDelete(&dummy);
+                pLmDelete(&strat->Shdl->m[i]);
+                p=strat->Shdl->m[i];
+              }
+              else
+              {
+                p_SetCoeff(p,dummy,currRing);
+                break;
+              }
+            }
+            else
+            {
+              nDelete(&dummy);
+              break;
+            }
           }
-          pp = pNext(p);
-          if((pp == NULL) && (nIsZero(p->coef)))
+          if (p!=NULL)
           {
-            deleteInS(i, strat);
-          }
-          else
-          {
+            pp = pNext(p);
             while(pp != NULL)
             {
-              if(pLmDivisibleBy(strat->S[j], pp))
+              if(pLmDivisibleBy(strat->Shdl->m[j], pp))
               {
-                number dummy = n_IntMod(pp->coef, strat->S[j]->coef, currRing->cf);
-                p_SetCoeff(pp,dummy,currRing);
-                if(nIsZero(pp->coef))
+                number dummy = n_IntMod(pp->coef, strat->Shdl->m[j]->coef, currRing->cf);
+                if (!nEqual(dummy,pp->coef))
                 {
-                  pLmDelete(&pNext(p));
-                  pp = pNext(p);
+                  p_SetCoeff(pp,dummy,currRing);
+                  if(nIsZero(pp->coef))
+                  {
+                    pLmDelete(&pNext(p));
+                    pp = pNext(p);
+                  }
+                  else
+                  {
+                    p = pp;
+                    pp = pNext(p);
+                  }
                 }
                 else
                 {
+                  nDelete(&dummy);
                   p = pp;
                   pp = pNext(p);
                 }
@@ -11018,19 +11092,12 @@ void finalReduceByMon(kStrategy strat)
               }
             }
           }
-          if(strat->S[i]!= NULL && nIsZero(pGetCoeff(strat->S[i])))
-          {
-            if(pNext(strat->S[i]) == NULL)
-              strat->S[i]=NULL;
-            else
-              strat->S[i]=pNext(strat->S[i]);
-          }
         }
       }
       //idPrint(strat->Shdl);
     }
   }
-  //idSkipZeroes(strat->Shdl);
+  idSkipZeroes(strat->Shdl);
 }
 #endif
 
@@ -12317,6 +12384,11 @@ void enterOnePairShift (poly q, poly p, int ecart, int isFromQ, kStrategy strat,
 //      if (strat->pairtest==NULL) initPairtest(strat);
 //      strat->pairtest[i] = TRUE;/*- hint for spoly(S^[i],p)=0 -*/
 //      strat->pairtest[strat->sl+1] = TRUE;
+// new: visual check how often this happens: ! for the debug situation
+#ifdef KDEBUG
+      Print("!");
+      //if (TEST_OPT_DEBUG){Print("!");} // option teach
+#endif /* KDEBUG */
     /* END _ TEMPORARILY DISABLED FOR SHIFTS */
     /*hint for spoly(S[i],p) == 0 for some i,0 <= i <= sl*/
     /*
@@ -12603,7 +12675,7 @@ poly redtailBbaShift (LObject* L, int pos, kStrategy strat, BOOLEAN withT, BOOLE
     L->length = 0;
   }
   L->Normalize(); // HANNES: should have a test
-  kTest_L(L);
+  kTest_L(L,strat->tailRing);
   return L->GetLmCurrRing();
 }
 #endif

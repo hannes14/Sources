@@ -17,7 +17,12 @@
  * (remark: NO_KINLINE is defined by KDEBUG, i.e. in the debug version)
  */
 
+#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
+#else
+#include "xalloc/omalloc.h"
+#endif
+
 #include "misc/options.h"
 
 #include "polys/monomials/p_polys.h"
@@ -333,6 +338,13 @@ KINLINE void sLObject::Normalize()
   {
     pNormalize(p);
   }
+  if (bucket!=NULL) kBucketNormalize(bucket);
+}
+
+KINLINE void sLObject::CanonicalizeP()
+{
+  if (bucket != NULL)
+    kBucketCanonicalize(bucket);
 }
 
 KINLINE void sLObject::HeadNormalize()
@@ -637,21 +649,6 @@ KINLINE poly sLObject::LmExtractAndIter()
 
   Set(pn, tailRing);
   return ret;
-}
-
-KINLINE poly sLObject::CanonicalizeP()
-{
-  //kTest_L(this);
-  int i = -1;
-
-  if (bucket != NULL)
-    i = kBucketCanonicalize(bucket);
-
-  if (p == NULL)
-    p = k_LmInit_tailRing_2_currRing(t_p, tailRing);
-
-  if (i >= 0) pNext(p) = bucket->buckets[i];
-  return p;
 }
 
 KINLINE poly sLObject::GetTP()

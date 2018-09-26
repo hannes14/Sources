@@ -8,24 +8,17 @@
 */
 
 /* includes */
-#include "omalloc/omalloc.h"
 #include "misc/auxiliary.h"
 #include "coeffs/coeffs.h"
 #include "misc/intvec.h"
 #include "misc/int64vec.h"
+#include "coeffs/coeffs.h" // ring,number
 #include "polys/monomials/monomials.h"
 //#include "polys/monomials/polys-impl.h"
 //
 
 /* forward declaration of types */
 class idrec; typedef idrec *   idhdl; // _only_ for idhdl ip_sring::idroot
-//struct  spolyrec;
-//typedef struct spolyrec    polyrec;
-//typedef struct spolyrec *         poly;
-//typedef struct spolyrec const *   const_poly;
-struct ip_sring;
-typedef struct ip_sring *         ring;
-typedef struct ip_sring const *   const_ring;
 struct p_Procs_s;
 typedef struct p_Procs_s p_Procs_s;
 class kBucket;
@@ -406,7 +399,17 @@ static inline BOOLEAN rIsPluralRing(const ring r)
   assume(r != NULL); assume(r->cf != NULL);
 #ifdef HAVE_PLURAL
   nc_struct *n;
-  return (r != NULL) && ((n=r->GetNC()) != NULL) /*&& (n->type != nc_error)*/;
+  return ((n=r->GetNC()) != NULL) /*&& (n->type != nc_error)*/;
+#else
+  return FALSE;
+#endif
+}
+
+static inline BOOLEAN rIsNCRing(const ring r)
+{
+  assume(r != NULL); assume(r->cf != NULL);
+#ifdef HAVE_PLURAL
+  return (r->isLPring!=0) || rIsPluralRing(r);
 #else
   return FALSE;
 #endif
@@ -465,14 +468,8 @@ BOOLEAN rRing_has_CompLastBlock(ring r);
 static inline BOOLEAN rField_is_Ring_2toM(const ring r)
 { assume(r != NULL); assume(r->cf != NULL); return ( nCoeff_is_Ring_2toM(r->cf) ); }
 
-static inline BOOLEAN rField_is_Ring_ModN(const ring r)
-{ assume(r != NULL); assume(r->cf != NULL); return ( nCoeff_is_Ring_ModN(r->cf) ); }
-
 static inline BOOLEAN rField_is_Ring_PtoM(const ring r)
 { assume(r != NULL); assume(r->cf != NULL); return ( nCoeff_is_Ring_PtoM(r->cf) ); }
-
-static inline BOOLEAN rField_is_Ring_Z(const ring r)
-{ assume(r != NULL); assume(r->cf != NULL); return ( nCoeff_is_Ring_Z(r->cf) ); }
 
 static inline BOOLEAN rField_is_Ring(const ring r)
 { assume(r != NULL); assume(r->cf != NULL); return nCoeff_is_Ring(r->cf); }
@@ -485,9 +482,7 @@ static inline BOOLEAN rField_has_Units(const ring r)
 #else
 #define rField_is_Ring(A) (0)
 #define rField_is_Ring_2toM(A) (0)
-#define rField_is_Ring_ModN(A) (0)
 #define rField_is_Ring_PtoM(A) (0)
-#define rField_is_Ring_Z(A) (0)
 #define rField_is_Domain(A) (1)
 #define rField_has_Units(A) (1)
 #endif
@@ -503,6 +498,9 @@ static inline BOOLEAN rField_is_Q(const ring r)
 
 static inline BOOLEAN rField_is_Z(const ring r)
 { assume(r != NULL); assume(r->cf != NULL); return nCoeff_is_Z(r->cf); }
+
+static inline BOOLEAN rField_is_Zn(const ring r)
+{ assume(r != NULL); assume(r->cf != NULL); return nCoeff_is_Zn(r->cf); }
 
 static inline BOOLEAN rField_is_numeric(const ring r) /* R, long R, long C */
 { assume(r != NULL); assume(r->cf != NULL); return nCoeff_is_numeric(r->cf); }
