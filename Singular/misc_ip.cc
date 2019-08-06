@@ -15,19 +15,10 @@
 
 #include "kernel/mod2.h"
 #include "misc/sirandom.h"
-
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
-
 #include "misc/mylimits.h"
-
 #include "reporter/si_signals.h"
-
 #include "factory/factory.h"
-
 #include "coeffs/si_gmp.h"
 #include "coeffs/coeffs.h"
 #include "coeffs/OPAE.h"
@@ -36,7 +27,6 @@
 #include "coeffs/flintcf_Q.h"
 #include "coeffs/flintcf_Zn.h"
 #include "coeffs/rmodulon.h"
-
 #include "polys/ext_fields/algext.h"
 #include "polys/ext_fields/transext.h"
 #include "polys/nc/gb_hack.h"
@@ -124,7 +114,7 @@ void setListEntry_ui(lists L, int index, unsigned long ui)
 }
 
 /* Factoring with Pollard's rho method. stolen from GMP/demos */
-static unsigned add[] = {4, 2, 4, 2, 4, 6, 2, 6};
+STATIC_VAR unsigned add[] = {4, 2, 4, 2, 4, 6, 2, 6};
 
 static int factor_using_division (mpz_t t, unsigned int limit,lists primes, int *multiplicities,int &index, unsigned long bound)
 {
@@ -463,7 +453,7 @@ void singular_example(char *str)
     *ss='\0';
     ss--;
   }
-  idhdl h=IDROOT->get(s,myynest);
+  idhdl h=IDROOT->get_level(s,0);
   if ((h!=NULL) && (IDTYP(h)==PROC_CMD))
   {
     char *lib=iiGetLibName(IDPROC(h));
@@ -692,7 +682,7 @@ BOOLEAN setOption(leftv res, leftv v)
         #ifdef YYDEBUG
         #if YYDEBUG
         /*debugging the bison grammar --> grammar.cc*/
-        extern int    yydebug;
+        EXTERN_VAR int    yydebug;
         if (BVERBOSE(V_YACC)) yydebug=1;
         else                  yydebug=0;
         #endif
@@ -706,7 +696,7 @@ BOOLEAN setOption(leftv res, leftv v)
         #ifdef YYDEBUG
         #if YYDEBUG
         /*debugging the bison grammar --> grammar.cc*/
-        extern int    yydebug;
+        EXTERN_VAR int    yydebug;
         if (BVERBOSE(V_YACC)) yydebug=1;
         else                  yydebug=0;
         #endif
@@ -1107,7 +1097,7 @@ void m2_end(int i)
 {
   if (!m2_end_called)
   {
-    extern FILE* File_Profiling;
+    EXTERN_VAR FILE* File_Profiling;
     if (File_Profiling!=NULL) { fclose(File_Profiling); File_Profiling=NULL; }
     m2_end_called = TRUE;
 #ifdef HAVE_SIMPLEIPC
@@ -1212,7 +1202,7 @@ extern "C"
 }
 
 #ifdef SINGULAR_4_2
-static n_coeffType n_pAE=n_unknown;
+STATIC_VAR n_coeffType n_pAE=n_unknown;
 static BOOLEAN ii_pAE_init(leftv res,leftv a)
 {
   if (a->Typ()!=INT_CMD)
@@ -1229,8 +1219,8 @@ static BOOLEAN ii_pAE_init(leftv res,leftv a)
 }
 #endif
 #ifdef HAVE_FLINT
-static n_coeffType n_FlintZn=n_unknown;
-static n_coeffType n_FlintQ=n_unknown;
+STATIC_VAR n_coeffType n_FlintZn=n_unknown;
+STATIC_VAR n_coeffType n_FlintQ=n_unknown;
 static BOOLEAN ii_FlintZn_init(leftv res,leftv a)
 {
   const short t[]={2,INT_CMD,STRING_CMD};
@@ -1421,8 +1411,8 @@ void siInit(char *name)
     //IDDATA(h)=(char*)nInitChar(n_R,NULL);
     //h=enterid("CC",0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
     //IDDATA(h)=(char*)nInitChar(n_long_C,NULL);
-    n_coeffType t;
 #ifdef SINGULAR_4_2
+    n_coeffType t;
     t=nRegister(n_unknown,n_AEInitChar);
     if (t!=n_unknown)
     {

@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-version="version general.lib 4.1.1.0 Dec_2017 "; // $Id$
+version="version general.lib 4.1.2.0 Feb_2019 "; // $Id$
 category="General purpose";
 info="
 LIBRARY:  general.lib   Elementary Computations of General Type
@@ -36,6 +36,7 @@ PROCEDURES:
 LIB "inout.lib";
 LIB "poly.lib";
 LIB "matrix.lib";
+LIB "ring.lib";
 ///////////////////////////////////////////////////////////////////////////////
 
 proc A_Z (string s,int n)
@@ -708,7 +709,7 @@ EXAMPLE: example sort; shows an example
    {
       if ( typeof(#[1])=="string" )
       {
-         execute("ring r1 =("+charstr(P)+"),("+varstr(P)+"),("+#[1]+");");
+         ring r1 = create_ring(ringlist(P)[1],"("+varstr(P)+")","("+#[1]+")","no_minpoly");
          def i = imap(P,id);
          v = sortvec(i);
          setring P;

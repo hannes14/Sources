@@ -6,11 +6,7 @@
 /*
 * ABSTRACT: handling of the list type
 */
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
 
 #include "kernel/structs.h"
 #include "kernel/ideals.h"
@@ -23,7 +19,7 @@
 #define INLINE_THIS inline
 #endif
 
-extern omBin slists_bin;
+EXTERN_VAR omBin slists_bin;
 class slists
 {
   public:

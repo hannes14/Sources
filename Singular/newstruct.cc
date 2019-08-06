@@ -94,7 +94,11 @@ char * newstruct_String(blackbox *b, void *d)
         {
           StringAppendS("<list>");
         }
-        else
+        else if (l->m[a->pos].rtyp==STRING_CMD)
+	{
+          StringAppendS((char*)l->m[a->pos].Data());
+	}
+	else
         {
           char *tmp2=omStrDup(l->m[a->pos].String());
           if ((strlen(tmp2)>80)||(strchr(tmp2,'\n')!=NULL))
@@ -933,7 +937,6 @@ BOOLEAN newstruct_set_proc(const char *bbname,const char *func, int args,procinf
     case RING_DECL_LIST:
     case ROOT_DECL_LIST:
     case CMD_M:
-      if(args!=4) { Warn("args must be 4 in %s",my_yylinebuf);args=4;}
       break;
     default:
       Werror("unknown token type %d in %s",tt,my_yylinebuf);

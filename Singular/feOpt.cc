@@ -22,6 +22,9 @@
 
 #include "fehelp.h"
 
+#ifdef HAVE_FLINT
+#include <flint/flint.h>
+#endif
 
 const char SHORT_OPTS_STRING[] = "bdhpqstvxec:r:u:";
 
@@ -135,12 +138,7 @@ feOptIndex feGetOptIndex(int optc)
 //         "error-string" on error
 #if !defined(ESINGULAR) && !defined(TSINGULAR)
 
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
-
 #include "resources/feResource.h"
 #include "kernel/oswrapper/feread.h"
 #include "kernel/oswrapper/timer.h"
@@ -313,6 +311,23 @@ static const char* feOptAction(feOptIndex opt)
         return NULL;
       }
 
+      #ifdef HAVE_FLINT
+      #if __FLINT_RELEASE >= 20503
+      case FE_OPT_FLINT_THREADS:
+      {
+        slong nthreads = (slong)feOptSpec[FE_OPT_FLINT_THREADS].value;
+        nthreads = FLINT_MAX(nthreads, WORD(1));
+        flint_set_num_threads(nthreads);
+        int * cpu_affinities = new int[nthreads];
+        for (slong i = 0; i < nthreads; i++)
+          cpu_affinities[i] = (int)i;
+        flint_set_thread_affinity(cpu_affinities, nthreads);
+        delete[] cpu_affinities;
+        return NULL;
+      }
+      #endif
+      #endif
+
       default:
         return NULL;
   }
@@ -357,7 +372,7 @@ void fePrintOptValues()
 void feOptHelp(const char* name)
 {
   int i = 0;
-  char tmp[20];
+  char tmp[60];
 #if defined(ESINGULAR)
   printf("ESingular starts up Singular within emacs;\n");
 #elif defined(TSINGULAR)

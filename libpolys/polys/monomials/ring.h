@@ -311,6 +311,7 @@ struct ip_sring
 
 #ifdef HAVE_SHIFTBBA
   short          isLPring; /* 0 for non-letterplace rings, otherwise the number of LP blocks, at least 1, known also as lV */
+  short          LPncGenCount;
 #endif
 
   BOOLEAN   VectorOut;
@@ -408,7 +409,7 @@ static inline BOOLEAN rIsPluralRing(const ring r)
 static inline BOOLEAN rIsLPRing(const ring r)
 {
   assume(r != NULL);
-#ifdef HAVE_SHIFTBBA
+#if defined(HAVE_PLURAL) && defined(HAVE_SHIFTBBA)
   return (r->isLPring!=0);
 #else
   return FALSE;
@@ -417,7 +418,11 @@ static inline BOOLEAN rIsLPRing(const ring r)
 
 static inline BOOLEAN rIsNCRing(const ring r)
 {
+#ifdef HAVE_PLURAL
   return rIsLPRing(r) || rIsPluralRing(r);
+#else
+  return FALSE;
+#endif
 }
 
 static inline BOOLEAN rIsRatGRing(const ring r)
@@ -466,8 +471,11 @@ BOOLEAN rSamePolyRep(ring r1, ring r2);
 
 void   rUnComplete(ring r);
 
-BOOLEAN rRing_is_Homog(ring r);
-BOOLEAN rRing_has_CompLastBlock(ring r);
+BOOLEAN rRing_is_Homog(const ring r);
+BOOLEAN rRing_has_CompLastBlock(const ring r);
+BOOLEAN rRing_ord_pure_dp(const ring r);
+BOOLEAN rRing_ord_pure_Dp(const ring r);
+BOOLEAN rRing_ord_pure_lp(const ring r);
 
 #ifdef HAVE_RINGS
 static inline BOOLEAN rField_is_Ring_2toM(const ring r)
@@ -547,7 +555,8 @@ static inline BOOLEAN rField_has_simple_inverse(const ring r)
 static inline BOOLEAN rField_has_simple_Alloc(const ring r)
 { assume(r != NULL); assume(r->cf != NULL); return nCoeff_has_simple_Alloc(r->cf); }
 
-n_coeffType rFieldType(const ring r);
+/// the type of the coefficient filed of r (n_Zp, n_Q, etc)
+static inline n_coeffType rFieldType(const ring r) { return (r->cf->type); }
 
 /// this needs to be called whenever a new ring is created: new fields
 /// in ring are created (like VarOffset), unless they already exist
@@ -736,7 +745,6 @@ ring   rAssure_CompLastBlock(const ring r, BOOLEAN complete = TRUE);
 /// makes sure that c/C ordering is last ordering and SyzIndex is first
 ring   rAssure_SyzComp_CompLastBlock(const ring r);
 ring   rAssure_TDeg(const ring r, int &pos);
-BOOLEAN rHasTDeg(const ring r);
 
 /// return the max-comonent wchich has syzIndex i
 /// Assume: i<= syzIndex_limit
@@ -825,7 +833,7 @@ int rTypeOfMatrixOrder(const intvec *order);
 
 void rDelete(ring r); // To be used instead of rKill!
 
-extern omBin sip_sring_bin;
+EXTERN_VAR omBin sip_sring_bin;
 
 // ring manipulation
 /// K[x],"y" -> K[x,y] resp. K[y,x]

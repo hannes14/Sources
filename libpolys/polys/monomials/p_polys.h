@@ -821,6 +821,7 @@ static inline poly p_Copy(poly p, const ring r)
     return NULL;
 }
 
+/// copy the i(leading) term of p
 static inline poly p_Head(poly p, const ring r)
 {
   if (p == NULL) return NULL;
@@ -834,7 +835,10 @@ static inline poly p_Head(poly p, const ring r)
   return np;
 }
 
-// returns a copy of p with Lm(p) from lmRing and Tail(p) from tailRing
+/// like p_Head, but with coefficient 1
+poly p_CopyPowerProduct(poly p, const ring r);
+
+/// returns a copy of p with Lm(p) from lmRing and Tail(p) from tailRing
 static inline poly p_Copy(poly p, const ring lmRing, const ring tailRing)
 {
   if (p != NULL)
@@ -1481,9 +1485,9 @@ static inline void p_SetExpVL(poly p, int64 *ev, const ring r)
 {
   p_LmCheckPolyRing1(p, r);
   for (unsigned j = r->N; j!=0; j--)
-      p_SetExp(p, j, ev[j], r);
+      p_SetExp(p, j, ev[j-1], r);
+  p_SetComp(p, 0,r);
 
-  if(ev[0]!=0) p_SetComp(p, ev[0],r);
   p_Setm(p, r);
 }
 
@@ -1917,7 +1921,7 @@ static inline BOOLEAN p_LmShortDivisibleBy(poly a, unsigned long sev_a, const ri
  ***************************************************************/
 
 
-// like the respective p_LmIs* routines, except that p might be empty
+/// like the respective p_LmIs* routines, except that p might be empty
 static inline BOOLEAN p_IsConstantComp(const poly p, const ring r)
 {
   if (p == NULL) return TRUE;
@@ -1985,6 +1989,7 @@ poly      p_mInit(const char *s, BOOLEAN &ok, const ring r); /* monom s -> poly,
 const char *    p_Read(const char *s, poly &p,const ring r); /* monom -> poly */
 poly      p_MDivide(poly a, poly b, const ring r);
 poly      p_DivideM(poly a, poly b, const ring r);
+poly      pp_DivideM(poly a, poly b, const ring r);
 poly      p_Div_nn(poly p, const number n, const ring r);
 
 // returns the LCM of the head terms of a and b in *m, does not p_Setm
@@ -2080,5 +2085,9 @@ poly p_GcdMon(poly f, poly g, const ring r);
 
 /// divide polynomial by monomial
 poly p_Div_mm(poly p, const poly m, const ring r);
+
+
+/// max exponent of variable x_i in p
+int p_MaxExpPerVar(poly p, int i, const ring r);
 #endif // P_POLYS_H
 

@@ -6,21 +6,12 @@
 */
 
 #include "kernel/mod2.h"
-
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
-
 #include "misc/intvec.h"
 #include "misc/options.h"
-
 #include "coeffs/numbers.h"
 #include "coeffs/bigintmat.h"
-
 #include "coeffs/ffields.h" // nfShowMipo // minpoly printing...
-
 #include "polys/monomials/maps.h"
 #include "polys/matpol.h"
 #include "polys/monomials/ring.h"
@@ -32,7 +23,6 @@
 #include "kernel/GBEngine/kstd1.h"
 #include "kernel/GBEngine/syz.h"
 #include "kernel/oswrapper/timer.h"
-
 #include "Singular/tok.h"
 #include "Singular/ipid.h"
 #include "Singular/ipshell.h"
@@ -47,15 +37,15 @@
 
 #include <ctype.h>
 
-omBin sSubexpr_bin = omGetSpecBin(sizeof(_ssubexpr));
-omBin sleftv_bin = omGetSpecBin(sizeof(sleftv));
-omBin procinfo_bin = omGetSpecBin(sizeof(procinfo));
-omBin libstack_bin = omGetSpecBin(sizeof(libstack));
-static omBin size_two_bin = omGetSpecBin(2);
+VAR omBin sSubexpr_bin = omGetSpecBin(sizeof(_ssubexpr));
+VAR omBin sleftv_bin = omGetSpecBin(sizeof(sleftv));
+VAR omBin procinfo_bin = omGetSpecBin(sizeof(procinfo));
+VAR omBin libstack_bin = omGetSpecBin(sizeof(libstack));
+STATIC_VAR omBin size_two_bin = omGetSpecBin(2);
 
-sleftv     sLastPrinted;
+INST_VAR sleftv     sLastPrinted;
 #ifdef SIQ
-BOOLEAN siq=FALSE;
+VAR BOOLEAN siq=FALSE;
 #endif
 
 int sleftv::listLength()
@@ -1180,8 +1170,8 @@ int  sleftv::LTyp()
 }
 
 #ifdef SINGULAR_4_2
-static snumber2 iiNumber2Data[4];
-static int iiCmatrix_index=0;
+STATIC_VAR snumber2 iiNumber2Data[4];
+STATIC_VAR int iiCmatrix_index=0;
 #endif
 void * sleftv::Data()
 {
@@ -1621,48 +1611,47 @@ void syMake(leftv v,const char * id, package pa)
   if (siq<=0)
 #endif
   {
-    if (!isdigit(id[0]))
+    if (strcmp(id,"basering")==0)
     {
-      if (strcmp(id,"basering")==0)
+      if (currRingHdl!=NULL)
       {
-        if (currRingHdl!=NULL)
-        {
-          if (id!=IDID(currRingHdl)) omFreeBinAddr((ADDRESS)id);
-          h=currRingHdl;
-          goto id_found;
-        }
-        else
-        {
-          v->name = id;
-          return; /* undefined */
-        }
-      }
-      else if (strcmp(id,"Current")==0)
-      {
-        if (currPackHdl!=NULL)
-        {
-          omFreeBinAddr((ADDRESS)id);
-          h=currPackHdl;
-          goto id_found;
-        }
-        else
-        {
-          v->name = id;
-          return; /* undefined */
-        }
-      }
-      if(v->req_packhdl!=currPack)
-      {
-        h=v->req_packhdl->idroot->get(id,myynest);
-      }
-      else
-      h=ggetid(id);
-      /* 3) existing identifier, local */
-      if ((h!=NULL) && (IDLEV(h)==myynest))
-      {
-        if (id!=IDID(h)) omFreeBinAddr((ADDRESS)id); /*assume strlen(id) <1000 */
+        if (id!=IDID(currRingHdl)) omFreeBinAddr((ADDRESS)id);
+        h=currRingHdl;
         goto id_found;
       }
+      else
+      {
+        v->name = id;
+        return; /* undefined */
+      }
+    }
+    else if (strcmp(id,"Current")==0)
+    {
+      if (currPackHdl!=NULL)
+      {
+        omFreeBinAddr((ADDRESS)id);
+        h=currPackHdl;
+        goto id_found;
+      }
+      else
+      {
+        v->name = id;
+        return; /* undefined */
+      }
+    }
+    if(v->req_packhdl!=currPack)
+    {
+      h=v->req_packhdl->idroot->get(id,myynest);
+    }
+    else
+    {
+      h=ggetid(id);
+    }
+    /* 3) existing identifier, local */
+    if ((h!=NULL) && (IDLEV(h)==myynest))
+    {
+      if (id!=IDID(h)) omFreeBinAddr((ADDRESS)id); /*assume strlen(id) <1000 */
+      goto id_found;
     }
     if (yyInRingConstruction)
     {
@@ -1707,11 +1696,7 @@ void syMake(leftv v,const char * id, package pa)
       goto id_found;
     }
     /* 6. local ring: number/poly */
-    if ((currRingHdl!=NULL) && (IDLEV(currRingHdl)==myynest)
-    #ifdef HAVE_SHIFTBBA
-    && (currRing->isLPring==0)
-    #endif
-    )
+    if ((currRingHdl!=NULL) && (IDLEV(currRingHdl)==myynest))
     {
       BOOLEAN ok=FALSE;
       /*poly p = (!yyInRingConstruction) ? pmInit(id,ok) : (poly)NULL;*/
@@ -1739,9 +1724,18 @@ void syMake(leftv v,const char * id, package pa)
         }
         else
         {
+          v->name = id;
+        #ifdef HAVE_SHIFTBBA
+          if ((currRing->isLPring!=0)
+          && (p_Totaldegree(p,currRing)>1))
+          {
+            p_LmDelete(&p,currRing);
+            /* v->rtyp = UNKNOWN; - already set */
+            return; /* error, report "unknown id" */
+          }
+        #endif
           v->data = p;
           v->rtyp = POLY_CMD;
-          v->name = id;
         }
         return;
       }
@@ -1841,6 +1835,90 @@ id_found: // we have an id (in h) found, to set the data in from h
   }
   v->name = IDID(h);
   v->data = (char *)h;
+  currRingHdl=save_ring;
+}
+
+void syMakeMonom(leftv v,const char * id)
+{
+  if (!isdigit(id[0]))
+  {
+    Print("non-digit:%s\n",id);
+  }
+  /* resolv an identifier: (to DEF_CMD, if siq>0)
+  * 6) monom (resp. number), local ring
+  * 7) monom (resp. number), non-local ring
+  * 10) everything else is of type 0
+  */
+#ifdef TEST
+  if ((*id<' ')||(*id>(char)126))
+  {
+    Print("wrong id :%s:\n",id);
+  }
+#endif
+  idhdl save_ring=currRingHdl;
+  v->Init();
+  v->req_packhdl = currPack;
+  idhdl h=NULL;
+#ifdef SIQ
+  if (siq<=0)
+#endif
+  {
+    /* 6. local ring: number/poly */
+    BOOLEAN ok=FALSE;
+    poly p = pmInit(id,ok);
+    if (ok)
+    {
+      if (p==NULL)
+      {
+        v->data = (void *)nInit(0);
+        v->rtyp = NUMBER_CMD;
+        #ifdef HAVE_PLURAL
+        // in this case we may have monomials equal to 0 in p_Read
+        if (rIsPluralRing(currRing)) v->name = omStrDup(id);
+        #endif
+      }
+      else if (pIsConstant(p))
+      {
+        v->data = pGetCoeff(p);
+        pGetCoeff(p)=NULL;
+        pLmFree(p);
+        v->rtyp = NUMBER_CMD;
+      }
+      else
+      {
+        v->name = omStrDup(id);
+        #ifdef HAVE_SHIFTBBA
+        if ((currRing->isLPring!=0)
+        && (p_Totaldegree(p,currRing)>1))
+        {
+          p_LmDelete(&p,currRing);
+          /* v->rtyp = UNKNOWN; - already set */
+          return; /* error, report "unknown id" */
+        }
+        #endif
+        v->data = p;
+        v->rtyp = POLY_CMD;
+      }
+      return;
+    }
+  }
+#ifdef SIQ
+  else
+  {
+    v->rtyp=DEF_CMD;
+  }
+#endif
+  /* 9: _ */
+  if (strcmp(id,"_")==0)
+  {
+    v->Copy(&sLastPrinted);
+  }
+  else
+  {
+    /* 10: everything else */
+    /* v->rtyp = UNKNOWN;*/
+    v->name = omStrDup(id);
+  }
   currRingHdl=save_ring;
 }
 

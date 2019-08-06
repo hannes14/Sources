@@ -9,6 +9,7 @@ bug_misc
 bug_minpoly
 bug_minpoly2
 bug_minpoly_frac
+bug_mod
 bug_naGreater
 bug_newstruct
 bug_newstruct3
@@ -18,6 +19,7 @@ bug_qring2
 bug_ring
 bug_ringlist
 bug_sca
+bug_slimsyz
 bug_solve
 bug_ssi_algring
 bug_ssi_attr
@@ -75,7 +77,6 @@ bug_tr758
 bug_tr759
 bug_tr760_761
 bug_tr762
-bug_tr767
 bug_tr768
 bug_tr773
 bug_tr774
@@ -86,6 +87,7 @@ bug_tr806
 bug_tr820
 bug_tr822
 bug_tr834
+bug_tr844
 bug_genus_etc
 conv_bi
 facstd
@@ -126,6 +128,7 @@ ncfactor_facSubWeyl4_s
 ncfactor_nthweylringalt2_s
 ncfactor_usl2_reducible_bug_s
 ncfactor_usl2_s
+newstruct_ring
 nfmodsyz_s
 parallel_s
 polyclass

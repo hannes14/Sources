@@ -2,19 +2,17 @@
 #define LIBSINGULAR__H
 
 #include "singularconfig.h"
+#include "factory/globaldefs.h"
 #include "kernel/mod2.h"
 #include "kernel/structs.h"
 #include "kernel/polys.h"
 #include "coeffs/numbers.h"
 #include "kernel/oswrapper/feread.h"
 #include "polys/monomials/ring.h"
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
 #include "polys/clapsing.h"
 #include "polys/monomials/maps.h"
+#include "polys/shiftop.h"
 #include "kernel/GBEngine/kutil.h"
 #include "kernel/GBEngine/kstd1.h"
 #include "kernel/GBEngine/tgb.h"

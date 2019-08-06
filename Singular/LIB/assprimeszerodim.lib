@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-version="version assprimeszerodim.lib 4.1.1.0 Dec_2017 "; // $Id$
+version="version assprimeszerodim.lib 4.1.2.0 Feb_2019 "; // $Id$
 category="Commutative Algebra";
 info="
 LIBRARY:  assprimeszerodim.lib   associated primes of a zero-dimensional ideal
@@ -363,7 +363,7 @@ static proc specialTest(int d, poly p, ideal I)
 //=== computes a poly F in Q[T] such that <F>=kernel(Q[T]--->basering)
 //=== mapping T to p and test if d=deg(F)
    def R = basering;
-   execute("ring Rhelp = ("+charstr(R)+"), T, dp;");
+   ring Rhelp = create_ring(ringlist(R)[1], "T", "dp", "no_minpoly");
    setring R;
    map phi = Rhelp,p;
    setring Rhelp;

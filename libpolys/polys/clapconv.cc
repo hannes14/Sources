@@ -39,6 +39,7 @@ static number convFactoryNSingAN( const CanonicalForm &f, const ring r);
 
 poly convFactoryPSingP ( const CanonicalForm & f, const ring r )
 {
+  if (f.isZero()) return NULL;
   int n = rVar(r)+1;
   /* ASSERT( level( f ) <= pVariables, "illegal number of variables" ); */
   int * exp = (int*)omAlloc0(n*sizeof(int));
@@ -52,8 +53,7 @@ poly convFactoryPSingP ( const CanonicalForm & f, const ring r )
 
 static void conv_RecPP ( const CanonicalForm & f, int * exp, sBucket_pt result, ring r )
 {
-  if (f.isZero())
-    return;
+  // assume f!=0
   if ( ! f.inCoeffDomain() )
   {
     int l = f.level();
@@ -82,19 +82,46 @@ static void conv_RecPP ( const CanonicalForm & f, int * exp, sBucket_pt result, 
   }
 }
 
-CanonicalForm convSingPFactoryP( poly p, const ring r )
+static inline void convPhalf(poly p,int l,poly &p1,poly &p2)
+{
+  p1=p;
+  l=l/2;
+  while(l>1) { p=pNext(p); l--; }
+  p2=pNext(p);
+  pNext(p)=NULL;
+}
+
+static inline poly convPunhalf(poly p1,poly p2)
+{
+  poly p=p1;
+  while(pNext(p1)!=NULL) { p1=pNext(p1);}
+  pNext(p1)=p2;
+  return p;
+}
+
+#define MIN_CONV_LEN 7
+static CanonicalForm convSingPFactoryP_intern( poly p, int l, BOOLEAN & setChar,const ring r )
 {
   CanonicalForm result = 0;
   int e, n = rVar(r);
-  BOOLEAN setChar=TRUE;
+  assume(l==pLength(p));
 
-//  p=pReverse(p);
-  poly op=p;
+  if (l>MIN_CONV_LEN)
+  {
+    poly p1,p2;
+    convPhalf(p,l,p1,p2);
+    CanonicalForm P=convSingPFactoryP_intern(p1,l/2,setChar,r);
+    P+=convSingPFactoryP_intern(p2,l-l/2,setChar,r);
+    convPunhalf(p1,p2);
+    return P;
+  }
+  BOOLEAN setChar_loc=setChar;
+  setChar=FALSE;
   while ( p!=NULL )
   {
-    CanonicalForm term=r->cf->convSingNFactoryN(pGetCoeff( p ),setChar, r->cf);
+    CanonicalForm term=r->cf->convSingNFactoryN(pGetCoeff( p ),setChar_loc, r->cf);
     if (errorreported) break;
-    setChar=FALSE;
+    setChar_loc=FALSE;
     for ( int i = 1; i <=n; i++ )
     {
       if ( (e = p_GetExp( p, i, r)) != 0 )
@@ -103,8 +130,13 @@ CanonicalForm convSingPFactoryP( poly p, const ring r )
     result += term;
     pIter( p );
  }
-// op=pReverse(op);
  return result;
+}
+
+CanonicalForm convSingPFactoryP( poly p, const ring r )
+{
+  BOOLEAN setChar=TRUE;
+  return convSingPFactoryP_intern(p,pLength(p),setChar,r);
 }
 
 int convFactoryISingI( const CanonicalForm & f)
@@ -140,6 +172,7 @@ convRecAP_R ( const CanonicalForm & f, int * exp, poly & result, int par_start, 
 
 poly convFactoryAPSingAP_R ( const CanonicalForm & f, int par_start, int var_start, const ring r )
 {
+  if (f.isZero()) return NULL;
   int n = rVar(r)+rPar(r)+1;
   int * exp = (int *)omAlloc0(n*sizeof(int));
   poly result = NULL;
@@ -155,8 +188,7 @@ poly convFactoryAPSingAP ( const CanonicalForm & f, const ring r )
 
 static void convRecAP_R ( const CanonicalForm & f, int * exp, poly & result, int par_start, int var_start, const ring r )
 {
-  if (f.isZero())
-    return;
+  // assume f!=0
   if ( ! f.inCoeffDomain() )
   {
     int l = f.level();
@@ -289,10 +321,10 @@ CanonicalForm convSingTrPFactoryP ( poly p, const ring r )
 
   while ( p!=NULL )
   {
-    n_Normalize(p_GetCoeff(p, r), r->cf);
+    //n_Normalize(p_GetCoeff(p, r), r->cf);
 
     // test if denominator is constant
-    if (!p_IsConstantPoly(DEN ((fraction)p_GetCoeff (p,r)),r->cf->extRing) && !errorreported)
+    if (!errorreported && !p_IsConstantPoly(DEN ((fraction)p_GetCoeff (p,r)),r->cf->extRing))
       WerrorS("conversion error: denominator!= 1");
 
     CanonicalForm term=convSingPFactoryP(NUM ((fraction)p_GetCoeff(p, r)),r->cf->extRing);
@@ -317,8 +349,23 @@ CanonicalForm convSingTrPFactoryP ( poly p, const ring r )
   return result;
 }
 
+BOOLEAN convSingTrP(poly p, const ring r )
+{
+  while ( p!=NULL )
+  {
+    n_Normalize(p_GetCoeff(p, r), r->cf);
+
+    // test if denominator is constant
+    if (!p_IsConstantPoly(DEN ((fraction)p_GetCoeff (p,r)),r->cf->extRing))
+      return FALSE;
+    pIter(p);
+  }
+  return TRUE;
+}
+
 poly convFactoryPSingTrP ( const CanonicalForm & f, const ring r )
 {
+  if (f.isZero()) return NULL;
   int n = rVar(r)+1;
   int * exp = (int*)omAlloc0(n*sizeof(int));
   poly result = NULL;
@@ -330,8 +377,7 @@ poly convFactoryPSingTrP ( const CanonicalForm & f, const ring r )
 static void
 convRecTrP ( const CanonicalForm & f, int * exp, poly & result , int offs, const ring r)
 {
-  if (f.isZero())
-    return;
+  // assume f!= 0
   if ( f.level() > offs )
   {
     int l = f.level();

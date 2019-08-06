@@ -9,9 +9,9 @@
 #define MAX_BB_TYPES 256
 // #define BLACKBOX_DEVEL 1
 
-static blackbox* blackboxTable[MAX_BB_TYPES];
-static char *    blackboxName[MAX_BB_TYPES];
-static int blackboxTableCnt=0;
+GLOBAL_VAR static blackbox* blackboxTable[MAX_BB_TYPES];
+GLOBAL_VAR static char *    blackboxName[MAX_BB_TYPES];
+GLOBAL_VAR static int blackboxTableCnt=0;
 #define BLACKBOX_OFFSET (MAX_TOK+1)
 blackbox* getBlackboxStuff(const int t)
 {
@@ -125,19 +125,28 @@ BOOLEAN blackbox_default_Check(blackbox *,leftv,leftv)
 }
 int setBlackboxStuff(blackbox *bb, const char *n)
 {
-  int where=-1;
-  if (MAX_BB_TYPES<=blackboxTableCnt)
+  int where = -1;
+  for (int i=0;i<MAX_BB_TYPES;i++)
   {
-    // second try, find empty slot from removed bb:
-    for (int i=0;i<MAX_BB_TYPES;i++)
-    {
-      if (blackboxTable[i]==NULL) { where=i; break; }
+    if (blackboxTable[i]!=NULL && strcmp(blackboxName[i],n)==0) {
+      where = i;
+      break;
     }
   }
-  else
-  {
-    where=blackboxTableCnt;
-    blackboxTableCnt++;
+  if (where < 0) {
+    if (MAX_BB_TYPES<=blackboxTableCnt)
+    {
+      // second try, find empty slot from removed bb:
+      for (int i=0;i<MAX_BB_TYPES;i++)
+      {
+        if (blackboxTable[i]==NULL) { where=i; break; }
+      }
+    }
+    else
+    {
+      where=blackboxTableCnt;
+      blackboxTableCnt++;
+    }
   }
   if (where==-1)
   {
@@ -213,4 +222,24 @@ void printBlackboxTypes()
     if (blackboxName[i]!=NULL)
        Print("type %d: %s\n",i,blackboxName[i]);
   }
+}
+
+struct blackbox_list *getBlackboxTypes()
+{
+	int i = 0;
+	void **l = (void **)omalloc0(blackboxTableCnt * sizeof(void *));
+	struct blackbox_list *list_struct = (struct blackbox_list *) omAlloc0(sizeof(struct blackbox_list));
+	list_struct->count = blackboxTableCnt;
+	list_struct->list = l;
+
+	for (i = blackboxTableCnt-1; i >= 0 ;i--)
+	{
+		if (blackboxName[i]!=NULL) {
+			l[i] = (void *)omStrDup(blackboxName[i]);
+			//Print("type %d: %s\n",i,blackboxName[i]);
+		} else {
+			l[i] = NULL;
+		}
+	}
+	return list_struct;
 }

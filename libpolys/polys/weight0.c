@@ -7,12 +7,7 @@
 */
 
 #include "misc/auxiliary.h"
-
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
 
 #include <math.h>
 #include <string.h>
@@ -30,9 +25,9 @@ void wSecondSearch(int *A, int *x, int *lpol,
 void wGcd(int *x, int n);
 /*0 implementation*/
 
-short * ecartWeights=NULL;
+VAR short * ecartWeights=NULL;
 
-double (*wFunctional)(int *degw, int *lpol, int npol,
+VAR double (*wFunctional)(int *degw, int *lpol, int npol,
        double *rel, double wx, double wNsqr);
 
 

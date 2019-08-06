@@ -6,20 +6,11 @@
 */
 
 #include "kernel/mod2.h"
-
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
-
 #include "misc/mylimits.h"
-
 #include "resources/feResource.h"
 #include "reporter/reporter.h"
-
 #include "resources/omFindExec.h"
-
 #include "reporter/si_signals.h"
 
 #include "ipid.h"
@@ -77,8 +68,8 @@ static BOOLEAN heGenInit(int,int);    static void heGenHelp(heEntry hentry,int);
 static BOOLEAN heDummyInit(int,int);   static void heDummyHelp(heEntry hentry,int);
 static BOOLEAN heEmacsInit(int,int);   static void heEmacsHelp(heEntry hentry,int);
 
-static heBrowser heCurrentHelpBrowser = NULL;
-static int heCurrentHelpBrowserIndex= -1;
+STATIC_VAR heBrowser heCurrentHelpBrowser = NULL;
+STATIC_VAR int heCurrentHelpBrowserIndex= -1;
 
 
 /*****************************************************************
@@ -88,7 +79,7 @@ static int heCurrentHelpBrowserIndex= -1;
  *****************************************************************/
 // order is important -- first possible help is chosen
 // moved to LIB/help.cnf
-static heBrowser_s *heHelpBrowsers=NULL;
+STATIC_VAR heBrowser_s *heHelpBrowsers=NULL;
 
 /*****************************************************************
  *
@@ -707,7 +698,7 @@ static BOOLEAN heOnlineHelp(char* s)
        ||
        ((fp=feFopen(str,"rb", libnamebuf))!=NULL)))
   {
-    extern FILE *yylpin;
+    EXTERN_VAR FILE *yylpin;
     lib_style_types lib_style; // = OLD_LIBSTYLE;
 
     yylpin = fp;
@@ -772,7 +763,7 @@ static long heKeyChksum(char* key)
  *
  *****************************************************************/
 
-static BOOLEAN feHelpCalled = FALSE;
+STATIC_VAR BOOLEAN feHelpCalled = FALSE;
 
 static void heBrowserHelp(heEntry hentry)
 {

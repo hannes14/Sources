@@ -40,6 +40,9 @@ void p_LPExpVprepend(int *m1ExpV, int *m2ExpV, int m1Length, int m2Length, const
 void WriteLPExpV(int *expV, ring ri);
 char* LPExpVString(int *expV, ring ri);
 
+void k_SplitFrame(poly &m1, poly &m2, int at, const ring r);
+#define kSplitFrame(m1, m2, at) k_SplitFrame(m1, m2, at, currRing);
+
 int id_IsInV(ideal I, const ring r);
 int p_IsInV(poly p, const ring r);
 int p_mIsInV(poly p, const ring r);
@@ -47,5 +50,15 @@ int p_mIsInV(poly p, const ring r);
 #define pIsInV(p) p_IsInV(p, currRing)
 #define pmIsInV(p) p_mIsInV(p, currRing)
 
+BOOLEAN p_LPDivisibleBy(poly a, poly b, const ring r);
+BOOLEAN p_LPLmDivisibleBy(poly a, poly b, const ring r);
+BOOLEAN _p_LPLmDivisibleByNoComp(poly a, poly b, const ring r);
+
+BOOLEAN _p_mLPNCGenValid(int *mExpV, const ring r);
+
+poly p_LPVarAt(poly p, int pos, const ring r);
+
+/// create the letterplace ring corresponding to r up to degree d
+ring freeAlgebra(ring r, int d, int LPncGenCount = 0);
 #endif
 #endif

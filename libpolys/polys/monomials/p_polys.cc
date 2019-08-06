@@ -137,11 +137,11 @@ poly p_ChineseRemainder(poly *xx, number *x,number *q, int rl, CFArray &inv_cach
  *
  ***************************************************************/
 // this is special for the syz stuff
-static int* _components = NULL;
-static long* _componentsShifted = NULL;
-static int _componentsExternal = 0;
+STATIC_VAR int* _components = NULL;
+STATIC_VAR long* _componentsShifted = NULL;
+STATIC_VAR int _componentsExternal = 0;
 
-BOOLEAN pSetm_error=0;
+VAR BOOLEAN pSetm_error=0;
 
 #ifndef SING_NDEBUG
 # define MYTEST 0
@@ -1561,33 +1561,41 @@ poly p_DivideM(poly a, poly b, const ring r)
 {
   if (a==NULL) { p_Delete(&b,r); return NULL; }
   poly result=a;
-  poly prev=NULL;
-  number inv=pGetCoeff(b);
 
-  while (a!=NULL)
+  if(!p_IsConstant(b,r))
   {
-    if (p_DivisibleBy(b,a,r))
+    if (rIsLPRing(r))
     {
-      p_ExpVectorSub(a,b,r);
-      prev=a;
-      pIter(a);
+      WerrorS("not implemented for letterplace rings");
+      return NULL;
     }
-    else
+    poly prev=NULL;
+    while (a!=NULL)
     {
-      if (prev==NULL)
+      if (p_DivisibleBy(b,a,r))
       {
-        p_LmDelete(&result,r);
-        a=result;
+        p_ExpVectorSub(a,b,r);
+        prev=a;
+        pIter(a);
       }
       else
       {
-        p_LmDelete(&pNext(prev),r);
-        a=pNext(prev);
+        if (prev==NULL)
+        {
+          p_LmDelete(&result,r);
+          a=result;
+        }
+        else
+        {
+          p_LmDelete(&pNext(prev),r);
+          a=pNext(prev);
+        }
       }
     }
   }
   if (result!=NULL)
   {
+    number inv=pGetCoeff(b);
     //if ((!rField_is_Ring(r)) || n_IsUnit(inv,r->cf))
     if (rField_is_Zp(r))
     {
@@ -1602,6 +1610,13 @@ poly p_DivideM(poly a, poly b, const ring r)
   }
   p_Delete(&b, r);
   return result;
+}
+
+poly pp_DivideM(poly a, poly b, const ring r)
+{
+  if (a==NULL) { return NULL; }
+  // TODO: better implementation without copying a,b
+  return p_DivideM(p_Copy(a,r),p_Head(b,r),r);
 }
 
 #ifdef HAVE_RINGS
@@ -3609,9 +3624,9 @@ void pRestoreDegProcs(ring r, pFDegProc old_FDeg, pLDegProc old_lDeg)
 /*
 * the module weights for std
 */
-static pFDegProc pOldFDeg;
-static pLDegProc pOldLDeg;
-static BOOLEAN pOldLexOrder;
+STATIC_VAR pFDegProc pOldFDeg;
+STATIC_VAR pLDegProc pOldLDeg;
+STATIC_VAR BOOLEAN pOldLexOrder;
 
 static long pModDeg(poly p, ring r)
 {
@@ -4872,3 +4887,29 @@ poly p_GcdMon(poly f, poly g, const ring r)
   omFreeSize(mh,(r->N+1)*sizeof(int));
   return G;
 }
+
+poly p_CopyPowerProduct(poly p, const ring r)
+{
+  if (p == NULL) return NULL;
+  p_LmCheckPolyRing1(p, r);
+  poly np;
+  omTypeAllocBin(poly, np, r->PolyBin);
+  p_SetRingOfLm(np, r);
+  memcpy(np->exp, p->exp, r->ExpL_Size*sizeof(long));
+  pNext(np) = NULL;
+  pSetCoeff0(np, n_Init(1, r->cf));
+  return np;
+}
+
+int p_MaxExpPerVar(poly p, int i, const ring r)
+{
+  int m=0;
+  while(p!=NULL)
+  {
+    int mm=p_GetExp(p,i,r);
+    if (mm>m) m=mm;
+    pIter(p);
+  }
+  return m;
+}
+

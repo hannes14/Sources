@@ -161,6 +161,7 @@ isuni
 laxfrX
 leadexp
 leadmonom
+letterplace_reduce
 Loading_a_library
 map_declarations
 Matrix_orderings
@@ -789,7 +790,6 @@ invunit
 iostruct
 isGroup
 isGroupHomomorphism
-ivMis2Dim
 Jacobi
 KoszulHomology
 leftInverse
@@ -832,7 +832,6 @@ SymGroup
 tail
 texcoef
 texring
-vct2str
 Weyl
 zeroOpt
 autonomDim
@@ -856,7 +855,6 @@ inverse_L
 isPrimitiveSublattice
 isSublattice
 iv2lpList
-ivOrdMisLex
 linear_relations
 list_operations
 listvar
@@ -911,10 +909,6 @@ iniD
 intersection
 isCMcod2
 isFlat
-ivDHilbert
-ivDimCheck
-ivMis2Base
-ivSickle
 lift_kbase
 linearMapKernel
 makeMalgrange
@@ -976,12 +970,12 @@ isInt
 isPositive
 isZeroElement
 iv2lpMat
-ivHilbert
 lift_rel_kb
 liftstd_BR_PLURAL_BR
 _lll
 localInvar
 lp2ivId
+lpMonomialPrinting
 magnitude
 makeHeisenberg
 makeUgl
@@ -1033,12 +1027,10 @@ isAntiEndo
 isRational
 isTorsionFree
 linSyzSolve
-lpMis2Base
 map_BR_PLURAL_BR_operations
 maxEord
 minipoly
 minres_BR_PLURAL_BR
-mod2str
 mod_versal
 ModEqn
 ncdetection
@@ -1077,10 +1069,6 @@ invariant_algebra_reynolds
 Invariants_of_plane_curve_singularities
 involution
 isFsat
-isVar
-ivSickleDim
-lpMis2Dim
-lpPower
 makeQsl2
 makeUsp1
 mres_BR_PLURAL_BR
@@ -1109,7 +1097,6 @@ fouriersystem
 GBWeight
 getModuleGrading
 invariants
-ivKDim
 lieBracket
 lp2iv
 makeQsl3
@@ -1141,9 +1128,6 @@ exp2pt
 Gamma
 irred_secondary_no_molien
 isCM
-ivDHilbertSickle
-ivSickleHil
-lp2lstr
 makeUsl
 makeUsp3
 makeUsp5
@@ -1152,7 +1136,6 @@ normalform
 prepareAss
 restrictionIdeal
 secondary_char0
-sickle
 annfsParamBM
 bFactor
 bfctVarIn
@@ -1160,11 +1143,11 @@ countPoints
 findAuto
 findInvoDiag
 invariant_ring
-letplaceGBasis
+letterplace_std
+lpMonomialBasis
 linReduceIdeal
 lpId2ivLi
 lpKDim
-lst2str
 makeLetterplaceRing
 makeUso11
 number_pi
@@ -1200,7 +1183,6 @@ bernsteinLift
 determinecenter
 Gauss-Manin_connection_1
 KSpencerKernel
-lpSickleHil
 makeUe6
 orthogonalize
 pIntersect
@@ -1210,14 +1192,11 @@ EOrdlist
 findInvo
 _invariantRing
 lpHilbert
-lpOrdMisLex
 sheafCoh
 sheafCohBGG
 charInfo
 _delta
 G_a_-Invariants
-lpDHilbert
-lpSickle
 multiDegGroebner
 multsequence
 nres_BR_PLURAL_BR
@@ -1229,7 +1208,7 @@ Example_of_use_of_@sc{Letterplace}
 findifs_example
 Gauss-Manin_connection
 lcmofall
-lpDimCheck
+lpKDimCheck
 modDec
 nashmult
 normalI
@@ -1237,7 +1216,6 @@ PrimdecA
 spectrum
 vwfilt
 constructH
-lpDHilbertSickle
 lpSickleDim
 monodromyB
 semigroup

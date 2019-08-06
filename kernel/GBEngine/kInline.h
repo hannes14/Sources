@@ -17,18 +17,16 @@
  * (remark: NO_KINLINE is defined by KDEBUG, i.e. in the debug version)
  */
 
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
-
 #include "misc/options.h"
-
 #include "polys/monomials/p_polys.h"
 #include "polys/kbuckets.h"
 
 #include "kernel/polys.h"
+
+#ifdef HAVE_SHIFTBBA
+#include "polys/shiftop.h"
+#endif
 
 
 #define HAVE_TAIL_BIN
@@ -124,12 +122,32 @@ KINLINE void sTObject::Set(poly p_in, ring r)
   if (r != currRing)
   {
     assume(r == tailRing);
-    p_Test(p_in, r);
+#ifdef HAVE_SHIFTBBA
+    if (r->isLPring)
+    {
+      shift = si_max(p_mFirstVblock(p_in, r) - 1, 0);
+      if (!shift) p_Test(p_in, r);
+    }
+    else
+#endif
+    {
+      p_Test(p_in, r);
+    }
     t_p = p_in;
   }
   else
   {
-    p_Test(p_in, currRing);
+#ifdef HAVE_SHIFTBBA
+    if (currRing->isLPring)
+    {
+      shift = si_max(p_mFirstVblock(p_in, currRing) - 1, 0);
+      if (!shift) p_Test(p_in, currRing);
+    }
+    else
+#endif
+    {
+      p_Test(p_in, currRing);
+    }
     p = p_in;
   }
   pLength=::pLength(p_in);
@@ -146,7 +164,17 @@ KINLINE void sTObject::Set(poly p_in, ring c_r, ring t_r)
   if (c_r != t_r)
   {
     assume(c_r == currRing && t_r == tailRing);
-    p_Test(p_in, currRing);
+#ifdef HAVE_SHIFTBBA
+    if (c_r->isLPring)
+    {
+      shift = si_max(p_mFirstVblock(p_in, c_r) - 1, 0);
+      if (!shift) p_Test(p_in, currRing);
+    }
+    else
+#endif
+    {
+      p_Test(p_in, currRing);
+    }
     p = p_in;
     pLength=::pLength(p_in);
   }
@@ -673,10 +701,10 @@ KINLINE poly sLObject::GetP(omBin lmBin)
   if (p == NULL)
   {
     p = k_LmInit_tailRing_2_currRing(t_p, tailRing,
-                                     (lmBin!=NULL?lmBin:currRing->PolyBin));
+                                     ((lmBin!=NULL)?lmBin:currRing->PolyBin));
     FDeg = pFDeg();
   }
-  else if (lmBin != NULL && lmBin != currRing->PolyBin)
+  else if ((lmBin != NULL) && (lmBin != currRing->PolyBin))
   {
     p = p_LmShallowCopyDelete(p, currRing);
     FDeg = pFDeg();

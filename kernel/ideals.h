@@ -139,7 +139,7 @@ ideal   idSyzygies (ideal h1, tHomog h,intvec **w, BOOLEAN setSyzComp=TRUE,
                     BOOLEAN setRegularity=FALSE, int *deg = NULL, GbVariant a=GbDefault);
 ideal   idLiftStd  (ideal h1, matrix *m, tHomog h=testHomog, ideal *syz=NULL, GbVariant a=GbDefault);
 
-ideal   idLift (ideal mod, ideal sumod,ideal * rest=NULL,
+ideal   idLift (ideal mod, ideal submod,ideal * rest=NULL,
              BOOLEAN goodShape=FALSE, BOOLEAN isSB=TRUE,BOOLEAN divide=FALSE,
              matrix *unit=NULL, GbVariant a=GbDefault);
 
@@ -192,8 +192,6 @@ ideal   idModulo (ideal h1,ideal h2, tHomog h=testHomog, intvec ** w=NULL);
 matrix  idCoeffOfKBase(ideal arg, ideal kbase, poly how);
 
 // intvec *idQHomWeight(ideal id);
-
-ideal idXXX (ideal  h1, int k);
 
 poly id_GCD(poly f, poly g, const ring r);
 

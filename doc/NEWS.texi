@@ -20,9 +20,19 @@
 @end ifset
 
 @heading News for version @value{VERSION}
+
+Changes in the kernel/build system:
+@itemize
+@item improved gcd and multiplication via FLINT
+@end itemize
+
+@heading News for version 4-1-2
 New libraries:
 @itemize
-@item fpalgebras.lib: Generation of various algebras in the letterplace case
+@item arnoldclassify.lib: Arnol'd Classifier of Singularities (@nref{arnoldclassify_lib})
+@item difform.lib: Procedures for differential forms (@nref{difform_lib})
+@item dmodideal.lib: Algorithms for Bernstein-Sato ideals of morphisms (@nref{dmodideal_lib})
+@item fpalgebras.lib: Generation of various algebras in the letterplace case (@nref{fpalgebras_lib})
 @item ncrat.lib: non-commutatie rational functions
 (@nref{ncrat_lib})
 @end itemize
@@ -38,10 +48,14 @@ Changed libraries:
 
 Changes in the kernel/build system:
 @itemize
+@item integrated xalloc into omalloc: (@code{./configure --disable-omalloc})
+@item improved heuristic for @code{det} (@nref{det})
 @item improved reading of long polynomials
 @item improved groebner bases over Z coefficients
 @item code for free algebras (letterplace rings) rewritten
 (using now the standrad @code{+,-,*,^,std},...) (@nref{LETTERPLACE})
+@item new commands @code{rightstd} (@nref{rightstd (letterplace)})
+@item extended @code{twostd} to @sc{Letterplace} (@nref{twostd (letterplace)}, @nref{twostd (plural)})
 @item pseudo type @code{polyBucket}
 @item new type @code{smatrix}: sparse matrix (experimental) (@nref{smatrix}).
 @item extended @code{coef} to ideals (@nref{coef}).

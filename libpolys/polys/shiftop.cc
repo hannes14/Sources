@@ -60,6 +60,7 @@ poly shift_pp_Mult_mm(poly p, const poly m, const ring ri)
   {
     p_AllocBin(pNext(q), bin, ri);
     pIter(q);
+    pNext(q)=NULL;
     pSetCoeff0(q, n_Mult(mCoeff, pGetCoeff(p), ri->cf));
 
     p_GetExpV(p, pExpV, ri);
@@ -183,6 +184,7 @@ poly shift_pp_mm_Mult(poly p, const poly m, const ring ri)
   {
     p_AllocBin(pNext(q), bin, ri);
     pIter(q);
+    pNext(q)=NULL;
     pSetCoeff0(q, n_Mult(mCoeff, pGetCoeff(p), ri->cf));
 
     p_GetExpV(p, pExpV, ri);
@@ -367,6 +369,10 @@ void p_mLPshift(poly m, int sh, const ring ri)
   int *s=(int *)omAlloc0((ri->N+1)*sizeof(int));
   p_GetExpV(m,e,ri);
 
+  if (p_mLastVblock(m, e, ri) + sh > ri->N/lV)
+  {
+    Werror("degree bound of Letterplace ring is %d, but at least %d is needed for this shift", ri->N/lV, p_mLastVblock(m, e, ri) + sh);
+  }
   for (int i = ri->N - sh*lV; i > 0; i--)
   {
     assume(e[i]<=1);
@@ -505,8 +511,13 @@ void p_LPExpVappend(int *m1ExpV, int *m2ExpV, int m1Length, int m2Length, const 
   PrintLn(); WriteLPExpV(m1ExpV, ri);
   PrintLn(); WriteLPExpV(m2ExpV, ri);
 #endif
-  assume(m1Length + m2Length <= ri->N); // always throw an error?
-  for (int i = 1 + m1Length; i < 1 + m1Length + m2Length; ++i)
+  int last = m1Length + m2Length;
+  if (last > ri->N)
+  {
+    Werror("degree bound of Letterplace ring is %d, but at least %d is needed for this multiplication", ri->N/ri->isLPring, last/ri->isLPring);
+    last = ri->N;
+  }
+  for (int i = 1 + m1Length; i < 1 + last; ++i)
   {
     assume(m2ExpV[i - m1Length] <= 1);
     m1ExpV[i] = m2ExpV[i - m1Length];
@@ -517,6 +528,7 @@ void p_LPExpVappend(int *m1ExpV, int *m2ExpV, int m1Length, int m2Length, const 
 #ifdef SHIFT_MULT_DEBUG
   PrintLn(); WriteLPExpV(m1ExpV, ri);
 #endif
+  assume(_p_mLPNCGenValid(m1ExpV, ri));
 }
 
 // prepends m2ExpV to m1ExpV, also adds their components (one of them is always zero)
@@ -527,10 +539,15 @@ void p_LPExpVprepend(int *m1ExpV, int *m2ExpV, int m1Length, int m2Length, const
   PrintLn(); WriteLPExpV(m1ExpV, ri);
   PrintLn(); WriteLPExpV(m2ExpV, ri);
 #endif
-  assume(m1Length + m2Length <= ri->N); // always throw an error?
+  int last = m1Length + m2Length;
+  if (last > ri->N)
+  {
+    Werror("degree bound of Letterplace ring is %d, but at least %d is needed for this multiplication", ri->N/ri->isLPring, last/ri->isLPring);
+    last = ri->N;
+  }
 
   // shift m1 by m2Length
-  for (int i = m2Length + m1Length; i >= 1 + m2Length; --i)
+  for (int i = last; i >= 1 + m2Length; --i)
   {
     m1ExpV[i] = m1ExpV[i - m2Length];
   }
@@ -547,6 +564,7 @@ void p_LPExpVprepend(int *m1ExpV, int *m2ExpV, int m1Length, int m2Length, const
 #ifdef SHIFT_MULT_DEBUG
   PrintLn(); WriteLPExpV(m1ExpV, ri);
 #endif
+  assume(_p_mLPNCGenValid(m1ExpV, ri));
 }
 
 void WriteLPExpV(int *expV, ring ri)
@@ -566,12 +584,54 @@ char* LPExpVString(int *expV, ring ri)
     {
       StringAppendS("| ");
     }
-    if (i % ri->isLPring == 0)
+    if (i % ri->isLPring == 0 && i != ri->N)
     {
       StringAppendS(" ");
     }
   }
   return StringEndS();
+}
+
+// splits a frame (e.g. x(1)*y(5)) m1 into m1 and m2 (e.g. m1=x(1) and m2=y(1))
+// according to p which is inside the frame
+void k_SplitFrame(poly &m1, poly &m2, int at, const ring r)
+{
+  int lV = r->isLPring;
+
+  number m1Coeff = pGetCoeff(m1);
+
+  int hole = lV * at;
+  m2 = p_GetExp_k_n(m1, 1, hole, r);
+  m1 = p_GetExp_k_n(m1, hole, r->N, r);
+
+  p_mLPunshift(m2, r);
+  p_SetCoeff(m1, m1Coeff, r);
+
+  assume(p_FirstVblock(m1,r) <= 1);
+  assume(p_FirstVblock(m2,r) <= 1);
+}
+
+BOOLEAN _p_mLPNCGenValid(int *mExpV, const ring r)
+{
+  BOOLEAN hasNCGen = FALSE;
+  int lV = r->isLPring;
+  int degbound = r->N/lV;
+  int ncGenCount = r->LPncGenCount;
+  for (int i = 1; i <= degbound; i++)
+  {
+    for (int j = i*lV; j > (i*lV - ncGenCount); j--)
+    {
+      if (mExpV[j])
+      {
+        if (hasNCGen)
+        {
+          return FALSE;
+        }
+        hasNCGen = TRUE;
+      }
+    }
+  }
+  return TRUE;
 }
 
 /* tests whether each polynomial of an ideal I lies in in V */
@@ -637,10 +697,23 @@ int p_mIsInV(poly p, const ring r)
   {
     if (B[j]!=0) break;
   }
-  /* do not need e anymore */
+
+  if (j==0)
+  {
+    omFreeSize((ADDRESS) e, (r->N+1)*sizeof(int));
+    omFreeSize((ADDRESS) B, (b+1)*sizeof(int));
+    return 1;
+  }
+
+  if (!_p_mLPNCGenValid(e, r))
+  {
+    omFreeSize((ADDRESS) e, (r->N+1)*sizeof(int));
+    omFreeSize((ADDRESS) B, (b+1)*sizeof(int));
+    return 0;
+  }
+
   omFreeSize((ADDRESS) e, (r->N+1)*sizeof(int));
 
-  if (j==0) goto ret_true;
 //   {
 //     /* it is a zero exp vector, which is in V */
 //     freeT(B, b);
@@ -652,12 +725,214 @@ int p_mIsInV(poly p, const ring r)
     if (B[j]!=1)
     {
       omFreeSize((ADDRESS) B, (b+1)*sizeof(int));
-      return(0);
+      return 0;
     }
   }
- ret_true:
+
   omFreeSize((ADDRESS) B, (b+1)*sizeof(int));
-  return(1);
+  return 1;
 }
 
+BOOLEAN p_LPDivisibleBy(poly a, poly b, const ring r)
+{
+  pIfThen1(b!=NULL, p_LmCheckPolyRing1(b, r));
+  pIfThen1(a!=NULL, p_LmCheckPolyRing1(a, r));
+
+  if (b == NULL) return TRUE;
+  if (a != NULL && (p_GetComp(a, r) == 0 || p_GetComp(a,r) == p_GetComp(b,r)))
+      return _p_LPLmDivisibleByNoComp(a,b,r);
+  return FALSE;
+}
+
+BOOLEAN p_LPLmDivisibleBy(poly a, poly b, const ring r)
+{
+  p_LmCheckPolyRing1(b, r);
+  pIfThen1(a != NULL, p_LmCheckPolyRing1(b, r));
+  if (p_GetComp(a, r) == 0 || p_GetComp(a,r) == p_GetComp(b,r))
+    return _p_LPLmDivisibleByNoComp(a, b, r);
+  return FALSE;
+}
+
+BOOLEAN _p_LPLmDivisibleByNoComp(poly a, poly b, const ring r)
+{
+  if(p_LmIsConstantComp(a, r))
+    return TRUE;
+#ifdef SHIFT_MULT_COMPAT_MODE
+  a = p_Head(a, r);
+  p_mLPunshift(a, r);
+  b = p_Head(b, r);
+  p_mLPunshift(b, r);
+#endif
+  int i = (r->N / r->isLPring) - p_LastVblock(a, r);
+  do {
+    int j = r->N - (i * r->isLPring);
+    bool divisible = true;
+    do
+    {
+      if (p_GetExp(a, j, r) > p_GetExp(b, j + (i * r->isLPring), r))
+      {
+        divisible = false;
+        break;
+      }
+      j--;
+    }
+    while (j);
+    if (divisible) return TRUE;
+    i--;
+  }
+  while (i > -1);
+#ifdef SHIFT_MULT_COMPAT_MODE
+  p_Delete(&a, r);
+  p_Delete(&b, r);
+#endif
+  return FALSE;
+}
+
+poly p_LPVarAt(poly p, int pos, const ring r)
+{
+  if (p == NULL || pos < 1 || pos > (r->N / r->isLPring)) return NULL;
+  poly v = p_One(r);
+  for (int i = (pos-1) * r->isLPring + 1; i <= pos * r->isLPring; i++) {
+    if (p_GetExp(p, i, r)) {
+      p_SetExp(v, i - (pos-1) * r->isLPring, 1, r);
+      return v;
+    }
+  }
+  return v;
+}
+
+/// substitute weights from orderings a,wp,Wp
+/// by d copies of it at position p
+static BOOLEAN freeAlgebra_weights(const ring old_ring, ring new_ring, int p, int d)
+{
+  omFree(new_ring->wvhdl[p]);
+  int *w=(int*)omAlloc(new_ring->N*sizeof(int));
+  for(int b=0;b<d;b++)
+  {
+    for(int i=old_ring->N-1;i>=0;i--)
+    {
+      if (old_ring->wvhdl[p][i]<-0) return TRUE;
+      w[b*old_ring->N+i]=old_ring->wvhdl[p][i];
+    }
+  }
+  new_ring->wvhdl[p]=w;
+  new_ring->block1[p]=new_ring->N;
+  return FALSE;
+}
+
+ring freeAlgebra(ring r, int d, int ncGenCount)
+{
+  if (ncGenCount) r = rCopy0(r);
+  for (int i = 1; i <= ncGenCount; i++)
+  {
+    char *varname=(char *)omAlloc(256);
+    sprintf(varname, "ncgen(%d)", i);
+    ring save = r;
+    r = rPlusVar(r, varname, 0);
+    omFreeSize(varname, 256);
+    rDelete(save);
+  }
+  ring R=rCopy0(r);
+  int p;
+  if((r->order[0]==ringorder_C)
+  ||(r->order[0]==ringorder_c))
+    p=1;
+  else
+    p=0;
+  // create R->N
+  R->N=r->N*d;
+  R->isLPring=r->N;
+  R->LPncGenCount=ncGenCount;
+  // create R->order
+  BOOLEAN has_order_a=FALSE;
+  while (r->order[p]==ringorder_a)
+  {
+    if (freeAlgebra_weights(r,R,p,d))
+    {
+      WerrorS("weights must be positive");
+      return NULL;
+    }
+    has_order_a=TRUE;
+    p++;
+  }
+  R->block1[p]=R->N; /* only dp,Dp,wp,Wp; will be discarded for lp*/
+  switch(r->order[p])
+  {
+    case ringorder_dp:
+    case ringorder_Dp:
+      break;
+    case ringorder_wp:
+    case ringorder_Wp:
+      if (freeAlgebra_weights(r,R,p,d))
+      {
+        WerrorS("weights must be positive");
+        return NULL;
+      }
+      break;
+    case ringorder_lp:
+    case ringorder_rp:
+    {
+      if(has_order_a)
+      {
+        WerrorS("ordering (a(..),lp/rp not implemented for Letterplace rings");
+        return NULL;
+      }
+      int ** wvhdl=(int**)omAlloc0((r->N+3)*sizeof(int*));
+      rRingOrder_t* ord=(rRingOrder_t*)omAlloc0((r->N+3)*sizeof(rRingOrder_t));
+      int* blk0=(int*)omAlloc0((r->N+3)*sizeof(int));
+      int* blk1=(int*)omAlloc0((r->N+3)*sizeof(int));
+      omFree(R->wvhdl);  R->wvhdl=wvhdl;
+      omFree(R->order);  R->order=ord;
+      omFree(R->block0); R->block0=blk0;
+      omFree(R->block1); R->block1=blk1;
+      for(int i=0;i<r->N;i++)
+      {
+        ord[i+p]=ringorder_a;
+        //Print("entry:%d->a\n",i+p);
+        blk0[i+p]=1;
+        blk1[i+p]=R->N;
+        wvhdl[i+p]=(int*)omAlloc0(R->N*sizeof(int));
+        for(int j=0;j<d;j++)
+        {
+          assume(j*r->N+i<R->N);
+          if (r->order[p]==ringorder_lp)
+            wvhdl[i+p][j*r->N+i]=1;
+         else
+            wvhdl[i+p][(j+1)*r->N-i-1]=1;
+        }
+      }
+      ord[r->N+p]=r->order[p]; /* lp or rp */
+      //Print("entry:%d->lp\n",r->N+p);
+      blk0[r->N+p]=1;
+      blk1[r->N+p]=R->N;
+      // copy component order
+      if (p==1) ord[0]=r->order[0];
+      else if (p==0) ord[r->N+1]=r->order[1];
+      else
+      { // should never happen:
+        WerrorS("ordering not implemented for Letterplace rings");
+        return NULL;
+      }
+      //if (p==1) PrintS("entry:0 ->c/C\n");
+      //else if (p==0) Print("entry:%d ->c/C\n",r->N+1);
+      break;
+    }
+    default: WerrorS("ordering not implemented for Letterplace rings");
+      return NULL;
+  }
+  // create R->names
+  char **names=(char**)omAlloc(R->N*sizeof(char*));
+  for(int b=0;b<d;b++)
+  {
+    for(int i=r->N-1;i>=0;i--)
+      names[b*r->N+i]=omStrDup(r->names[i]);
+  }
+  for(int i=r->N-1;i>=0;i--) omFree(R->names[i]);
+  omFree(R->names);
+  R->names=names;
+
+  if (ncGenCount) rDelete(r);
+  rComplete(R,TRUE);
+  return R;
+}
 #endif

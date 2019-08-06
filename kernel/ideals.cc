@@ -302,7 +302,9 @@ ideal idSect (ideal h1,ideal h2, GbVariant alg)
     BOOLEAN err;
     void *args[]={temp,(void*)1,NULL};
     int arg_t[]={MODUL_CMD,INT_CMD,0};
-    temp1=(ideal)iiCallLibProcM("modStd",args,arg_t,err);
+    leftv temp0=ii_CallLibProcM("modStd",args,arg_t,currRing,err);
+    temp1=(ideal)temp0->data;
+    omFreeBin((ADDRESS)temp0,sleftv_bin);
     if (err)
     {
       Werror("error %d in >>modStd<<",err);
@@ -344,7 +346,9 @@ ideal idSect (ideal h1,ideal h2, GbVariant alg)
       }
       void *args[]={temp,v,NULL};
       int arg_t[]={MODUL_CMD,IDEAL_CMD,0};
-      temp1=(ideal)iiCallLibProcM("satstd",args,arg_t,err);
+      leftv temp0=ii_CallLibProcM("satstd",args,arg_t,currRing,err);
+      temp1=(ideal)temp0->data;
+      omFreeBin((ADDRESS)temp0, sleftv_bin);
     }
     if (err)
     {
@@ -612,12 +616,29 @@ static ideal idPrepare (ideal  h1, tHomog hom, int syzcomp, intvec **w, GbVarian
   {
     p = h2->m[j];
     q = pOne();
+#ifdef HAVE_SHIFTBBA
+    // non multiplicative variable
+    if (rIsLPRing(currRing))
+    {
+      pSetExp(q, currRing->isLPring - currRing->LPncGenCount + j + 1, 1);
+      p_Setm(q, currRing);
+    }
+#endif
     pSetComp(q,syzcomp+1+j);
     pSetmComp(q);
     if (p!=NULL)
     {
-      while (pNext(p)) pIter(p);
-      p->next = q;
+#ifdef HAVE_SHIFTBBA
+      if (rIsLPRing(currRing))
+      {
+        h2->m[j] = pAdd(p, q);
+      }
+      else
+#endif
+      {
+        while (pNext(p)) pIter(p);
+        p->next = q;
+      }
     }
     else
       h2->m[j]=q;
@@ -625,6 +646,9 @@ static ideal idPrepare (ideal  h1, tHomog hom, int syzcomp, intvec **w, GbVarian
 
   idTest(h2);
 
+#ifdef HAVE_SHIFTBBA
+  if (rIsLPRing(currRing)) alg = GbStd;
+#endif
   ideal h3=NULL;
   if (alg==GbDefault) alg=GbStd;
   if (alg==GbStd)
@@ -654,7 +678,9 @@ static ideal idPrepare (ideal  h1, tHomog hom, int syzcomp, intvec **w, GbVarian
     BOOLEAN err;
     void *args[]={idCopy(h2),(void*)1,NULL};
     int arg_t[]={MODUL_CMD,INT_CMD,0};
-    h3=(ideal)iiCallLibProcM("modStd",args,arg_t,err);
+    leftv temp0=ii_CallLibProcM("modStd",args,arg_t,currRing,err);
+    h3=(ideal)temp0->data;
+    omFreeBin((ADDRESS)temp0,sleftv_bin);
     if (err)
     {
       Werror("error %d in >>modStd<<",err);
@@ -696,7 +722,9 @@ static ideal idPrepare (ideal  h1, tHomog hom, int syzcomp, intvec **w, GbVarian
       }
       void *args[]={idCopy(h2),v,NULL};
       int arg_t[]={MODUL_CMD,IDEAL_CMD,0};
-      h3=(ideal)iiCallLibProcM("satstd",args,arg_t,err);
+      leftv temp0=ii_CallLibProcM("satstd",args,arg_t,currRing,err);
+      h3=(ideal)temp0->data;
+      omFreeBin((ADDRESS)temp0,sleftv_bin);
     }
     if (err)
     {
@@ -868,51 +896,6 @@ ideal idSyzygies (ideal  h1, tHomog h,intvec **w, BOOLEAN setSyzComp,
     idDelete(&s_h3);
     s_h3 = ts_h3;
   }
-  return s_h3;
-}
-
-/*2
-*/
-ideal idXXX (ideal  h1, int k)
-{
-  ideal s_h1;
-  intvec *w=NULL;
-
-  assume(currRing != NULL);
-  ring orig_ring=currRing;
-  ring syz_ring=rAssure_SyzComp(orig_ring,TRUE);
-  rSetSyzComp(k,syz_ring);
-  rChangeCurrRing(syz_ring);
-
-  if (orig_ring != syz_ring)
-  {
-    s_h1=idrCopyR_NoSort(h1,orig_ring, syz_ring);
-  }
-  else
-  {
-    s_h1 = h1;
-  }
-
-  ideal s_h3=kStd(s_h1,NULL,testHomog,&w,NULL,k);
-
-  if (s_h3==NULL)
-  {
-    return idFreeModule(IDELEMS(h1));
-  }
-
-  if (orig_ring != syz_ring)
-  {
-    idDelete(&s_h1);
-    idSkipZeroes(s_h3);
-    rChangeCurrRing(orig_ring);
-    s_h3 = idrMoveR_NoSort(s_h3, syz_ring, orig_ring);
-    rDelete(syz_ring);
-    idTest(s_h3);
-    return s_h3;
-  }
-
-  idSkipZeroes(s_h3);
-  idTest(s_h3);
   return s_h3;
 }
 
@@ -1245,7 +1228,6 @@ ideal idLift(ideal mod, ideal submod,ideal *rest, BOOLEAN goodShape,
       if (s_rest->m[j-1]!=NULL)
       {
         p_Shift(&(s_rest->m[j-1]),-1,currRing);
-        s_rest->m[j-1] = s_rest->m[j-1];
       }
     }
   }
@@ -1802,7 +1784,9 @@ ideal idElimination (ideal h1,poly delVar,intvec *hilb, GbVariant alg)
     BOOLEAN err;
     void *args[]={idCopy(h),(void*)1,NULL};
     int arg_t[]={IDEAL_CMD,INT_CMD,0};
-    hh=(ideal)iiCallLibProcM("modStd",args,arg_t,err);
+    leftv temp0=ii_CallLibProcM("modStd",args,arg_t,currRing,err);
+    hh=(ideal)temp0->data;
+    omFreeBin((ADDRESS)temp0,sleftv_bin);
     if (err)
     {
       Werror("error %d in >>modStd<<",err);
@@ -2866,7 +2850,7 @@ void idDelEquals(ideal id)
   omFreeSize((ADDRESS)(id_sort), idsize*sizeof(poly_sort));
 }
 
-static int * id_satstdSaturatingVariables=NULL;
+STATIC_VAR int * id_satstdSaturatingVariables=NULL;
 
 static BOOLEAN id_sat_vars_sp(kStrategy strat)
 {

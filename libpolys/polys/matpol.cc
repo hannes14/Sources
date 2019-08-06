@@ -22,6 +22,7 @@
 #include "simpleideals.h"
 #include "matpol.h"
 #include "prCopy.h"
+#include "clapsing.h"
 
 #include "sparsmat.h"
 
@@ -226,27 +227,24 @@ matrix mp_Mult(matrix a, matrix b, const ring R)
   }
   matrix c = mpNew(m,q);
 
-  for (i=1; i<=m; i++)
+  for (i=0; i<m; i++)
   {
-    for (k=1; k<=p; k++)
+    for (k=0; k<p; k++)
     {
       poly aik;
-      if ((aik=MATELEM(a,i,k))!=NULL)
+      if ((aik=MATELEM0(a,i,k))!=NULL)
       {
-        for (j=1; j<=q; j++)
+        for (j=0; j<q; j++)
         {
           poly bkj;
-          if ((bkj=MATELEM(b,k,j))!=NULL)
+          if ((bkj=MATELEM0(b,k,j))!=NULL)
           {
-            poly *cij=&(MATELEM(c,i,j));
-            poly s = pp_Mult_qq(aik /*MATELEM(a,i,k)*/, bkj/*MATELEM(b,k,j)*/, R);
-            if (/*MATELEM(c,i,j)*/ (*cij)==NULL) (*cij)=s;
-            else (*cij) = p_Add_q((*cij) /*MATELEM(c,i,j)*/ ,s, R);
+            poly *cij=&(MATELEM0(c,i,j));
+            poly s = pp_Mult_qq(aik /*MATELEM0(a,i,k)*/, bkj/*MATELEM0(b,k,j)*/, R);
+            (*cij)/*MATELEM0(c,i,j)*/ = p_Add_q((*cij) /*MATELEM0(c,i,j)*/ ,s, R);
           }
         }
       }
-    //  pNormalize(t);
-    //  MATELEM(c,i,j) = t;
     }
   }
   for(i=m*q-1;i>=0;i--) p_Normalize(c->m[i], R);
@@ -2026,3 +2024,155 @@ BOOLEAN sm_Equal(ideal a, ideal b, const ring R)
   return TRUE;
 }
 
+/*
+*   mu-Algorithmus:
+*/
+
+//  mu-Matrix
+static matrix mu(matrix A, const ring R)
+{
+  int n=MATROWS(A);
+  assume(MATCOLS(A)==n);
+    /*  Die Funktion erstellt die Matrix mu
+    *
+    *   Input:
+    *   int n: Dimension der Matrix
+    *   int A: Matrix der Groesse n*n
+    *   int X: Speicherplatz fuer Output
+    *
+    *   In der Matrix X speichert man die Matrix mu
+    */
+
+    // X als n*n Null-Matrix initalisieren
+    matrix X=mpNew(n,n);
+
+    //  Diagonaleintraege von X berrechnen
+    poly sum = NULL;
+    for (int i = n-1; i >= 0; i--)
+    {
+        MATELEM0(X,i,i) = p_Copy(sum,R);
+        sum=p_Sub(sum,p_Copy(MATELEM0(A,i,i),R),R);
+    }
+    p_Delete(&sum,R);
+
+    //  Eintraege aus dem oberen Dreieck von A nach X uebertragen
+    for (int i = n-1; i >=0; i--)
+    {
+        for (int j = i+1; j < n; j++)
+        {
+            MATELEM0(X,i,j)=p_Copy(MATELEM0(A,i,j),R);
+        }
+    }
+    return X;
+}
+
+// Funktion muDet
+poly mp_DetMu(matrix A, const ring R)
+{
+  int n=MATROWS(A);
+  assume(MATCOLS(A)==n);
+    /*
+    *   Intput:
+    *   int n: Dimension der Matrix
+    *   int A: n*n Matrix
+    *
+    *   Berechnet n-1 mal: X = mu(X)*A
+    *
+    *   Output: det(A)
+    */
+
+    //speichere A ab:
+    matrix workA=mp_Copy(A,R);
+
+    // berechen X = mu(X)*A
+    matrix X;
+    for (int i = n-1; i >0; i--)
+    {
+        X=mu(workA,R);
+        id_Delete((ideal*)&workA,R);
+        workA=mp_Mult(X,A,R);
+        id_Delete((ideal*)&X,R);
+    }
+
+    // berrechne det(A)
+    poly res;
+    if (n%2 == 0)
+    {
+        res=p_Neg(MATELEM0(workA,0,0),R);
+    }
+    else
+    {
+        res=MATELEM0(workA,0,0);
+    }
+    MATELEM0(workA,0,0)=NULL;
+    id_Delete((ideal*)&workA,R);
+    return res;
+}
+
+DetVariant mp_GetAlgorithmDet(matrix m, const ring r)
+{
+  if (MATROWS(m)+2*r->N>20+5*rField_is_Zp(r)) return DetMu;
+  if (MATROWS(m)<10+5*rField_is_Zp(r)) return DetSBareiss;
+  BOOLEAN isConst=TRUE;
+  int s=0;
+  for(int i=MATCOLS(m)*MATROWS(m)-1;i>=0;i--)
+  {
+    poly p=m->m[i];
+    if (p!=NULL)
+    {
+      if(!p_IsConstant(p,r)) isConst=FALSE;
+      s++;
+    }
+  }
+  if (isConst && rField_is_Q(r)) return DetFactory;
+  if (s*2<MATCOLS(m)*MATROWS(m)) // few entries
+    return DetSBareiss;
+  return DetMu;
+}
+DetVariant mp_GetAlgorithmDet(const char *s)
+{
+  if (strcmp(s,"Bareiss")==0) return DetBareiss;
+  if (strcmp(s,"SBareiss")==0) return DetSBareiss;
+  if (strcmp(s,"Mu")==0) return DetMu;
+  if (strcmp(s,"Factory")==0) return DetFactory;
+  WarnS("unknown method for det");
+  return DetDefault;
+}
+
+
+poly mp_Det(matrix a, const ring r, DetVariant d/*=DetDefault*/)
+{
+  if ((MATCOLS(a)==0)
+  && (MATROWS(a)==0))
+    return p_One(r);
+  if (d==DetDefault) d=mp_GetAlgorithmDet(a,r);
+  switch (d)
+  {
+    case DetBareiss: return mp_DetBareiss(a,r);
+    case DetMu: return mp_DetMu(a,r);
+    case DetFactory: return singclap_det(a,r);
+    case DetSBareiss:
+    {
+      ideal I=id_Matrix2Module(mp_Copy(a, r),r);
+      poly p=sm_CallDet(I, r);
+      id_Delete(&I, r);
+      return p;
+    }
+    default:
+      WerrorS("unknown algorithm for det");
+      return NULL;
+  }
+}
+
+poly sm_Det(ideal a, const ring r, DetVariant d/*=DetDefault*/)
+{
+  if ((MATCOLS(a)==0)
+  && (MATROWS(a)==0))
+    return p_One(r);
+  if (d==DetDefault) d=mp_GetAlgorithmDet((matrix)a,r);
+  if (d==DetSBareiss) return sm_CallDet(a,r);
+  matrix m=id_Module2Matrix(id_Copy(a,r),r);
+  poly p=mp_Det(m,r,d);
+  id_Delete((ideal *)&m,r);
+  return p;
+}

@@ -71,7 +71,7 @@ static poly sm_Smpoly2Poly(smpoly, const ring);
 static BOOLEAN sm_HaveDenom(poly, const ring);
 static number sm_Cleardenom(ideal, const ring);
 
-omBin smprec_bin = omGetSpecBin(sizeof(smprec));
+VAR omBin smprec_bin = omGetSpecBin(sizeof(smprec));
 
 static poly pp_Mult_Coeff_mm_DivSelect_MultDiv(poly p, int &lp, poly m,
                                                poly a, poly b, const ring currRing)
@@ -292,60 +292,6 @@ void sm_KillModifiedRing(ring r)
   for(int i=r->N-1;i>=0;i--) omFree(r->names[i]);
   omFreeSize(r->names,r->N*sizeof(char*));
   rKillModifiedRing(r);
-}
-
-/*2
-* Bareiss or Chinese remainder ?
-* I is dXd
-* sw = TRUE  -> I Matrix
-*      FALSE -> I Module
-* return True  -> change Type
-*        FALSE -> same Type
-*/
-BOOLEAN sm_CheckDet(ideal I, int d, BOOLEAN sw, const ring r)
-{
-  int s,t,i;
-  poly p;
-
-  if (d>100)
-    return sw;
-  if (!rField_is_Q(r))
-    return sw;
-  s = t = 0;
-  if (sw)
-  {
-    for(i=IDELEMS(I)-1;i>=0;i--)
-    {
-      p=I->m[i];
-      if (p!=NULL)
-      {
-        if(!p_IsConstant(p,r))
-          return sw;
-        s++;
-        t+=n_Size(pGetCoeff(p),r->cf);
-      }
-    }
-  }
-  else
-  {
-    for(i=IDELEMS(I)-1;i>=0;i--)
-    {
-      p=I->m[i];
-      if (!p_IsConstantPoly(p,r))
-        return sw;
-      while (p!=NULL)
-      {
-        s++;
-        t+=n_Size(pGetCoeff(p),r->cf);
-        pIter(p);
-      }
-    }
-  }
-  s*=15;
-  if (t>s)
-    return !sw;
-  else
-    return sw;
 }
 
 /* ----------------- basics (used from 'C') ------------------ */
@@ -2315,7 +2261,7 @@ struct smnrec{
   number m;            // the element
 };
 
-static omBin smnrec_bin = omGetSpecBin(sizeof(smnrec));
+STATIC_VAR omBin smnrec_bin = omGetSpecBin(sizeof(smnrec));
 
 /* declare internal 'C' stuff */
 static void sm_NumberDelete(smnumber *, const ring R);

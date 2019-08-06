@@ -10,11 +10,7 @@
 #include "kernel/mod2.h"
 
 /* for omBin */
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
 
 #ifdef HAVE_RINGS
 #include "coeffs/si_gmp.h"
@@ -83,7 +79,7 @@ typedef procinfo *         procinfov;
 
 #define loop for(;;)
 
-extern omBin char_ptr_bin;
+EXTERN_VAR omBin char_ptr_bin;
 
 #endif
 

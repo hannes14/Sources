@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////
-version="version realrad.lib 4.1.1.0 Dec_2017 "; // $Id$
+version="version realrad.lib 4.1.2.0 Feb_2019 "; // $Id$
 category="real algebra";
 info="
 LIBRARY:  realrad.lib   Computation of real radicals
@@ -211,7 +211,7 @@ EXAMPLE:   example realzero; shows an example"
  def r_alt=basering;
  //store the ring
  //for a ring chance to the ordering lp;
- execute("ring r_neu =("+charstr(basering)+"),("+varstr(basering)+"),lp;");
+ ring r_neu = create_ring(ringlist(basering)[1], "("+varstr(basering)+")", "lp", "no_minpoly");
  setring r_neu;
  ideal boeser,max;
  prepared[1]=ideal(1);

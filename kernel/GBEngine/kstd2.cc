@@ -46,12 +46,12 @@
 
 // counts sba's reduction steps
 #if SBA_PRINT_REDUCTION_STEPS
-long sba_reduction_steps;
-long sba_interreduction_steps;
+VAR long sba_reduction_steps;
+VAR long sba_interreduction_steps;
 #endif
 #if SBA_PRINT_OPERATIONS
-long sba_operations;
-long sba_interreduction_operations;
+VAR long sba_operations;
+VAR long sba_interreduction_operations;
 #endif
 
 /***********************************************
@@ -77,8 +77,8 @@ long sba_interreduction_operations;
 #include "polys/shiftop.h"
 #endif
 
-  int (*test_PosInT)(const TSet T,const int tl,LObject &h);
-  int (*test_PosInL)(const LSet set, const int length,
+  VAR int (*test_PosInT)(const TSet T,const int tl,LObject &h);
+  VAR int (*test_PosInL)(const LSet set, const int length,
                 LObject* L,const kStrategy strat);
 
 int kFindSameLMInT_Z(const kStrategy strat, const LObject* L, const int start)
@@ -134,8 +134,70 @@ int kFindSameLMInT_Z(const kStrategy strat, const LObject* L, const int start)
     }
   }
 }
-// return -1 if no divisor is found
-//        number of first divisor, otherwise
+// return -1 if T[0] does not divide the leading monomial
+int kTestDivisibleByT0_Z(const kStrategy strat, const LObject* L)
+{
+    if (strat->tl < 1)
+        return -1;
+
+    unsigned long not_sev     = ~L->sev;
+    const unsigned long sevT0 = strat->sevT[0];
+    number rest, orest, mult;
+    if (L->p!=NULL)
+    {
+        const poly T0p  = strat->T[0].p;
+        const ring r    = currRing;
+        const poly p    = L->p;
+        orest           = pGetCoeff(p);
+
+        pAssume(~not_sev == p_GetShortExpVector(p, r));
+
+#if defined(PDEBUG) || defined(PDIV_DEBUG)
+        if (p_LmShortDivisibleBy(T0p, sevT0, p, not_sev, r))
+        {
+            mult= n_QuotRem(pGetCoeff(p), pGetCoeff(T0p), &rest, r->cf);
+            if (!n_IsZero(mult, r) && n_Greater(n_EucNorm(orest, r->cf), n_EucNorm(rest, r->cf), r->cf) == TRUE) {
+                return 0;
+            }
+        }
+#else
+        if (!(sevT0 & not_sev) && p_LmDivisibleBy(T0p, p, r))
+        {
+            mult = n_QuotRem(pGetCoeff(p), pGetCoeff(T0p), &rest, r->cf);
+            if (!n_IsZero(mult, r) && n_Greater(n_EucNorm(orest, r->cf), n_EucNorm(rest, r->cf), r->cf) == TRUE) {
+                return 0;
+            }
+        }
+#endif
+    }
+    else
+    {
+        const poly T0p  = strat->T[0].t_p;
+        const ring r    = strat->tailRing;
+        const poly p    = L->t_p;
+        orest           = pGetCoeff(p);
+#if defined(PDEBUG) || defined(PDIV_DEBUG)
+        if (p_LmShortDivisibleBy(T0p, sevT0,
+                    p, not_sev, r))
+        {
+            mult = n_QuotRem(pGetCoeff(p), pGetCoeff(T0p), &rest, r->cf);
+            if (!n_IsZero(mult, r) && n_Greater(n_EucNorm(orest, r->cf), n_EucNorm(rest, r->cf), r->cf) == TRUE) {
+                return 0;
+            }
+        }
+#else
+        if (!(sevT0 & not_sev) && p_LmDivisibleBy(T0p, p, r))
+        {
+            mult = n_QuotRem(pGetCoeff(p), pGetCoeff(T0p), &rest, r->cf);
+            if (!n_IsZero(mult, r) && n_Greater(n_EucNorm(orest, r->cf), n_EucNorm(rest, r->cf), r->cf) == TRUE) {
+                return 0;
+            }
+        }
+#endif
+    }
+    return -1;
+}
+
 int kFindDivisibleByInT_Z(const kStrategy strat, const LObject* L, const int start)
 {
   unsigned long not_sev = ~L->sev;
@@ -190,7 +252,7 @@ int kFindDivisibleByInT_Z(const kStrategy strat, const LObject* L, const int sta
       if (p_LmShortDivisibleBy(T[j].t_p, sevT[j],
             p, not_sev, r))
       {
-        mult = n_QuotRem(pGetCoeff(p), pGetCoeff(T[j].p), &rest, r->cf);
+        mult = n_QuotRem(pGetCoeff(p), pGetCoeff(T[j].t_p), &rest, r->cf);
         if (!n_IsZero(mult, r) && n_Greater(n_EucNorm(orest, r->cf), n_EucNorm(rest, r->cf), r->cf) == TRUE) {
           o = j;
           orest = rest;
@@ -199,7 +261,7 @@ int kFindDivisibleByInT_Z(const kStrategy strat, const LObject* L, const int sta
 #else
       if (!(sevT[j] & not_sev) && p_LmDivisibleBy(T[j].t_p, p, r))
       {
-        mult = n_QuotRem(pGetCoeff(p), pGetCoeff(T[j].p), &rest, r->cf);
+        mult = n_QuotRem(pGetCoeff(p), pGetCoeff(T[j].t_p), &rest, r->cf);
         if (!n_IsZero(mult, r) && n_Greater(n_EucNorm(orest, r->cf), n_EucNorm(rest, r->cf), r->cf) == TRUE) {
           o = j;
           orest = rest;
@@ -3521,7 +3583,16 @@ poly kNF2 (ideal F,ideal Q,poly q,kStrategy strat, int lazyReduce)
   si_opt_1|=Sy_bit(OPT_REDTAIL);
   initBuchMoraCrit(strat);
   strat->initEcart = initEcartBBA;
-  strat->enterS = enterSBba;
+#ifdef HAVE_SHIFTBBA
+  if (rIsLPRing(currRing))
+  {
+    strat->enterS = enterSBbaShift;
+  }
+  else
+#endif
+  {
+    strat->enterS = enterSBba;
+  }
 #ifndef NO_BUCKETS
   strat->use_buckets = (!TEST_OPT_NOT_BUCKETS) && (!rIsPluralRing(currRing));
 #endif
@@ -3563,6 +3634,21 @@ poly kNF2 (ideal F,ideal Q,poly q,kStrategy strat, int lazyReduce)
   assume(strat->R==NULL);//omfree(strat->R);
   omfree(strat->S_2_R);
   omfree(strat->fromQ);
+#ifdef HAVE_SHIFTBBA
+  // only LM of elements in S is shifted
+  // necessary to prevent deleting the tail multiple times
+  if (rIsLPRing(currRing))
+  {
+    for (int j = 0; j < IDELEMS(strat->Shdl); j++)
+    {
+      if (strat->Shdl->m[j]!=NULL && pmFirstVblock(strat->Shdl->m[j]) > 1)
+      {
+        // otherwise the tail would be freed multiple times
+        pNext(strat->Shdl->m[j]) = NULL;
+      }
+    }
+  }
+#endif
   idDelete(&strat->Shdl);
   SI_RESTORE_OPT1(save1);
   if (TEST_OPT_PROT) PrintLn();
@@ -3664,7 +3750,16 @@ ideal kNF2 (ideal F,ideal Q,ideal q,kStrategy strat, int lazyReduce)
   si_opt_1|=Sy_bit(OPT_REDTAIL);
   initBuchMoraCrit(strat);
   strat->initEcart = initEcartBBA;
-  strat->enterS = enterSBba;
+#ifdef HAVE_SHIFTBBA
+  if (rIsLPRing(currRing))
+  {
+    strat->enterS = enterSBbaShift;
+  }
+  else
+#endif
+  {
+    strat->enterS = enterSBba;
+  }
   /*- set S -*/
   strat->sl = -1;
 #ifndef NO_BUCKETS
@@ -3708,6 +3803,21 @@ ideal kNF2 (ideal F,ideal Q,ideal q,kStrategy strat, int lazyReduce)
   assume(strat->R==NULL);//omfree(strat->R);
   omfree(strat->S_2_R);
   omfree(strat->fromQ);
+#ifdef HAVE_SHIFTBBA
+  // only LM of elements in S is shifted
+  // necessary to prevent deleting the tail multiple times
+  if (rIsLPRing(currRing))
+  {
+    for (int j = 0; j < IDELEMS(strat->Shdl); j++)
+    {
+      if (strat->Shdl->m[j]!=NULL && pmFirstVblock(strat->Shdl->m[j]) > 1)
+      {
+        // otherwise the tail would be freed multiple times
+        pNext(strat->Shdl->m[j]) = NULL;
+      }
+    }
+  }
+#endif
   idDelete(&strat->Shdl);
   SI_RESTORE_OPT1(save1);
   if (TEST_OPT_PROT) PrintLn();
@@ -4129,8 +4239,7 @@ ideal bbaShift(ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
   initHilbCrit(F,Q,&hilb,strat); /*NO CHANGES*/
   initBbaShift(strat); /* DONE */
   /*set enterS, spSpolyShort, reduce, red, initEcart, initEcartPair*/
-  /*Shdl=*/initBuchMoraShift(F, Q,strat); /* updateS with no toT, i.e. no init for T */
-  updateSShift(strat); /* initializes T */
+  /*Shdl=*/initBuchMora(F, Q,strat);
   if (strat->minim>0) strat->M=idInit(IDELEMS(F),F->rank);
   reduc = olddeg = 0;
 
@@ -4303,7 +4412,8 @@ ideal bbaShift(ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
         enterpairsShift(strat->P.p,strat->sl,strat->P.ecart,pos,strat, strat->tl);
         // posInS only depends on the leading term
         strat->enterS(strat->P, pos, strat, strat->tl);
-        enterTShift(strat->P, strat);
+        if (!strat->rightGB)
+          enterTShift(strat->P, strat);
       }
 
       if (hilb!=NULL) khCheck(Q,w,hilb,hilbeledeg,hilbcount,strat);
@@ -4320,10 +4430,11 @@ ideal bbaShift(ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
           // we have to add it also to S/T
           // and add pairs
           int pos=posInS(strat,strat->sl,strat->P.p,strat->P.ecart);
-          int atR=strat->tl+1; // enterTShift introduces P.p=T[tl+1], T[tl+2]...
-          enterTShift(strat->P,strat,-1);
-          enterpairsShift(strat->P.p,strat->sl,strat->P.ecart,pos,strat, atR);
-          strat->enterS(strat->P, pos, strat, atR);
+          enterT(strat->P, strat);
+          enterpairsShift(strat->P.p,strat->sl,strat->P.ecart,pos,strat, strat->tl);
+          strat->enterS(strat->P, pos, strat, strat->tl);
+          if (!strat->rightGB)
+            enterTShift(strat->P,strat);
         }
       }
     }
@@ -4344,6 +4455,7 @@ ideal bbaShift(ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
   {
     for (int k = 0; k <= strat->sl; ++k)
     {
+      if ((strat->fromQ!=NULL) && (strat->fromQ[k])) continue; // do not reduce Q_k
       for (int j = 0; j<=strat->tl; ++j)
       {
         // this is like clearS in bba, but we reduce with elements from T, because it contains the shifts too
@@ -4407,16 +4519,17 @@ ideal bbaShift(ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
   return (strat->Shdl);
 }
 
-
-ideal freegb(ideal I)
+#ifdef HAVE_SHIFTBBA
+ideal rightgb(ideal F, ideal Q)
 {
   assume(rIsLPRing(currRing));
-  assume(idIsInV(I));
-  ideal RS = kStdShift(I,NULL, testHomog, NULL,NULL,0,0,NULL);
+  assume(idIsInV(F));
+  ideal RS = kStdShift(F, Q, testHomog, NULL, NULL, 0, 0, NULL, TRUE);
   idSkipZeroes(RS); // is this even necessary?
   assume(idIsInV(RS));
   return(RS);
 }
+#endif
 
 /*2
 *reduces h with elements from T choosing  the first possible

@@ -19,6 +19,8 @@
 
 #include "monomials/ring.h"
 #include "simpleideals.h"
+#include "polys/flintconv.h"
+#include "polys/flint_mpoly.h"
 
 
 //#include "polys.h"
@@ -54,7 +56,31 @@ poly singclap_gcd_r ( poly f, poly g, const ring r )
   {
     return p_GcdMon(g,f,r);
   }
-
+  #ifdef HAVE_FLINT
+  #if __FLINT_RELEASE >= 20503
+  if (rField_is_Zp(r) && (r->cf->ch>10))
+  {
+    nmod_mpoly_ctx_t ctx;
+    if (!convSingRFlintR(ctx,r))
+    {
+      // leading coef. 1
+      return Flint_GCD_MP(f,pLength(f),g,pLength(g),ctx,r);
+    }
+  }
+  else 
+  if (rField_is_Q(r))
+  {
+    fmpq_mpoly_ctx_t ctx;
+    if (!convSingRFlintR(ctx,r))
+    {
+      // leading coef. positive, all coeffs in Z
+      poly res=Flint_GCD_MP(f,pLength(f),g,pLength(g),ctx,r);
+      res=p_Cleardenom(res,r);
+      return res;
+    }
+  }
+  #endif
+  #endif
   Off(SW_RATIONAL);
   if (rField_is_Q(r) || rField_is_Zp(r) || rField_is_Z(r)
   || (rField_is_Zn(r)&&(r->cf->convSingNFactoryN!=ndConvSingNFactoryN)))
@@ -62,6 +88,10 @@ poly singclap_gcd_r ( poly f, poly g, const ring r )
     setCharacteristic( rChar(r) );
     CanonicalForm F( convSingPFactoryP( f,r ) ), G( convSingPFactoryP( g, r ) );
     res=convFactoryPSingP( gcd( F, G ) , r);
+    if ( rField_is_Zp(r))
+      p_Norm(res,r); // leading coef. 1
+    else if (rField_is_Q(r) && (!n_GreaterZero(pGetCoeff(res),r->cf)))
+      res = p_Neg(res,r); // leading coef. positive, all coeffs in Z
   }
   // and over Q(a) / Fp(a)
   else if ( r->cf->extRing!=NULL )
@@ -80,9 +110,12 @@ poly singclap_gcd_r ( poly f, poly g, const ring r )
       res= convFactoryAPSingAP( gcd( F, G ),r );
       prune (a);
       if (!b1) Off(SW_USE_QGCD);
+      if ( rField_is_Zp_a(r)) p_Norm(res,r); // leading coef. 1
     }
     else
     {
+      convSingTrP(f,r);
+      convSingTrP(g,r);
       CanonicalForm F( convSingTrPFactoryP( f,r ) ), G( convSingTrPFactoryP( g,r ) );
       res= convFactoryPSingTrP( gcd( F, G ),r );
     }
@@ -556,6 +589,37 @@ poly singclap_pmult ( poly f, poly g, const ring r )
 poly singclap_pdivide ( poly f, poly g, const ring r )
 {
   poly res=NULL;
+
+  #ifdef HAVE_FLINT
+  #if __FLINT_RELEASE >= 20503
+  /*
+    If the division is not exact, control will pass to factory where the
+    polynomials can be divided using the ordering that factory chooses.
+  */
+  if (rField_is_Zp(r))
+  {
+    nmod_mpoly_ctx_t ctx;
+    if (!convSingRFlintR(ctx,r))
+    {
+      res = Flint_Divide_MP(f,pLength(f),g,pLength(g),ctx,r);
+      if (res != NULL)
+        return res;
+    }
+  }
+  else
+  if (rField_is_Q(r))
+  {
+    fmpq_mpoly_ctx_t ctx;
+    if (!convSingRFlintR(ctx,r))
+    {
+      res = Flint_Divide_MP(f,pLength(f),g,pLength(g),ctx,r);
+      if (res != NULL)
+        return res;
+    }
+  }
+  #endif
+  #endif
+
   On(SW_RATIONAL);
   if (rField_is_Zp(r) || rField_is_Q(r)
   || (rField_is_Zn(r)&&(r->cf->convSingNFactoryN!=ndConvSingNFactoryN)))
@@ -609,7 +673,10 @@ poly singclap_pmod ( poly f, poly g, const ring r )
   {
     setCharacteristic( rChar(r) );
     CanonicalForm F( convSingPFactoryP( f,r ) ), G( convSingPFactoryP( g,r ) );
-    res = convFactoryPSingP( F % G,r );
+    CanonicalForm Q,R;
+    divrem(F,G,Q,R);
+    res = convFactoryPSingP(R,r);
+    //res = convFactoryPSingP( F-(F/G)*G,r );
   }
   // mod is not implemented for ZZ coeffs in factory
   else if (r->cf->extRing!=NULL)
@@ -623,13 +690,19 @@ poly singclap_pmod ( poly f, poly g, const ring r )
       Variable a=rootOf(mipo);
       CanonicalForm F( convSingAPFactoryAP( f,a,r ) ),
                     G( convSingAPFactoryAP( g,a,r ) );
-      res= convFactoryAPSingAP(  F % G, r  );
+      CanonicalForm Q,R;
+      divrem(F,G,Q,R);
+      res = convFactoryAPSingAP(R,r);
+      //res= convFactoryAPSingAP( F-(F/G)*G, r  );
       prune (a);
     }
     else
     {
       CanonicalForm F( convSingTrPFactoryP( f,r ) ), G( convSingTrPFactoryP( g,r ) );
-      res= convFactoryPSingTrP(  F % G,r  );
+      CanonicalForm Q,R;
+      divrem(F,G,Q,R);
+      res = convFactoryPSingTrP(R,r);
+      //res= convFactoryPSingTrP(  F-(F/G)*G,r  );
     }
   }
 #if 0 // not yet working
@@ -835,7 +908,7 @@ BOOLEAN count_Factors(ideal I, intvec *v,int j, poly &f, poly fac, const ring r)
   return TRUE;
 }
 
-int singclap_factorize_retry;
+VAR int singclap_factorize_retry;
 
 ideal singclap_factorize ( poly f, intvec ** v , int with_exps, const ring r)
 /* destroys f, sets *v */
@@ -1703,7 +1776,7 @@ matrix singntl_HNF(matrix  m, const ring s )
     return NULL;
   }
 
-  matrix res=mp_New(r,r);
+  matrix res=mpNew(r,r);
 
   if (rField_is_Q(s))
   {
@@ -1796,7 +1869,7 @@ matrix singntl_LLL(matrix  m, const ring s )
 {
   int r=m->rows();
   int c=m->cols();
-  matrix res=mp_New(r,c);
+  matrix res=mpNew(r,c);
   if (rField_is_Q(s))
   {
     CFMatrix M(r,c);

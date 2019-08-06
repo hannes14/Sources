@@ -15,10 +15,10 @@
 #define HAVE_SVD
 
 #undef VERSION
-#define VERSION "4.1.1"
+#define VERSION "4.1.2"
 #define SINGULAR_MAJOR_VERSION 4
 #define SINGULAR_MINOR_VERSION 1
-#define SINGULAR_SUB_VERSION 1
+#define SINGULAR_SUB_VERSION 2
 #define S_ROOT_DIR ""
 
 /*******************************************************************
@@ -52,14 +52,6 @@
 /* linear algebra extensions from pcv.h/pcv.cc */
 #define HAVE_PCV 1
 
-/* procedures to compute groebner bases with the f5 implementation */
-/* still testing */
-#undef HAVE_F5
-
-/* procedures to compute groebner bases with the f5c implementation */
-/* still testing */
-#undef HAVE_F5C
-
 /* procedures to compute with units */
 #define HAVE_UNITS
 
@@ -84,7 +76,7 @@
 #define ALIGN_8
 #endif
 
-#define SINGULAR_PATCHLEVEL 3
+#define SINGULAR_PATCHLEVEL 2
 #define SINGULAR_VERSION ((SINGULAR_MAJOR_VERSION*1000 + SINGULAR_MINOR_VERSION*100 + SINGULAR_SUB_VERSION*10)+SINGULAR_PATCHLEVEL)
 
 /*******************************************************************

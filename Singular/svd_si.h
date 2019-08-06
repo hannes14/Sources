@@ -13,6 +13,7 @@ See www.alglib.net or alglib.sources.ru for details.
 
 #include <stdlib.h>
 #include <math.h>
+#include "factory/globaldefs.h"
 #include "resources/feFopen.h"
 #include "kernel/mod2.h"
 
@@ -1014,11 +1015,7 @@ double minreal(double m1, double m2);
 
 /* stuff included from libs/amp.h */
 
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
 
 #include <gmp.h>
 #include <mpfr.h>

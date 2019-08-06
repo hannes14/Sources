@@ -14,6 +14,10 @@
 #include "misc/sirandom.h"
 #include "resources/omFindExec.h"
 
+#ifdef HAVE_CCLUSTER
+#include "ccluster/ccluster.h"
+#endif
+
 #include "factory/factory.h"
 
 #ifdef TIME_WITH_SYS_TIME
@@ -707,27 +711,6 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
       return FALSE;
     }
     else
-  /*==================== std_syz =================*/
-    if (strcmp(sys_cmd, "std_syz") == 0)
-    {
-      ideal i1;
-      int i2;
-      if ((h!=NULL) && (h->Typ()==MODUL_CMD))
-      {
-        i1=(ideal)h->CopyD();
-        h=h->next;
-      }
-      else return TRUE;
-      if ((h!=NULL) && (h->Typ()==INT_CMD))
-      {
-        i2=(int)((long)h->Data());
-      }
-      else return TRUE;
-      res->rtyp=MODUL_CMD;
-      res->data=idXXX(i1,i2);
-      return FALSE;
-    }
-    else
   /*======================= demon_list =====================*/
     if (strcmp(sys_cmd,"denom_list")==0)
     {
@@ -1161,52 +1144,6 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
     }
     else
   #endif
-  #endif
-  /*==================== shift-test for freeGB  =================*/
-  #ifdef HAVE_SHIFTBBA
-    if (strcmp(sys_cmd, "stest") == 0)
-    {
-      const short t[]={2,POLY_CMD,INT_CMD};
-      if (iiCheckTypes(h,t,1))
-      {
-        poly p=(poly)h->CopyD();
-        h=h->next;
-        int sh=(int)((long)(h->Data()));
-        if (sh<0)
-        {
-          WerrorS("negative shift for pLPshift");
-          return TRUE;
-        }
-        int L = pLastVblock(p);
-        if (L+sh > currRing->N/currRing->isLPring)
-        {
-          WerrorS("pLPshift: too big shift requested\n");
-          return TRUE;
-        }
-        p_LPshift(p,sh,currRing);
-        res->data = p;
-        res->rtyp = POLY_CMD;
-        return FALSE;
-      }
-      else return TRUE;
-    }
-    else
-  #endif
-  /*==================== block-test for freeGB  =================*/
-  #ifdef HAVE_SHIFTBBA
-    if (strcmp(sys_cmd, "btest") == 0)
-    {
-      const short t[]={1,POLY_CMD};
-      if (iiCheckTypes(h,t,1))
-      {
-        poly p=(poly)h->CopyD();
-        res->rtyp = INT_CMD;
-        res->data = (void*)(long)pLastVblock(p);
-        return FALSE;
-      }
-      else return TRUE;
-    }
-    else
   #endif
   /*==================== pcv ==================================*/
   #ifdef HAVE_PCV
@@ -3309,6 +3246,10 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
       {
         if (h==NULL)
         {
+	#if 0
+	  Print("FLINT_P:%d (use Flints gcd for polynomials in char p)\n",isOn(SW_USE_FL_GCD_P));
+	  Print("FLINT_0:%d (use Flints gcd for polynomials in char 0)\n",isOn(SW_USE_FL_GCD_0));
+	#endif
           Print("EZGCD:%d (use EZGCD for gcd of polynomials in char 0)\n",isOn(SW_USE_EZGCD));
           Print("EZGCD_P:%d (use EZGCD_P for gcd of polynomials in char p)\n",isOn(SW_USE_EZGCD_P));
           Print("CRGCD:%d (use chinese Remainder for gcd of polynomials in char 0)\n",isOn(SW_USE_CHINREM_GCD));
@@ -3322,12 +3263,14 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
         {
           int d=(int)(long)h->next->Data();
           char *s=(char *)h->Data();
-#ifdef HAVE_PLURAL
+	#if 0
+          if (strcmp(s,"FLINT_P")==0) { if (d) On(SW_USE_FL_GCD_P); else Off(SW_USE_FL_GCD_P); } else
+          if (strcmp(s,"FLINT_0")==0) { if (d) On(SW_USE_FL_GCD_0); else Off(SW_USE_FL_GCD_0); } else
+	#endif  
           if (strcmp(s,"EZGCD")==0) { if (d) On(SW_USE_EZGCD); else Off(SW_USE_EZGCD); } else
           if (strcmp(s,"EZGCD_P")==0) { if (d) On(SW_USE_EZGCD_P); else Off(SW_USE_EZGCD_P); } else
           if (strcmp(s,"CRGCD")==0) { if (d) On(SW_USE_CHINREM_GCD); else Off(SW_USE_CHINREM_GCD); } else
           if (strcmp(s,"QGCD")==0) { if (d) On(SW_USE_QGCD); else Off(SW_USE_QGCD); } else
-#endif
           if (strcmp(s,"homog")==0) { if (d) singular_homog_flag=1; else singular_homog_flag=0; } else
           return TRUE;
           return FALSE;
@@ -3692,7 +3635,7 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
 /*==================== n_SwitchChinRem =================*/
     if(strcmp(sys_cmd,"cache_chinrem")==0)
     {
-      extern int n_SwitchChinRem;
+      EXTERN_VAR int n_SwitchChinRem;
       Print("caching inverse in chines remainder:%d\n",n_SwitchChinRem);
       if ((h!=NULL)&&(h->Typ()==INT_CMD))
         n_SwitchChinRem=(int)(long)h->Data();
@@ -3823,6 +3766,90 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
     }
     else
     #endif
+/* ccluster --------------------------------------------------------------*/
+#ifdef HAVE_CCLUSTER
+    if(strcmp(sys_cmd,"ccluster")==0)
+    {
+      if ((currRing!=NULL) 
+      && (rField_is_Q(currRing) || rField_is_R(currRing) || rField_is_long_R(currRing)))
+      {
+        const short t[]={5,POLY_CMD,NUMBER_CMD,NUMBER_CMD,NUMBER_CMD,NUMBER_CMD};
+        const short t2[]={6,POLY_CMD,POLY_CMD,NUMBER_CMD,NUMBER_CMD,NUMBER_CMD,NUMBER_CMD};
+
+//         printf("test t : %d\n", h->Typ()==POLY_CMD);
+//         printf("test t : %d\n", h->next->Typ()==POLY_CMD);
+        int pol_with_complex_coeffs=0;
+        if (h->next->Typ()==POLY_CMD)
+            pol_with_complex_coeffs=1;
+
+        if ( (pol_with_complex_coeffs==0 && iiCheckTypes(h,t,1))
+       ||(pol_with_complex_coeffs==1 && iiCheckTypes(h,t2,1)) )
+        {
+          // convert first arg. to fmpq_poly_t
+          fmpq_poly_t fre, fim;
+          convSingPFlintP(fre,(poly)h->Data(),currRing); h=h->next;
+      if (pol_with_complex_coeffs==1) { // convert second arg. to fmpq_poly_t
+          convSingPFlintP(fim,(poly)h->Data(),currRing); h=h->next;
+      }
+          // convert box-center(re,im), box-size, epsilon
+          fmpq_t center_re,center_im,boxsize,eps;
+          convSingNFlintN(center_re,(number)h->Data(),currRing->cf); h=h->next;
+          convSingNFlintN(center_im,(number)h->Data(),currRing->cf); h=h->next;
+          convSingNFlintN(boxsize,(number)h->Data(),currRing->cf); h=h->next;
+          convSingNFlintN(eps,(number)h->Data(),currRing->cf); h=h->next;
+          // alloc arrays
+          int n=fmpq_poly_length(fre);
+          fmpq_t* re_part=(fmpq_t*)omAlloc(n*sizeof(fmpq_t));
+          fmpq_t* im_part=(fmpq_t*)omAlloc(n*sizeof(fmpq_t));
+          int *mult      =(int*)   omAlloc(n*sizeof(int));
+          for(int i=0; i<n;i++)
+          { fmpq_init(re_part[i]); fmpq_init(im_part[i]); }
+          // call cccluster, adjust n
+          int verbosity =0; //nothing is printed
+          int strategy = 23; //default strategy
+          int nn=0;
+          long nb_threads = (long) feOptValue(FE_OPT_CPUS);
+          strategy = strategy+(nb_threads<<6);
+//       printf("nb threads: %ld\n", nb_threads);
+//       printf("strategy: %ld\n", strategy);
+          if (pol_with_complex_coeffs==0)
+            nn=ccluster_interface_poly_real(re_part,im_part,mult,fre,center_re,center_im,boxsize,eps,strategy,verbosity);
+          else
+            nn=ccluster_interface_poly_real_imag(re_part,im_part,mult,fre,fim,center_re,center_im,boxsize,eps,strategy,verbosity);
+          // convert to list
+          lists l=(lists)omAlloc0Bin(slists_bin);
+          l->Init(nn);
+          for(int i=0; i<nn;i++)
+          {
+            lists ll=(lists)omAlloc0Bin(slists_bin);
+            l->m[i].rtyp=LIST_CMD;
+            l->m[i].data=ll;
+            ll->Init(3);
+            ll->m[0].rtyp=NUMBER_CMD;
+            ll->m[1].rtyp=NUMBER_CMD;
+            ll->m[2].rtyp=INT_CMD;
+            ll->m[0].data=convFlintNSingN(re_part[i],currRing->cf);
+            ll->m[1].data=convFlintNSingN(im_part[i],currRing->cf);
+            ll->m[2].data=(void *)(long)mult[i];
+          }
+          //clear re, im, mults, fre, fim
+          for(int i=n-1;i>=0;i--) { fmpq_clear(re_part[i]); fmpq_clear(im_part[i]); }
+          omFree(re_part);
+          omFree(im_part);
+          omFree(mult);
+          fmpq_clear(center_re); fmpq_clear(center_im); fmpq_clear(boxsize); fmpq_clear(eps);
+          fmpq_poly_clear(fre);
+          if (pol_with_complex_coeffs==1) fmpq_poly_clear(fim);
+          // result
+          res->rtyp=LIST_CMD;
+          res->data=l;
+          return FALSE;
+        }
+      }
+      return TRUE;
+    }
+    else
+#endif
 /*==================== Error =================*/
       Werror( "(extended) system(\"%s\",...) %s", sys_cmd, feNotImplemented );
   }

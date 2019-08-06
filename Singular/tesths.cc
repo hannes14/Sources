@@ -7,20 +7,10 @@
 */
 
 
-
-
 #include "kernel/mod2.h"
-
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
-
 #include "misc/options.h"
-
 #include "factory/factory.h"
-
 #include "kernel/oswrapper/feread.h"
 #include "Singular/fevoices.h"
 #include "kernel/oswrapper/timer.h"
@@ -46,6 +36,9 @@
 
 
 extern int siInit(char *);
+#ifdef PSINGULAR
+GLOBAL_VAR char *global_argv0;
+#endif
 
 int mmInit( void )
 {
@@ -72,6 +65,9 @@ int main(          /* main entry to Singular */
   omInitRet_2_Info(argv[0]);
   omInitGetBackTrace();
 
+#ifdef PSINGULAR
+  global_argv0 = argv[0];
+#endif
   siInit(argv[0]);
   init_signals();
   #ifdef HAVE_NTL

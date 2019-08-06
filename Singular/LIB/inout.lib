@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////////
-version="version inout.lib 4.1.1.0 Dec_2017 "; // $Id$
+version="version inout.lib 4.1.2.0 Feb_2019 "; // $Id$
 category="General purpose";
 info="
 LIBRARY:  inout.lib     Printing and Manipulating In- and Output
@@ -569,7 +569,7 @@ EXAMPLE: example showrecursive; shows an example
    }
    newvar = newvar[2,size(newvar)-1];
 
-   execute("ring newP=("+newchar+"),("+newvar+"),("+neword+");");
+   ring newP = create_ring("("+newchar+")", "("+newvar+")", "("+neword+")");
    def @@id = imap(P,@@id);
    show(@@id);
    return();

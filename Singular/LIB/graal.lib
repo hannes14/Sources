@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////
-version="version graal.lib 4.1.1.0 Dec_2017 "; // $Id$
+version="version graal.lib 4.1.2.0 Feb_2019 "; // $Id$
 category="Commutative Algebra";
 info="
 LIBRARY:  graal.lib          localization at prime ideals and their associated graded rings
@@ -209,7 +209,7 @@ static proc findGeneralPosition(ideal m)
   if (L[3][1][1]!="lp" || L[3][1][2]!=nvars(basering))
   {
     def origin = basering;
-    execute("ring ringForGeneralPosition = ("+charstr(basering)+"),("+varstr(basering)+"),lp;");
+    ring ringForGeneralPosition = create_ring(ringlist(basering)[1], "("+varstr(basering)+")", "lp", "no_minpoly");
     ideal m = fetch(origin,m);
     newRing = 1;
   }

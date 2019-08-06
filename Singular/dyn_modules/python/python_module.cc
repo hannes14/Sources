@@ -16,12 +16,7 @@
 
 #include "Singular/locals.h"
 
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,8 +59,8 @@ static BOOLEAN mod_python(leftv __res, leftv __h)
 //  )
 extern "C" int SI_MOD_INIT(python_module)(SModulFunctions* psModulFunctions)
 {
-  char *py=getenv("PYTHONPATH");
-  char buf[1024];
+  VAR char *py=getenv("PYTHONPATH");
+  VAR char buf[1024];
   if (py!=NULL)
   {
     strcpy(buf,py);

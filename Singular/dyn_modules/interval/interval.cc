@@ -133,8 +133,8 @@ box& box::setInterval(int i, interval *I)
  * TYPE IDs
  */
 
-static int intervalID;
-static int boxID;
+STATIC_VAR int intervalID;
+STATIC_VAR int boxID;
 
 /*
  * INTERVAL FUNCTIONS

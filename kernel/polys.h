@@ -15,7 +15,7 @@
 #include "polys/monomials/ring.h"
 #include "polys/monomials/p_polys.h"
 
-extern ring currRing;
+EXTERN_VAR ring currRing;
 void rChangeCurrRing(ring r);
 
 #include "coeffs/numbers.h"
@@ -159,10 +159,15 @@ static inline void pLmFree(poly *p)   {p_LmFree(p, currRing);}
 #define  pDivisibleByRingCase(f,g) p_DivisibleByRingCase(f,g,currRing)
 #endif
 
-/// polynomial division, ignoring the rest
+/// polynomial division a/b, ignoring the rest
 /// via singclap_pdivide resp. idLift
 /// destroyes a,b
 poly p_Divide(poly a, poly b, const ring r);
+/// polynomial division a/b, ignoring the rest
+/// via singclap_pdivide resp. idLift
+/// does not destroy a,b
+poly pp_Divide(poly a, poly b, const ring r);
+poly p_DivRem(poly a, poly b, poly &rest, const ring r); /*julia*/
 
 /// polynomial gcd
 /// via singclap_gcd_r resp. idSyzygies
@@ -226,10 +231,10 @@ poly singclap_gcd ( poly f, poly g, const ring r );
  * Predicates on polys/Lm's
  *
  ***************************************************************/
-/// return true if all p is eihter NULL, or if all exponents
-/// of p are 0 and Comp of p is zero
+/// return true if p is either NULL, or if all exponents
+/// of p are 0, Comp of p might be != 0
 #define   pIsConstantComp(p)        p_IsConstantComp(p, currRing)
-/// like above, except that Comp might be != 0
+/// like above, except that Comp must be 0
 #define   pIsConstant(p)            p_IsConstant(p,currRing)
 /// return true if the Lm is a constant <>0
 #define   pIsUnit(p)            p_IsUnit(p,currRing)

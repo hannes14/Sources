@@ -25,20 +25,29 @@ class ip_smatrix
 
   #define MATROWS(i) ((i)->nrows)
   #define MATCOLS(i) ((i)->ncols)
+  /// 1-based access to matrix
   #define MATELEM(mat,i,j) ((mat)->m)[MATCOLS((mat)) * ((i)-1) + (j)-1]
+  /// 0-based access to matrix
+  #define MATELEM0(mat,i,j) ((mat)->m)[MATCOLS((mat)) * (i) + (j)]
+};
+
+enum DetVariant
+{
+  DetDefault=0,
+  DetBareiss,
+  DetSBareiss,
+  DetMu,
+  DetFactory
 };
 
 typedef ip_smatrix *       matrix;
 
 matrix mpNew(int r, int c);
-static inline matrix mp_New(int r, int c){ return mpNew(r,c); }
 
-// matrix mpCopy(matrix a);
 void   mp_Delete(matrix* a, const ring r);
 matrix mp_Copy(const matrix a, const ring rSrc, const ring rDst);
 
 matrix mp_Copy(matrix a, const ring r);
-// static inline matrix mp_Copy(matrix a, const ring r){ return mp_Copy(a, r, r); }
 
 matrix mp_InitP(int r, int c, poly p, const ring R);
 matrix mp_InitI(int r, int c, int v, const ring R);
@@ -53,13 +62,15 @@ BOOLEAN mp_Equal(matrix a, matrix b, const ring r);
 poly mp_Trace ( matrix a, const ring r);
 poly TraceOfProd ( matrix a, matrix b, int n, const ring r);
 
-// poly mp_Det (matrix m, const ring r);
 matrix mp_Wedge(matrix a, int ar, const ring r);
 
 // BOOLEAN mpJacobi(leftv res,leftv a);
 // BOOLEAN mpKoszul(leftv res,leftv b/*in*/, leftv c/*ip*/, leftv id=NULL);
 
+poly mp_Det(matrix a, const ring r, DetVariant d=DetDefault);
 poly mp_DetBareiss (matrix a, const ring r);
+poly mp_DetMu(matrix A, const ring R);
+
 
 //matrix mp_Homogen(matrix a, int v, const ring r);
 
@@ -90,7 +101,7 @@ void iiWriteMatrix(matrix im, const char *n, int dim, const ring r, int spaces);
 
 char * iiStringMatrix(matrix im, int dim, const ring r, char ch=',');
 
-extern omBin ip_smatrix_bin;
+EXTERN_VAR omBin ip_smatrix_bin;
 
 int mp_Compare(matrix a, matrix b, const ring r);
 
@@ -104,6 +115,9 @@ poly sm_Trace ( ideal a, const ring R);
 int sm_Compare(ideal a, ideal b, const ring R);
 BOOLEAN sm_Equal(ideal a, ideal b, const ring R);
 ideal sm_Tensor(ideal A, ideal B, const ring r);
+poly sm_Det(ideal I, const ring, DetVariant d=DetDefault);
+DetVariant mp_GetAlgorithmDet(matrix m, const ring r);
+DetVariant mp_GetAlgorithmDet(const char *s);
 
 #define SMATELEM(A,i,j,R) p_Vec2Poly(A->m[j],i+1,R)
 

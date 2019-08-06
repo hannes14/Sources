@@ -20,12 +20,7 @@
 #ifndef SINGULAR_COUNTEDREF_H_
 #define SINGULAR_COUNTEDREF_H_
 
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
-
 #include "kernel/structs.h"
 #include "Singular/subexpr.h"
 #include "Singular/idrec.h"
@@ -227,7 +222,7 @@ public:
 
   static idhdl newid(leftv head, idhdl* root) {
 
-    static unsigned int counter = 0;
+    STATIC_VAR unsigned int counter = 0;
     char* name = (char*) omAlloc0(512);
     sprintf(name, " :%u:%p:_shared_: ", ++counter, head->data);
     if ((*root) == NULL )

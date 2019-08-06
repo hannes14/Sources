@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////
-version="version gitfan.lib 4.1.1.0 Dec_2017 ";
+version="version gitfan.lib 4.1.2.0 Feb_2019 ";
 category="Algebraic Geometry";
 info="
 LIBRARY:   gitfan.lib       Compute GIT-fans.
@@ -265,8 +265,8 @@ static proc saturateWithRespectToVariable(ideal I, int k)
   }
   newVars = newVars+string(var(k));
   newWeightVector[n]=weightVector[k];
-  execute("ring ringForSaturation = ("+charstr(origin)+"),("+newVars+"),(wp(newWeightVector));");
-
+  ring ringForSaturation = create_ring(ringlist(origin)[1], "("+newVars+")",
+      list(list("wp", newWeightVector)),"no_minpoly");
   ideal I = satstd(imap(origin,I));
   I = simplify(I,2+4+32);
 

@@ -80,4 +80,13 @@ int setBlackboxStuff(blackbox *bb,const char *name);
 /// list all defined type (for debugging)
 void printBlackboxTypes();
 
+/// struct for containing list of blackbox names and the number of them.  
+struct blackbox_list {
+	int count;
+	void **list;
+};
+
+/// return array of all define types.
+struct blackbox_list *getBlackboxTypes();
+
 #endif

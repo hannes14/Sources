@@ -8,11 +8,7 @@
 #include <ctype.h>
 
 #include "kernel/mod2.h"
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
 #include "Singular/tok.h"
 #include "Singular/stype.h"
 #include "Singular/ipshell.h"
@@ -304,7 +300,7 @@ newline                  {
                          }
 {integer}\/{integer}     {
                            lvalp->name = (char *)yytext;
-                           return RINGVAR;
+                           return MONOM;
                          }
 \$                        {
                            m2_end(-1);
@@ -323,15 +319,15 @@ newline                  {
 
 {rgvars}|{realnum}       {
                            lvalp->name = (char *)yytext;
-                           return RINGVAR;
+                           return MONOM;
                          }
 [0-9]+\."e"[+-][0-9]+    {
                            lvalp->name = (char *)yytext;
-                           return RINGVAR;
+                           return MONOM;
                          }
 [0-9]+\./[^\.]           {
                            lvalp->name = (char *)yytext;
-                           return RINGVAR;
+                           return MONOM;
                          }
 
 ({parname}|{name})       {

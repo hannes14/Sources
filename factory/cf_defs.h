@@ -9,6 +9,7 @@
 #ifndef INCL_CF_DEFS_H
 #define INCL_CF_DEFS_H
 
+#include "factory/globaldefs.h"
 // #include "config.h"
 
 /*BEGINPUBLIC*/
@@ -40,6 +41,10 @@ static const int SW_USE_CHINREM_GCD=5;
 static const int SW_USE_QGCD=6;
 /// set to 1 to use modular GCD over F_q
 static const int SW_USE_FF_MOD_GCD=7;
+/// set to 1 to use Flints gcd over F_p
+static const int SW_USE_FL_GCD_P=8;
+/// set to 1 to use Flints gcd over Q/Z
+static const int SW_USE_FL_GCD_0=9;
 
 /*ENDPUBLIC*/
 

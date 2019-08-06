@@ -66,6 +66,7 @@ and @code{LIB} no brackets are allowed.
 * coef::
 * coeffs::
 * contract::
+* create_ring::
 * crossprod::
 * datetime::
 * dbprint::
@@ -312,7 +313,7 @@ considerably speed up computations.
 @cindex cf_class
 @cindex global
 @cindex isSB
-@cindex isHomg
+@cindex isHomog
 @cindex maxExp
 @cindex rank
 @cindex ring_cf
@@ -336,7 +337,10 @@ basis like
 @code{groebner}, @code{std}, @code{stdhilb} etc.; used by @code{lift}, @code{dim},
 @code{degree}, @code{mult}, @code{hilb}, @code{vdim}, @code{kbase}
 @item isHomog (for ideal, module)
-the weight vector for homogeneous or quasihomogeneous ideals/modules
+the weight vector of module generators for homogeneous or quasihomogeneous ideals/modules,
+@*used by @code{betti}, @code{degree}, @code{highcorner}, @code{hilbert},
+@code{homog}, @code{prune}, @code{sba}, @code{slimgb}, @code{std}, @code{syz}, 
+@code{kbase}, @code{modulo}, @code{mres}, @code{nres}, @code{stdhilb}. 
 @item isCI
 complete intersection property
 @item isCM
@@ -1123,7 +1127,7 @@ See
 @ref{kbase}.
 @c ref
 @c ---------------------------------------
-@node contract, crossprod, coeffs, Functions
+@node contract
 @subsection contract
 @cindex contract
 
@@ -1179,7 +1183,13 @@ See
 @c ref
 
 @c ---------------------------------------
-@node crossprod, datetime, contract, Functions
+@node create_ring
+@subsection create_ring
+@cindex create_ring
+@c lib standard.lib:create_ring lib_fun lib_ex subsection
+
+@c ---------------------------------------
+@node crossprod
 @subsection crossprod
 @cindex crossprod
 
@@ -1449,16 +1459,18 @@ See
 @item @strong{Syntax:}
 @code{det (} intmat_expression @code{)}
 @*@code{det (} matrix_expression @code{)}
-@*@code{det (} module_expression @code{)}
+@*@code{det (} smatrix_expression @code{)}
+@*@code{det (} matrix_expression @code{,} string_expression @code{)}
+@*@code{det (} smatrix_expression @code{,} string_expression @code{)}
 @item @strong{Type:}
 int, resp.@: poly
 @item @strong{Purpose:}
-returns the determinant of a square matrix. A module is considered
-as a matrix. The applied algorithms depend on type of input.
-If the input is a module or matrix with symbolic entries the
-Bareiss algorithm is used. In the other cases the chinese remainder
-algorithm is used. For large sparse problems the input as a module
-has advantages.
+returns the determinant of a square matrix.
+The applied algorithms depend on type of input or the optional second argument.@*
+The optional second argument  specifies the algorith to use.
+Possible values are @code{"Bareiss"}, @code{"SBareiss"}, @code{"Mu"} and
+@code{"Factory"}.
+
 @item @strong{Example:}
 @smallexample
 @c example
@@ -6287,6 +6299,7 @@ See
 @subsection reduce
 @cindex reduce
 @cindex NF
+@cindex letterplace
 @table @code
 @item @strong{Syntax:}
 @code{reduce (} poly_expression@code{,} ideal_expression @code{)}
@@ -7550,10 +7563,6 @@ returns a string about available help browsers.
 @cindex bracket
 returns the Lie bracket [p,q].
 @c ..........................
-@item @code{system("btest",} poly, i2 @code{)}
-@cindex system, btest
-internal for shift algebra (with i2 variables): last block of the poly
-@c ..........................
 @item @code{system("complexNearZero",} number_expression @code{)}
 @cindex system, complexNearZero
 checks for a small value for floating point numbers
@@ -7592,11 +7601,6 @@ See @code{system("opp")}.
 returns the path of the command given as argument or the empty string (for: not found)
 See @code{system("Singular")}.
 See @code{system("getenv","PATH")}.
-@c ..........................
-@item @code{system("freegb",} ideal, i2, i3 @code{)}
-@cindex system, freegb
-returns the standrda basis in the shift algebra i(with i3 variables) up to degree i2.
-See @code{system("opp")}.
 @c ..........................
 @item @code{system("getenv",} string_expression@code{)}
 @cindex getenv
@@ -7784,10 +7788,6 @@ computes from list of spectrum numbers the multiple of it.
 @item @code{system("std_syz",} module, int @code{)}
 @cindex system, std_syz
 compute a partial groebner base of a module, stopp after the given column
-@c ..........................
-@item @code{system("stest",} poly, i2, i3, i4 @code{)}
-@cindex system, stest
-internal for shift algebra (with i4 variables): shift the poly by i2, up to degree i3
 @c ..........................
 @item @code{system("tensorModuleMult",} int, module @code{)}
 @cindex system, tensorModuleMult
@@ -9544,6 +9544,7 @@ Both notations may be used as input.
 change of the basering sets @code{short} to the previous value for
 that ring. In other words, the value of the variable @code{short} is
 "ring-local".
+@*If the names are long, or the ring non-commutative, @code{short} can not be schaged to 1.
 @item @strong{Example:}
 @smallexample
 @c example

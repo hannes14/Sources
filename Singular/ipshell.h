@@ -26,27 +26,27 @@ BOOLEAN iiAssignCR(leftv, leftv);
 
 BOOLEAN iiARROW (leftv, char*,char *);
 
-extern leftv iiCurrArgs;
-extern idhdl iiCurrProc;
-extern int iiOp; /* the current operation*/
+EXTERN_VAR leftv iiCurrArgs;
+EXTERN_VAR idhdl iiCurrProc;
+EXTERN_VAR int iiOp; /* the current operation*/
 extern const char *  currid;
-extern int     iiRETURNEXPR_len;
-extern sleftv  iiRETURNEXPR;
-extern ring   *iiLocalRing;
+EXTERN_VAR int     iiRETURNEXPR_len;
+EXTERN_INST_VAR sleftv  iiRETURNEXPR;
+EXTERN_VAR ring   *iiLocalRing;
 //extern cmdnames cmds[];
 extern const char *lastreserved;
-extern int myynest;
-extern int printlevel;
-extern int si_echo;
+EXTERN_VAR int myynest;
+EXTERN_VAR int printlevel;
+EXTERN_VAR int si_echo;
 
 
-extern BOOLEAN yyInRingConstruction; /* 1: during ring construction */
+EXTERN_VAR BOOLEAN yyInRingConstruction; /* 1: during ring construction */
 
 int     IsCmd(const char *n, int & tok);
 
 BOOLEAN iiPStart(idhdl pn, leftv sl);
 BOOLEAN iiEStart(char* example, procinfo *pi);
-BOOLEAN iiAllStart(procinfov pi, char *p,feBufferTypes t, int l);
+BOOLEAN iiAllStart(procinfov pi, const char *p,feBufferTypes t, int l);
 void    type_cmd(leftv v);
 void    test_cmd(int i);
 void    list_cmd(int typ, const char* what, const char * prefix,
@@ -96,6 +96,7 @@ void    iiDebug();
 BOOLEAN iiCheckRing(int i);
 poly    iiHighCorner(ideal i, int ak);
 char *  iiConvName(const char *libname);
+BOOLEAN iiGetLibStatus(const char *lib);
 BOOLEAN iiLoadLIB(FILE *fp, const char *libnamebuf, const char *newlib,
                          idhdl pl, BOOLEAN autoexport, BOOLEAN tellerror);
 
@@ -193,8 +194,10 @@ int iiTokType(int op);
 int     iiDeclCommand(leftv sy, leftv name, int lev, int t, idhdl* root,
   BOOLEAN isring = FALSE, BOOLEAN init_b=TRUE);
 BOOLEAN iiMake_proc(idhdl pn, package pack, leftv sl);
-void* iiCallLibProc1(const char*n, void *arg, int arg_type, BOOLEAN &err);
-void* iiCallLibProcM(const char*n, void **args, int *arg_types, BOOLEAN &err);
+void* iiCallLibProc1(const char* n, void *arg, int arg_type, BOOLEAN &err);
+leftv ii_CallLibProcM(const char* n, void **args, int *arg_types, const ring R, BOOLEAN &err);
+ideal ii_CallProcId2Id(const char* lib,const char* proc, ideal arg,const ring R);
+int ii_CallProcId2Int(const char* lib,const char* proc, ideal arg,const ring R);
 // from misc.cc:
 char *  showOption();
 BOOLEAN setOption(leftv res, leftv v);

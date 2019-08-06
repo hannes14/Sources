@@ -1,12 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-if ENABLE_OMALLOC
-  USE_OMALLOC = omalloc
-else
-  USE_OMALLOC = xalloc
-endif
-
-SUBDIRS = resources $(USE_OMALLOC) factory \
+SUBDIRS = resources omalloc factory \
 libpolys gfanlib IntegerProgramming \
 kernel Singular \
 dox emacs redhat desktop
@@ -24,7 +18,6 @@ install-data-local:
 	   mkdir $(DESTDIR)$(datadir)/info;\
 	   mkdir $(DESTDIR)$(datadir)/doc;\
 	   mv  $(DESTDIR)$(datadir)/singular/singular.hlp  $(DESTDIR)$(datadir)/info/.;\
-	   mv  $(DESTDIR)$(datadir)/singular/singular.idx  $(DESTDIR)$(datadir)/doc/.;\
 	fi
 
 uninstall-local:

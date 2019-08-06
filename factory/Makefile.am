@@ -87,7 +87,8 @@ SOURCES = \
 		NTLconvert.cc \
 		singext.cc \
 		parseutil.cc \
-		ftmpl_inst.cc
+		ftmpl_inst.cc \
+		threadsupport.cc
 
 if WITH_PARSER_FOR_CANONICAL_FORM
     SOURCES +=  readcf.yy
@@ -172,6 +173,7 @@ noinst_HEADERS = $(factory_headers)
 libfactory_includedir = ${includedir}/factory
 
 nodist_libfactory_include_HEADERS = factory.h factoryconf.h
+libfactory_include_HEADERS = globaldefs.h
 
 
 ####################################################
@@ -253,7 +255,7 @@ DISTCLEANFILES =  config.h readcf.cc
 #distclean-local:
 #	-rm -f readcf.cc
 
-.template.h:
+.template.h: $(factory_headers)
 	${srcdir}/bin/makeheader $< $@
 	cp $@ include/factory/
 

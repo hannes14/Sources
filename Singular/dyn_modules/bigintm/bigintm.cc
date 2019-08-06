@@ -1,13 +1,7 @@
 #include "kernel/mod2.h"
 
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
-
 #include "coeffs/coeffs.h"
-
 #include "Singular/ipid.h"
 #include "Singular/subexpr.h"
 #include "Singular/tok.h"
@@ -27,7 +21,7 @@ namespace
 {
 
 #ifdef HAVE_BIGINTM
-static int bigintm_type_id = -1;
+STATIC_VAR int bigintm_type_id = -1;
 #endif
 
 #ifdef HAVE_BIGINTM

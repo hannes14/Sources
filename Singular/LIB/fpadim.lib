@@ -1,113 +1,116 @@
 ////////////////////////////////////////////////////////
-version="version fpadim.lib 4.1.1.4 Oct_2018 "; // $Id$
+version="version fpadim.lib 4.1.2.0 Feb_2019 "; // $Id$
 category="Noncommutative";
 info="
-LIBRARY: fpadim.lib     Algorithms for quotient algebras in the letterplace case
+LIBRARY: fpadim.lib     Vector space dimension, basis and Hilbert series for finitely presented algebras (Letterplace)
 AUTHORS: Grischa Studzinski,       grischa.studzinski at rwth-aachen.de
 @*       Viktor Levandovskyy,      viktor.levandovskyy at math.rwth-aachen.de
 @*       Karim Abou Zeid,          karim.abou.zeid at rwth-aachen.de
 
 Support: Joint projects LE 2697/2-1 and KR 1907/3-1 of the Priority Programme SPP 1489:
 'Algorithmische und Experimentelle Methoden in Algebra, Geometrie und Zahlentheorie'
-of the German DFG
+of the German DFG (2010-2013)
 and Project II.6 of the transregional collaborative research centre
-SFB-TRR 195 'Symbolic Tools in Mathematics and their Application' of the German DFG
+SFB-TRR 195 'Symbolic Tools in Mathematics and their Application' of the German DFG  (from 2017 on)
 
-OVERVIEW: Given the free associative algebra A = K<x_1,...,x_n> and a (finite) Groebner basis
-      GB = {g_1,..,g_w}, one is interested in the K-dimension and in the
-      explicit K-basis of A/<GB>.
-      Therefore one is interested in the following data:
-      - the Ufnarovskij graph induced by GB
-      - the mistletoes of A/<GB> (special monomials in a basis)
-      - the K-dimension of A/<GB>
-      - the Hilbert series of A/<GB>
-
-@*      The Ufnarovskij graph is used to determine whether A/<GB> has finite
-@*      K-dimension. One has to check if the graph contains cycles.
-@*      For the whole theory we refer to [ufna]. Given a
-@*      reduced set of monomials GB one can define the basis tree, whose vertex
-@*      set V consists of all normal monomials w.r.t. GB. For every two
-@*      monomials m_1, m_2 in V there is a direct edge from m_1 to m_2, if and
-@*      only if there exists x_k in {x_1,..,x_n}, such that m_1*x_k = m_2. The
-@*      set M = {m in V | there is no edge from m to another monomial in V} is
-@*      called the set of mistletoes. As one can easily see it consists of
-@*      the endpoints of the graph. Since there is a unique path to every
-@*      monomial in V the whole graph can be described only from the knowledge
-@*      of the mistletoes. Note that V corresponds to a basis of A/<GB>, so
-@*      knowing the mistletoes we know a K-basis. The name mistletoes was given
-@*      to those points because of these miraculous value and the algorithm is
-@*      named sickle, because a sickle is the tool to harvest mistletoes.
-@*      For more details see [studzins]. This package uses the Letterplace
-@*      format introduced by [lls]. The algebra can either be represented as a
-@*      Letterplace ring or via integer vectors: Every variable will only be
-@*      represented by its number, so variable one is represented as 1,
-@*      variable two as 2 and so on. The monomial x_1*x_3*x_2 for example will
-@*      be stored as (1,3,2). Multiplication is concatenation. Note that the
-@*      approach in this library does not need an algorithm for computing the normal
-@*      form yet. Note that the name fpadim.lib is short for dimensions of
-@*      finite presented algebras.
-@*
-
-REFERENCES:
-
-@*   [ufna] Ufnarovskij: Combinatorical and asymptotic methods in algebra, 1990
-@*   [lls] Levandovskyy, La Scala: Letterplace ideals and non-commutative
-Groebner bases, 2009
-@*   [studzins] Studzinski: Dimension computations in non-commutative,
-associative algebras, Diploma thesis, RWTH Aachen, 2010
+KEYWORDS: finitely presented algebra; Letterplace Groebner basis; K-basis; K-dimension; Hilbert series
 
 NOTE:
-- basering is always a Letterplace ring
+- basering is a Letterplace ring
 - all intvecs correspond to Letterplace monomials
-- if you specify a different degree bound d, d <= attrib(basering,uptodeg) holds
+- if a degree bound d is specified, d <= attrib(basering,uptodeg) holds
 
 In the procedures below, 'iv' stands for intvec representation
 and 'lp' for the letterplace representation of monomials
 
+OVERVIEW:
+      Given the free associative algebra A = K<x_1,...,x_n> and
+      a (finite or truncated) Groebner basis GB, one is interested in
+      the following data:
+          - the K-dimension of A/<GB> (check for finiteness or explicit value)
+          - the Hilbert series of A/<GB>
+          - the explicit monomial K-basis of A/<GB>
+      In order to determine these, we need
+      - the Ufnarovskij graph induced by GB
+      - the mistletoes of A/<GB> (which are special monomials in a basis)
+
+      The Ufnarovskij graph is used to determine whether A/<GB> has finite
+      K-dimension. One has to check if the graph contains cycles.
+      For the whole theory we refer to [Ufn]. Given a
+      reduced set of monomials GB one can define the basis tree, whose vertex
+      set V consists of all normal monomials w.r.t. GB. For every two
+      monomials m_1, m_2 in V there is a direct edge from m_1 to m_2, if and
+      only if there exists x_k in {x_1,..,x_n}, such that m_1*x_k = m_2. The
+      set M = {m in V | there is no edge from m to another monomial in V} is
+      called the set of mistletoes. As one can easily see it consists of
+      the endpoints of the graph. Since there is a unique path to every
+      monomial in V, the whole graph can be described only from the knowledge
+      of the mistletoes. Note that V corresponds to a basis of A/<GB>, so
+      knowing the mistletoes we know a K-basis. The name mistletoes was given
+      to those points because of these miraculous value and the algorithm is
+      named sickle, because a sickle is the tool to harvest mistletoes.
+      For more details see [Stu]. This package uses the Letterplace
+      format introduced by [LL09]. The algebra can either be represented as a
+      Letterplace ring or via integer vectors: Every variable will only be
+      represented by its number, so variable one is represented as 1,
+      variable two as 2 and so on. The monomial x_1*x_3*x_2 for example will
+      be stored as (1,3,2). Multiplication is concatenation. Note that the
+      approach in this library does not need an algorithm for computing the normal
+      form. Note that fpa is an acronym for Finitely Presented Algebra.
+
+
+REFERENCES:
+[Ufn] V. Ufnarovskij: Combinatorical and asymptotic methods in algebra, 1990.
+[LL09] R. La Scala, V. Levandovskyy: Letterplace ideals and non-commutative
+Groebner bases, Journal of Symbolic Computation, 2009.
+[Stu] G. Studzinski: Dimension computations in non-commutative,
+associative algebras, Diploma thesis, RWTH Aachen, 2010.
+
 PROCEDURES:
-
-lpMis2Dim(M);              computes the K-dimension of the monomial factor algebra
+lpKDimCheck(G);            checks whether the K-dimension of A/<G> is finite
 lpKDim(G[,d,n]);           computes the K-dimension of A/<G>
-lpDimCheck(G);             checks if the K-dimension of A/<G> is infinite
-lpMis2Base(M);             computes a K-basis of the factor algebra
-lpHilbert(G[,d,n]);        computes the Hilbert series of A/<G> in lp format
-lpDHilbert(G[,d,n]);       computes the K-dimension and Hilbert series of A/<G>
-lpDHilbertSickle(G[,d,n]); computes mistletoes, K-dimension and Hilbert series
-
-ivDHilbert(L,n[,d]);       computes the K-dimension and the Hilbert series
-ivDHilbertSickle(L,n[,d]); computes mistletoes, K-dimension and Hilbert series
-ivDimCheck(L,n);           checks if the K-dimension of A/<L> is infinite
-ivHilbert(L,n[,d]);        computes the Hilbert series of A/<L> in intvec format
-ivKDim(L,n[,d]);           computes the K-dimension of A/<L> in intvec format
-ivMis2Base(M);             computes a K-basis of the factor algebra
-ivMis2Dim(M);              computes the K-dimension of the factor algebra
-ivOrdMisLex(M);            orders a list of intvecs lexicographically
-ivSickle(L,n[,d]);         computes the mistletoes of A/<L> in intvec format
-ivSickleHil(L,n[,d]);      computes the mistletoes and Hilbert series of A/<L>
-ivSickleDim(L,n[,d]);      computes the mistletoes and the K-dimension of A/<L>
-lpOrdMisLex(M);            orders an ideal of lp-monomials lexicographically
-lpSickle(G[,d,n]);         computes the mistletoes of A/<G> in lp format
-lpSickleHil(G[,d,n]);      computes the mistletoes and Hilbert series of A/<G>
+lpMonomialBasis(d, donly, J); computes a list of monomials not contained in J
+lpHilbert(G[,d,n]);        computes the truncated Hilbert series of A/<G>
 lpSickleDim(G[,d,n]);      computes the mistletoes and the K-dimension of A/<G>
-sickle(G[,m,d,h]);         can be used to access all lp main procedures
 
-monomialBasis(d, donly, J); computes a list of free monomials not contained in J
-
-ivL2lpI(L);           transforms a list of intvecs into an ideal of lp monomials
-iv2lp(I);             transforms an intvec into the corresponding monomial
-iv2lpList(L);         transforms a list of intmats into an ideal of lp monomials
-iv2lpMat(M);          transforms an intmat into an ideal of lp monomials
-lp2iv(p);             transforms a polynomial into the corresponding intvec
-lp2ivId(G);           transforms an ideal into the corresponding list of intmats
-lpId2ivLi(G);         transforms a lp-ideal into the corresponding list of intvecs
-
-SEE ALSO: freegb_lib
+SEE ALSO: freegb_lib, fpaprops_lib, ncHilb_lib
 ";
 
 LIB "freegb.lib"; //for letterplace rings
 LIB "general.lib";//for sorting mistletoes
 
 /////////////////////////////////////////////////////////
+
+/* very fast and cheap test of consistency and functionality
+  DO NOT make it static !
+  after adding the new proc, add it here */
+proc tstfpadim()
+{
+  example ivDHilbert;
+  example ivDHilbertSickle;
+  example ivKDimCheck;
+  example ivHilbert;
+  example ivKDim;
+  example ivMis2Base;
+  example ivMis2Dim;
+  example ivOrdMisLex;
+  example ivSickle;
+  example ivSickleHil;
+  example ivSickleDim;
+  example lpDHilbert;
+  example lpDHilbertSickle;
+  example lpHilbert;
+  example lpKDimCheck;
+  example lpKDim;
+  example lpMis2Base;
+  example lpMis2Dim;
+  example lpOrdMisLex;
+  example lpSickle;
+  example lpSickleHil;
+  example lpSickleDim;
+  example sickle;
+  example lpMonomialBasis;
+}
 
 
 //--------------- auxiliary procedures ------------------
@@ -128,11 +131,11 @@ RETURN: int, 0 if all variables are contained in the quotient algebra, 1 otherwi
 static proc checkAssumptions(int d, list L)
 "PURPOSE: Checks, if all the Assumptions are holding
 "
-{if (attrib(basering,"isLetterplaceRing")==0) {ERROR("Basering is not a Letterplace ring!");}
-  if (d > attrib(basering,"uptodeg")) {ERROR("Specified degree bound exceeds ring parameter!");}
+{if (!isFreeAlgebra(basering)) {ERROR("Basering is not a Letterplace ring!");}
+  if (d > lpDegBound(basering)) {ERROR("Specified degree bound exceeds ring parameter!");}
   int i;
   for (i = 1; i <= size(L); i++)
-  {if (entryViolation(L[i], attrib(basering,"isLetterplaceRing")))
+  {if (entryViolation(L[i], lpVarBlockSize(basering)))
     {ERROR("Not allowed monomial/intvec found!");}
   }
   return();
@@ -187,7 +190,7 @@ static proc findDimen(intvec V, int n, list L, intvec P, list #)
 "USAGE: findDimen(V,n,L,P,degbound); V,P intvecs, n, an integer, L a list,
 @*      degbound an optional integer
 RETURN: int
-PURPOSE:Computing the K-dimension of the quotient algebra
+PURPOSE:Compute the K-dimension of the quotient algebra
 "
 {int degbound = 0;
   if (size(#) > 0) {if (#[1] > 0) {degbound = #[1];}}
@@ -369,7 +372,7 @@ this is a classical deep-first search for cycles contained in a graph given by a
 static proc findHCoeff(intvec V,int n,list L,intvec P,intvec H,list #)
 "USAGE: findHCoeff(V,n,L,P,H,degbound); L a list of intmats, degbound an integer
 RETURN: intvec
-PURPOSE:Computing the coefficient of the Hilbert series (upto degree degbound)
+PURPOSE:Compute the coefficient of the Hilbert series (upto degree degbound)
 NOTE:   Starting with a part of the Hilbert series we change the coefficient
 @*      depending on how many basis elements we found on the actual branch
 "
@@ -448,7 +451,7 @@ static proc findHCoeffMis(intvec V, int n, list L, intvec P, list R,list #)
 "USAGE: findHCoeffMis(V,n,L,P,R,degbound); degbound an optional integer, L a
 @*      list of Intmats, R
 RETURN: list
-PURPOSE:Computing the coefficients of the Hilbert series and the Mistletoes all
+PURPOSE:Compute the coefficients of the Hilbert series and the Mistletoes all
 @*      at once
 "
 {int degbound = 0;
@@ -530,7 +533,7 @@ PURPOSE:Computing the coefficients of the Hilbert series and the Mistletoes all
 static proc findMisDim(intvec V,int n,list L,intvec P,list R,list #)
 "USAGE:
 RETURN: list
-PURPOSE:Computing the K-dimension and the Mistletoes all at once
+PURPOSE:Compute the K-dimension and the Mistletoes all at once
 "
 {int degbound = 0;
   if (size(#) > 0) {if (#[1] > 0) {degbound = #[1];}}
@@ -613,7 +616,7 @@ static proc findmistletoes(intvec V, int n, list L, intvec P, list #)
 @*      variables, L the GB, P the occuring degrees,
 @*      and degbound the (optional) degreebound
 RETURN:  list
-PURPOSE:Computing mistletoes starting in V
+PURPOSE:Compute mistletoes starting in V
 NOTE:   V has to be normal w.r.t. L, it will not be checked for being so
 "
 {int degbound = 0;
@@ -890,236 +893,6 @@ checks, if a word P is a praefix of another word I
   else {return(0);}
 }
 
-proc ivL2lpI(list L)
-"USAGE: ivL2lpI(L); L a list of intvecs
-RETURN: ideal
-PURPOSE:Transforming a list of intvecs into an ideal of Letterplace monomials
-ASSUME: - Intvec corresponds to a Letterplace monomial
-@*      - basering has to be a Letterplace ring
-NOTE:   - Assumptions will not be checked!
-EXAMPLE: example ivL2lpI; shows examples
-"
-{
-  int i; ideal G;
-  poly p;
-  for (i = 1; i <= size(L); i++)
-  {p = iv2lp(L[i]);
-    G[(size(G) + 1)] = p;
-  }
-  return(G);
-}
-example
-{
-  "EXAMPLE:"; echo = 2;
-  ring r = 0,(x,y,z),dp;
-  def R = makeLetterplaceRing(5);// constructs a Letterplace ring
-  setring R; //sets basering to Letterplace ring
-  intvec u = 1,1,2; intvec v = 2,1,3; intvec w = 3,1,1;
-  // u = x^2y, v = yxz, w = zx^2 in intvec representation
-  list L = u,v,w;
-  ivL2lpI(L);// invokes the procedure, returns the ideal containing u,v,w
-}
-
-proc iv2lp(intvec I)
-"USAGE: iv2lp(I); I an intvec
-RETURN: poly
-PURPOSE:Transforming an intvec into the corresponding Letterplace polynomial
-ASSUME: - Intvec corresponds to a Letterplace monomial
-@*      - basering has to be a Letterplace ring
-NOTE:   - Assumptions will not be checked!
-EXAMPLE: example iv2lp; shows examples
-"
-{if (I[1] == 0) {return(1);}
-  int i = size(I);
-  if (i > attrib(basering,"uptodeg")) {ERROR("polynomial exceeds degreebound");}
-  int j; poly p = 1;
-  for (j = 1; j <= i; j++) {if (I[j] > 0) { p = p*var(I[j]);}} //ignore zeroes, because they correspond to 1
-  return(p);
-}
-example
-{
-  "EXAMPLE:"; echo = 2;
-  ring r = 0,(x,y,z),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
-  setring R; //sets basering to Letterplace ring
-  intvec u = 1,1,2; intvec v = 2,1,3; intvec w = 3,1,1;
-  // u = x^2y, v = yxz, w = zx^2 in intvec representation
-  iv2lp(u); // invokes the procedure and returns the corresponding poly
-  iv2lp(v);
-  iv2lp(w);
-}
-
-proc iv2lpList(list L)
-"USAGE: iv2lpList(L); L a list of intmats
-RETURN: ideal
-PURPOSE:Converting a list of intmats into an ideal of corresponding monomials
-ASSUME: - The rows of each intmat in L must correspond to a Letterplace monomial
-@*      - basering has to be a Letterplace ring
-EXAMPLE: example iv2lpList; shows examples
-"
-{checkAssumptions(0,L);
-  ideal G;
-  int i;
-  for (i = 1; i <= size(L); i++){G = G + iv2lpMat(L[i]);}
-  return(G);
-}
-example
-{
-  "EXAMPLE:"; echo = 2;
-  ring r = 0,(x,y,z),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
-  setring R; // sets basering to Letterplace ring
-  intmat u[3][1] = 1,1,2; intmat v[1][3] = 2,1,3; intmat w[2][3] = 3,1,1,2,3,1;
-  // defines intmats of different size containing intvec representations of
-  // monomials as rows
-  list L = u,v,w;
-  print(u); print(v); print(w); // shows the intmats contained in L
-  iv2lpList(L); // returns the corresponding monomials as an ideal
-}
-
-
-proc iv2lpMat(intmat M)
-"USAGE: iv2lpMat(M); M an intmat
-RETURN: ideal
-PURPOSE:Converting an intmat into an ideal of the corresponding monomials
-ASSUME: - The rows of M must correspond to Letterplace monomials
-@*      - basering has to be a Letterplace ring
-EXAMPLE: example iv2lpMat; shows examples
-"
-{list L = M;
-  checkAssumptions(0,L);
-  kill L;
-  ideal G; poly p;
-  int i; intvec I;
-  for (i = 1; i <= nrows(M); i++)
-  { I = M[i,1..ncols(M)];
-    p = iv2lp(I);
-    G[size(G)+1] = p;
-  }
-  return(G);
-}
-example
-{
-  "EXAMPLE:"; echo = 2;
-  ring r = 0,(x,y,z),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
-  setring R; // sets basering to Letterplace ring
-  intmat u[3][1] = 1,1,2; intmat v[1][3] = 2,1,3; intmat w[2][3] = 3,1,1,2,3,1;
-  // defines intmats of different size containing intvec representations of
-  // monomials as rows
-  iv2lpMat(u); // returns the monomials contained in u
-  iv2lpMat(v); // returns the monomials contained in v
-  iv2lpMat(w); // returns the monomials contained in w
-}
-
-proc lpId2ivLi(ideal G)
-"USAGE: lpId2ivLi(G); G an ideal
-RETURN: list
-PURPOSE:Transforming an ideal into the corresponding list of intvecs
-ASSUME: - basering has to be a Letterplace ring
-EXAMPLE: example lpId2ivLi; shows examples
-"
-{
-  int i,j,k;
-  list M;
-  checkAssumptions(0,M);
-  for (i = 1; i <= size(G); i++) {M[i] = lp2iv(G[i]);}
-  return(M);
-}
-example
-{
-  "EXAMPLE:"; echo = 2;
-  ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
-  setring R; // sets basering to Letterplace ring
-  ideal L = x*x,y*y,x*y*x;
-  lpId2ivLi(L); // returns the corresponding intvecs as a list
-}
-
-proc lp2iv(poly p)
-"USAGE: lp2iv(p); p a poly
-RETURN: intvec
-PURPOSE:Transforming a monomial into the corresponding intvec
-ASSUME: - basering has to be a Letterplace ring
-NOTE:   - Assumptions will not be checked!
-EXAMPLE: example lp2iv; shows examples
-"
-{p = normalize(lead(p));
-  intvec I;
-  int i,j;
-  if (deg(p) > attrib(basering,"uptodeg")) {ERROR("Monomial exceeds degreebound");}
-  if (p == 1) {return(I);}
-  if (p == 0) {ERROR("Monomial is not allowed to equal zero");}
-  intvec lep = leadexp(p);
-  for ( i = 1; i <= attrib(basering,"isLetterplaceRing"); i++) {if (lep[i] == 1) {I = i; break;}}
-  for (i = (attrib(basering,"isLetterplaceRing")+1); i <= size(lep); i++)
-  {if (lep[i] == 1)
-    { j = (i mod attrib(basering,"isLetterplaceRing"));
-      if (j == 0) {I = I,attrib(basering,"isLetterplaceRing");}
-      else {I = I,j;}
-    }
-    else { if (lep[i] > 1) {ERROR("monomial has a not allowed multidegree");}}
-  }
-  if (I[1] == 0) {ERROR("monomial has a not allowed multidegree");}
-
-  return(I);
-}
-example
-{
-  "EXAMPLE:"; echo = 2;
-  ring r = 0,(x,y,z),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
-  setring R; // sets basering to Letterplace ring
-  poly p = x*x*z; poly q = y*y*x*x;
-  poly w= z*y*x*z*z;
-  // p,q,w are some polynomials we want to transform into their
-  // intvec representation
-  lp2iv(p); lp2iv(q); lp2iv(w);
-}
-
-proc lp2ivId(ideal G)
-"USAGE: lp2ivId(G); G an ideal
-RETURN: list
-PURPOSE:Converting an ideal into an list of intmats,
-@*      the corresponding intvecs forming the rows
-ASSUME: - basering has to be a Letterplace ring
-EXAMPLE: example lp2ivId; shows examples
-"
-{G = normalize(lead(G));
-  intvec I; list L;
-  checkAssumptions(0,L);
-  int i,md;
-  for (i = 1; i <= size(G); i++) { if (md <= deg(G[i])) {md = deg(G[i]);}}
-  while (size(G) > 0)
-  {ideal Gt;
-    for (i = 1; i <= ncols(G); i++) {if (md == deg(G[i])) {Gt = Gt + G[i]; G[i] = 0;}}
-    if (size(Gt) > 0)
-    {G = simplify(G,2);
-      intmat M [size(Gt)][md];
-      for (i = 1; i <= size(Gt); i++) {M[i,1..md] = lp2iv(Gt[i]);}
-      L = insert(L,M);
-      kill M; kill Gt;
-      md = md - 1;
-    }
-    else {kill Gt; md = md - 1;}
-  }
-  return(L);
-}
-example
-{
-  "EXAMPLE:"; echo = 2;
-  ring r = 0,(x,y,z),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
-  setring R; // sets basering to Letterplace ring
-  poly p = x*x*z; poly q = y*y*x*x;
-  poly w = z*y*x*z;
-  // p,q,w are some polynomials we want to transform into their
-  // intvec representation
-  ideal G = p,q,w;
-  // define the ideal containing p,q and w
-  lp2ivId(G); // and return the list of intmats for this ideal
-}
-
 // -----------------main procedures----------------------
 
 static proc lpGraphOfNormalWords(ideal G)
@@ -1133,7 +906,7 @@ ASSUME: - basering is a Letterplace ring
 {
   // construct the Graph of normal words [Studzinski page 78]
   // construct set of vertices
-  int v = attrib(basering,"isLetterplaceRing"); int d = attrib(basering,"uptodeg");
+  int v = lpVarBlockSize(basering); int d = lpDegBound(basering);
   ideal V; poly p,q,w;
   ideal LG = lead(G);
   int i,j,k,b; intvec E,Et;
@@ -1206,11 +979,11 @@ ASSUME: - basering is a Letterplace ring
 /*   return(growthAlg(lpGraphOfNormalWords(G))); */
 /* } */
 
-proc ivDHilbert(list L, int n, list #)
+static proc ivDHilbert(list L, int n, list #)
 "USAGE: ivDHilbert(L,n[,degbound]); L a list of intmats, n an integer,
 @*      degbound an optional integer
 RETURN: list
-PURPOSE:Computing the K-dimension and the Hilbert series
+PURPOSE:Compute the K-dimension and the Hilbert series
 ASSUME: - basering is a Letterplace ring
 @*      - all rows of each intmat correspond to a Letterplace monomial
 @*      - if you specify a different degree bound degbound,
@@ -1239,7 +1012,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   R;
   setring R; // sets basering to Letterplace ring
   //some intmats, which contain monomials in intvec representation as rows
@@ -1257,11 +1030,11 @@ example
   ivDHilbert(I,2,5);
 }
 
-proc ivDHilbertSickle(list L, int n, list #)
+static proc ivDHilbertSickle(list L, int n, list #)
 "USAGE: ivDHilbertSickle(L,n[,degbound]); L a list of intmats, n an integer,
 @*      degbound an optional integer
 RETURN: list
-PURPOSE:Computing K-dimension, Hilbert series and mistletoes
+PURPOSE:Compute the K-dimension, Hilbert series and mistletoes
 ASSUME: - basering is a Letterplace ring.
 @*      - All rows of each intmat correspond to a Letterplace monomial.
 @*      - If you specify a different degree bound degbound,
@@ -1290,7 +1063,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   R;
   setring R; // sets basering to Letterplace ring
   //some intmats, which contain monomials in intvec representation as rows
@@ -1306,14 +1079,14 @@ example
   ivDHilbertSickle(I,2,3); // invokes the procedure with degree bound 3
 }
 
-proc ivDimCheck(list L, int n)
-"USAGE: ivDimCheck(L,n); L a list of intmats, n an integer
+static proc ivKDimCheck(list L, int n)
+"USAGE: ivKDimCheck(L,n); L a list of intmats, n an integer
 RETURN: int, 0 if the dimension is finite, or 1 otherwise
 PURPOSE:Decides, whether the K-dimension is finite or not
 ASSUME: - basering is a Letterplace ring.
 @*      - All rows of each intmat correspond to a Letterplace monomial.
 NOTE:   - n is the number of variables.
-EXAMPLE: example ivDimCheck; shows examples
+EXAMPLE: example ivKDimCheck; shows examples
 "
 {checkAssumptions(0,L);
   int i,r;
@@ -1345,7 +1118,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   R;
   setring R; // sets basering to Letterplace ring
   //some intmats, which contain monomials in intvec representation as rows
@@ -1357,15 +1130,15 @@ example
   print(J2);
   list G = I1,I2;// ideal, which is already a Groebner basis
   list I = J1,J2; // ideal, which is already a Groebner basis and which
-  ivDimCheck(G,2); // invokes the procedure, factor is of finite K-dimension
-  ivDimCheck(I,2); // invokes the procedure, factor is not of finite K-dimension
+  ivKDimCheck(G,2); // invokes the procedure, factor is of finite K-dimension
+  ivKDimCheck(I,2); // invokes the procedure, factor is not of finite K-dimension
 }
 
-proc ivHilbert(list L, int n, list #)
+static proc ivHilbert(list L, int n, list #)
 "USAGE: ivHilbert(L,n[,degbound]); L a list of intmats, n an integer,
 @*      degbound an optional integer
 RETURN: intvec, containing the coefficients of the Hilbert series
-PURPOSE:Computing the Hilbert series
+PURPOSE:Compute the Hilbert series
 ASSUME: - basering is a Letterplace ring.
 @*      - all rows of each intmat correspond to a Letterplace monomial
 @*      - if you specify a different degree bound degbound,
@@ -1429,7 +1202,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   R;
   setring R; // sets basering to Letterplace ring
   //some intmats, which contain monomials in intvec representation as rows
@@ -1446,11 +1219,11 @@ example
 }
 
 
-proc ivKDim(list L, int n, list #)
+static proc ivKDim(list L, int n, list #)
 "USAGE: ivKDim(L,n[,degbound]); L a list of intmats,
 @*      n an integer, degbound an optional integer
 RETURN: int, the K-dimension of A/<L>
-PURPOSE:Computing the K-dimension of A/<L>
+PURPOSE:Compute the K-dimension of A/<L>
 ASSUME: - basering is a Letterplace ring.
 @*      - all rows of each intmat correspond to a Letterplace monomial
 @*      - if you specify a different degree bound degbound,
@@ -1512,7 +1285,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   R;
   setring R; // sets basering to Letterplace ring
   //some intmats, which contain monomials in intvec representation as rows
@@ -1528,10 +1301,10 @@ example
   ivKDim(I,2,5); // invokes the procedure with degree bound 5
 }
 
-proc ivMis2Base(list M)
+static proc ivMis2Base(list M)
 "USAGE: ivMis2Base(M); M a list of intvecs
 RETURN: ideal, a K-base of the given algebra
-PURPOSE:Computing the K-base out of given mistletoes
+PURPOSE:Compute the K-base out of given mistletoes
 ASSUME: - The mistletoes have to be ordered lexicographically -> OrdMisLex.
 @*        Otherwise there might some elements missing.
 @*      - basering is a Letterplace ring.
@@ -1572,7 +1345,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   R;
   setring R; // sets basering to Letterplace ring
   intvec i1 = 1,2; intvec i2 = 2,1,2;
@@ -1582,10 +1355,10 @@ example
 }
 
 
-proc ivMis2Dim(list M)
+static proc ivMis2Dim(list M)
 "USAGE: ivMis2Dim(M); M a list of intvecs
 RETURN: int, the K-dimension of the given algebra
-PURPOSE:Computing the K-dimension out of given mistletoes
+PURPOSE:Compute the K-dimension out of given mistletoes
 ASSUME: - The mistletoes have to be ordered lexicographically -> OrdMisLex.
 @*        Otherwise the returned value may differ from the K-dimension.
 @*      - basering is a Letterplace ring.
@@ -1609,7 +1382,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   R;
   setring R; // sets basering to Letterplace ring
   intvec i1 = 1,2; intvec i2 = 2,1,2;
@@ -1618,7 +1391,7 @@ example
   ivMis2Dim(L); // returns the dimension of the factor algebra
 }
 
-proc ivOrdMisLex(list M)
+static proc ivOrdMisLex(list M)
 "USAGE: ivOrdMisLex(M); M a list of intvecs
 RETURN: list, containing the ordered intvecs of M
 PURPOSE:Orders a given set of mistletoes lexicographically
@@ -1636,7 +1409,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
   intvec i1 = 1,2,1; intvec i2 = 2,2,1; intvec i3 = 1,1; intvec i4 = 2,1,1,1;
   // the corresponding monomials are xyx,y^2x,x^2,yx^3
@@ -1645,11 +1418,11 @@ example
   ivOrdMisLex(M);// orders the list of monomials
 }
 
-proc ivSickle(list L, int n, list #)
+static proc ivSickle(list L, int n, list #)
 "USAGE: ivSickle(L,n,[degbound]); L a list of intmats, n an int, degbound an
 @*      optional integer
 RETURN: list, containing intvecs, the mistletoes of A/<L>
-PURPOSE:Computing the mistletoes for a given Groebner basis L
+PURPOSE:Compute the mistletoes for a given Groebner basis L
 ASSUME: - basering is a Letterplace ring.
 @*      - all rows of each intmat correspond to a Letterplace monomial
 @*      - if you specify a different degree bound degbound,
@@ -1709,7 +1482,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
   //some intmats, which contain monomials in intvec representation as rows
   intmat I1 [2][2] = 1,1,2,2; intmat I2 [1][3]  = 1,2,1;
@@ -1724,11 +1497,11 @@ example
   ivSickle(I,2,5); // invokes the procedure with degree bound 5
 }
 
-proc ivSickleDim(list L, int n, list #)
+static proc ivSickleDim(list L, int n, list #)
 "USAGE: ivSickleDim(L,n[,degbound]); L a list of intmats, n an integer, degbound
 @*      an optional integer
 RETURN: list
-PURPOSE:Computing mistletoes and the K-dimension
+PURPOSE:Compute mistletoes and the K-dimension
 ASSUME: - basering is a Letterplace ring.
 @*      - all rows of each intmat correspond to a Letterplace monomial
 @*      - if you specify a different degree bound degbound,
@@ -1796,7 +1569,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
   //some intmats, which contain monomials in intvec representation as rows
   intmat I1 [2][2] = 1,1,2,2; intmat I2 [1][3]  = 1,2,1;
@@ -1811,11 +1584,11 @@ example
   ivSickleDim(I,2,5); // invokes the procedure with degree bound 5
 }
 
-proc ivSickleHil(list L, int n, list #)
+static proc ivSickleHil(list L, int n, list #)
 "USAGE:ivSickleHil(L,n[,degbound]); L a list of intmats, n an integer,
 @*     degbound an optional integer
 RETURN: list
-PURPOSE:Computing the mistletoes and the Hilbert series
+PURPOSE:Compute the mistletoes and the Hilbert series
 ASSUME: - basering is a Letterplace ring.
 @*      - all rows of each intmat correspond to a Letterplace monomial
 @*      - if you specify a different degree bound degbound,
@@ -1883,7 +1656,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
   //some intmats, which contain monomials in intvec representation as rows
   intmat I1[2][2] = 1,1,2,2; intmat I2[1][3]  = 1,2,1;
@@ -1898,10 +1671,10 @@ example
   ivSickleHil(I,2,5); // invokes the procedure with degree bound 5
 }
 
-proc lpDHilbert(ideal G, list #)
+static proc lpDHilbert(ideal G, list #)
 "USAGE: lpDHilbert(G[,degbound,n]); G an ideal, degbound, n optional integers
 RETURN: list
-PURPOSE:Computing K-dimension and Hilbert series, starting with a lp-ideal
+PURPOSE:Compute K-dimension and Hilbert series, starting with a lp-ideal
 ASSUME: - basering is a Letterplace ring.
 @*      - if you specify a different degree bound degbound,
 @*        degbound <= attrib(basering,uptodeg) holds.
@@ -1917,7 +1690,7 @@ NOTE: - If L is the list returned, then L[1] is an integer corresponding to the
 @*    - If the K-dimension is known to be infinite, a degree bound is needed
 EXAMPLE: example lpDHilbert; shows examples
 "
-{int degbound = attrib(basering,"uptodeg");int n = attrib(basering, "isLetterplaceRing");
+{int degbound = lpDegBound(basering);int n = lpVarBlockSize(basering);
   if (size(#) > 0){if (typeof(#[1])=="int"){if (#[1] >= 0){degbound = #[1];}}}
   if (size(#) > 1){if (typeof(#[1])=="int"){if (#[2] > 0){n = #[2];}}}
   list L;
@@ -1928,7 +1701,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
   ideal G = x*x, y*y,x*y*x; // ideal G contains a
   //Groebner basis
@@ -1939,11 +1712,11 @@ example
   lpDHilbert(G,0); // procedure without degreebound
 }
 
-proc lpDHilbertSickle(ideal G, list #)
+static proc lpDHilbertSickle(ideal G, list #)
 "USAGE: lpDHilbertSickle(G[,degbound,n]); G an ideal, degbound, n optional
 @*      integers
 RETURN: list
-PURPOSE:Computing K-dimension, Hilbert series and mistletoes at once
+PURPOSE:Compute K-dimension, Hilbert series and mistletoes at once
 ASSUME: - basering is a Letterplace ring.
 @*      - if you specify a different degree bound degbound,
 @*        degbound <= attrib(basering,uptodeg) holds.
@@ -1959,7 +1732,7 @@ NOTE: - If L is the list returned, then L[1] is an integer, the K-dimension,
 @*    - If the K-dimension is known to be infinite, a degree bound is needed
 EXAMPLE: example lpDHilbertSickle; shows examples
 "
-{int degbound = attrib(basering,"uptodeg");int n = attrib(basering, "isLetterplaceRing");
+{int degbound = lpDegBound(basering);int n = lpVarBlockSize(basering);
   if (size(#) > 0){if (typeof(#[1])=="int"){if (#[1] >= 0){degbound = #[1];}}}
   if (size(#) > 1){if (typeof(#[1])=="int"){if (#[2] > 0){n = #[2];}}}
   list L;
@@ -1972,7 +1745,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
   ideal G = x*x, y*y,x*y*x; // ideal G contains a
   //Groebner basis
@@ -1986,20 +1759,25 @@ example
 proc lpHilbert(ideal G, list #)
 "USAGE: lpHilbert(G[,degbound,n]); G an ideal, degbound, n optional integers
 RETURN: intvec, containing the coefficients of the Hilbert series
-PURPOSE:Computing the Hilbert series
+PURPOSE: Compute the truncated Hilbert series of K<X>/<G> up to a degree bound
 ASSUME: - basering is a Letterplace ring.
 @*      - if you specify a different degree bound degbound,
 @*        degbound <= attrib(basering,uptodeg) holds.
+THEORY: Hilbert series of an algebra K<X>/<G> is sum_(i>=0) h_i t^i,
+where h_i is the K-dimension of the space of monomials of degree i,
+not contained in <G>. For finitely presented algebras Hilbert series NEED
+NOT be a rational function, though it happens often. Therefore in general
+there is no notion of a Hilbert polynomial.
 NOTE: - If degbound is set, there will be a degree bound added. 0 means no
 @*      degree bound. Default: attrib(basering,uptodeg).
 @*    - n is the number of variables, which can be set to a different number.
 @*      Default: attrib(basering, lV).
-@*    - If I is returned, then I[k] is the (k-1)-th coefficient of the Hilbert
-@*      series.
-@*    - If the K-dimension is known to be infinite, a degree bound is needed
+@*    - In the output intvec I, I[k] is the (k-1)-th coefficient of the Hilbert
+@*      series, i.e. h_(k-1) as above.
 EXAMPLE: example lpHilbert; shows examples
+SEE ALSO: ncHilb_lib
 "
-{int degbound = attrib(basering,"uptodeg");int n = attrib(basering, "isLetterplaceRing");
+{int degbound = lpDegBound(basering);int n = lpVarBlockSize(basering);
   if (size(#) > 0){if (typeof(#[1])=="int"){if (#[1] >= 0){degbound = #[1];}}}
   if (size(#) > 1){if (typeof(#[1])=="int"){if (#[2] > 0){n = #[2];}}}
   list L;
@@ -2010,49 +1788,51 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
-  ideal G = x*x, y*y,x*y*x; // ideal G contains a
-  //Groebner basis
-  lpHilbert(G,5,2); // invokes procedure with degree bound 5 and 2 variables
-  // note that the optional parameters are not necessary, due to the finiteness
-  // of the K-dimension of the factor algebra
-  lpDHilbert(G); // procedure with ring parameters
-  lpDHilbert(G,0); // procedure without degreebound
+  ideal G = y*y,x*y*x; // G is a Groebner basis
+  lpHilbert(G); // procedure with default parameters
+  lpHilbert(G,3,2); // invokes procedure with degree bound 3 and (same) 2 variables
 }
 
+// compatibiltiy, do not put in header
 proc lpDimCheck(ideal G)
-"USAGE: lpDimCheck(G);
+{
+  return(lpKDimCheck(G));
+}
+
+proc lpKDimCheck(ideal G)
+"USAGE: lpKDimCheck(G);
 RETURN: int, 1 if K-dimension of the factor algebra is infinite, 0 otherwise
 PURPOSE:Checking a factor algebra for finiteness of the K-dimension
 ASSUME: - basering is a Letterplace ring.
-EXAMPLE: example lpDimCheck; shows examples
+EXAMPLE: example lpKDimCheck; shows examples
 "
-{int n = attrib(basering,"isLetterplaceRing");
+{int n = lpVarBlockSize(basering);
   list L;
   ideal R;
   R = normalize(lead(G));
   L = lp2ivId(R);
-  return(ivDimCheck(L,n));
+  return(ivKDimCheck(L,n));
 }
 example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
   ideal G = x*x, y*y,x*y*x;
   // Groebner basis
   ideal I = x*x, y*x*y, x*y*x;
   // Groebner basis
-  lpDimCheck(G); // invokes procedure, factor algebra is of finite K-dimension
-  lpDimCheck(I); // invokes procedure, factor algebra is of infinite Kdimension
+  lpKDimCheck(G); // invokes procedure, factor algebra is of finite K-dimension
+  lpKDimCheck(I); // invokes procedure, factor algebra is of infinite Kdimension
 }
 
 proc lpKDim(ideal G, list #)
 "USAGE: lpKDim(G[,degbound, n]); G an ideal, degbound, n optional integers
 RETURN: int, the K-dimension of the factor algebra
-PURPOSE:Computing the K-dimension of a factor algebra, given via an ideal
+PURPOSE:Compute the K-dimension of a factor algebra, given via an ideal
 ASSUME: - basering is a Letterplace ring
 @*      - if you specify a different degree bound degbound,
 @*        degbound <= attrib(basering,uptodeg) holds.
@@ -2063,7 +1843,7 @@ NOTE: - If degbound is set, there will be a degree bound added. 0 means no
 @*    - If the K-dimension is known to be infinite, a degree bound is needed
 EXAMPLE: example lpKDim; shows examples
 "
-{int degbound = attrib(basering, "uptodeg");int n = attrib(basering, "isLetterplaceRing");
+{int degbound = lpDegBound(basering);int n = lpVarBlockSize(basering);
   if (size(#) > 0){if (typeof(#[1])=="int"){if (#[1] >= 0){degbound = #[1];}}}
   if (size(#) > 1){if (typeof(#[1])=="int"){if (#[2] > 0){n = #[2];}}}
   list L;
@@ -2074,7 +1854,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
   ideal G = x*x, y*y,x*y*x;
   // ideal G contains a Groebner basis
@@ -2084,10 +1864,10 @@ example
   lpKDim(G,0); // procedure without any degree bound
 }
 
-proc lpMis2Base(ideal M)
+static proc lpMis2Base(ideal M)
 "USAGE: lpMis2Base(M); M an ideal
 RETURN: ideal, a K-basis of the factor algebra
-PURPOSE:Computing a K-basis out of given mistletoes
+PURPOSE:Compute a K-basis out of given mistletoes
 ASSUME: - basering is a Letterplace ring. G is a Letterplace ideal.
 @*      - M contains only monomials
 NOTE:   - The mistletoes have to be ordered lexicographically -> OrdMisLex.
@@ -2101,17 +1881,17 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
   ideal L = x*y,y*x*y;
   // ideal containing the mistletoes
   lpMis2Base(L); // returns the K-basis of the factor algebra
 }
 
-proc lpMis2Dim(ideal M)
+static proc lpMis2Dim(ideal M)
 "USAGE: lpMis2Dim(M); M an ideal
 RETURN: int, the K-dimension of the factor algebra
-PURPOSE:Computing the K-dimension out of given mistletoes
+PURPOSE:Compute the K-dimension out of given mistletoes
 ASSUME: - basering is a Letterplace ring.
 @*      - M contains only monomials
 NOTE:   - The mistletoes have to be ordered lexicographically -> OrdMisLex.
@@ -2125,14 +1905,14 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
   ideal L = x*y,y*x*y;
   // ideal containing the mistletoes
   lpMis2Dim(L); // returns the K-dimension of the factor algebra
 }
 
-proc lpOrdMisLex(ideal M)
+static proc lpOrdMisLex(ideal M)
 "USAGE: lpOrdMisLex(M); M an ideal of mistletoes
 RETURN: ideal, containing the mistletoes, ordered lexicographically
 PURPOSE:A given set of mistletoes is ordered lexicographically
@@ -2146,17 +1926,17 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
   ideal M = x*y*x, y*y*x, x*x, y*x*x*x;
   // some monomials
   lpOrdMisLex(M); // orders the monomials lexicographically
 }
 
-proc lpSickle(ideal G,  list #)
+static proc lpSickle(ideal G,  list #)
 "USAGE: lpSickle(G[,degbound,n]); G an ideal, degbound, n optional integers
 RETURN: ideal
-PURPOSE:Computing the mistletoes of K[X]/<G>
+PURPOSE:Compute the mistletoes of K[X]/<G>
 ASSUME: - basering is a Letterplace ring.
 @*      - if you specify a different degree bound degbound,
 @*        degbound <= attrib(basering,uptodeg) holds.
@@ -2167,7 +1947,7 @@ NOTE: - If degbound is set, there will be a degree bound added. 0 means no
 @*    - If the K-dimension is known to be infinite, a degree bound is needed
 EXAMPLE: example lpSickle; shows examples
 "
-{int degbound = attrib(basering,"uptodeg"); int n = attrib(basering, "isLetterplaceRing");
+{int degbound = lpDegBound(basering); int n = lpVarBlockSize(basering);
   if (size(#) > 0){if (typeof(#[1])=="int"){if (#[1] >= 0){degbound = #[1];}}}
   if (size(#) > 1){if (typeof(#[1])=="int"){if (#[2] > 0){n = #[2];}}}
   list L; ideal R;
@@ -2181,7 +1961,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
   ideal G = x*x, y*y,x*y*x; // ideal G contains a
   //Groebner basis
@@ -2194,7 +1974,7 @@ example
 proc lpSickleDim(ideal G, list #)
 "USAGE: lpSickleDim(G[,degbound,n]); G an ideal, degbound, n optional integers
 RETURN: list
-PURPOSE:Computing the K-dimension and the mistletoes
+PURPOSE:Compute the K-dimension and the mistletoes of K<X>/<G>
 ASSUME: - basering is a Letterplace ring.
 @*      - if you specify a different degree bound degbound,
 @*        degbound <= attrib(basering,uptodeg) holds.
@@ -2207,7 +1987,7 @@ NOTE: - If L is the list returned, then L[1] is an integer, the K-dimension,
 @*    - If the K-dimension is known to be infinite, a degree bound is needed
 EXAMPLE: example lpSickleDim; shows examples
 "
-{int degbound = attrib(basering,"uptodeg");int n = attrib(basering, "isLetterplaceRing");
+{int degbound = lpDegBound(basering);int n = lpVarBlockSize(basering);
   if (size(#) > 0){if (typeof(#[1])=="int"){if (#[1] >= 0){degbound = #[1];}}}
   if (size(#) > 1){if (typeof(#[1])=="int"){if (#[2] > 0){n = #[2];}}}
   list L;
@@ -2220,20 +2000,19 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
-  ideal G = x*x, y*y,x*y*x; // ideal G contains a
-  //Groebner basis
+  ideal G = x*x, y*y,x*y*x; // G is a monomial Groebner basis
   lpSickleDim(G); // invokes the procedure with ring parameters
-  // the factor algebra is finite, so the degree bound given by the Letterplace
-  // ring is not necessary
+  // the factor algebra is finite, so the degree bound, given
+  // by the Letterplace ring is not necessary
   lpSickleDim(G,0); // procedure without any degree bound
 }
 
-proc lpSickleHil(ideal G, list #)
+static proc lpSickleHil(ideal G, list #)
 "USAGE: lpSickleHil(G);
 RETURN: list
-PURPOSE:Computing the Hilbert series and the mistletoes
+PURPOSE:Compute the Hilbert series and the mistletoes
 ASSUME: - basering is a Letterplace ring.
 @*      - if you specify a different degree bound degbound,
 @*        degbound <= attrib(basering,uptodeg) holds.
@@ -2248,7 +2027,7 @@ NOTE: - If L is the list returned, then L[1] is an intvec, corresponding to the
 @*    - If the K-dimension is known to be infinite, a degree bound is needed
 EXAMPLE: example lpSickleHil; shows examples
 "
-{int degbound = attrib(basering,"uptodeg");int n = attrib(basering, "isLetterplaceRing");
+{int degbound = lpDegBound(basering);int n = lpVarBlockSize(basering);
   if (size(#) > 0){if (typeof(#[1])=="int"){if (#[1] >= 0){degbound = #[1];}}}
   if (size(#) > 1){if (typeof(#[1])=="int"){if (#[2] > 0){n = #[2];}}}
   list L;
@@ -2261,7 +2040,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
   ideal G = x*x, y*y,x*y*x; // ideal G contains a
   //Groebner basis
@@ -2271,7 +2050,7 @@ example
   lpSickleHil(G,0); // procedure without any degree bound
 }
 
-proc sickle(ideal G, list #)
+static proc sickle(ideal G, list #)
 "USAGE: sickle(G[,m, d, h, degbound]); G an ideal; m,d,h,degbound optional
 @*      integers
 RETURN: list
@@ -2295,29 +2074,29 @@ NOTE:   The returned object will always be a list, but the entries of the
 EXAMPLE: example sickle; shows examples
 "
 {int m,d,h,degbound;
-  m = 1; d = 0; h = 0; degbound = attrib(basering,"uptodeg");
+  m = 1; d = 0; h = 0; degbound = lpDegBound(basering);
   if (size(#) > 0) {if (typeof(#[1])=="int"){if (#[1] < 1) {m = 0;}}}
   if (size(#) > 1) {if (typeof(#[1])=="int"){if (#[2] > 0) {d = 1;}}}
   if (size(#) > 2) {if (typeof(#[1])=="int"){if (#[3] > 0) {h = 1;}}}
   if (size(#) > 3) {if (typeof(#[1])=="int"){if (#[4] >= 0) {degbound = #[4];}}}
   if (m == 1)
   {if (d == 0)
-    {if (h == 0) {return(lpSickle(G,degbound,attrib(basering,"isLetterplaceRing")));}
-      else        {return(lpSickleHil(G,degbound,attrib(basering,"isLetterplaceRing")));}
+    {if (h == 0) {return(lpSickle(G,degbound,lpVarBlockSize(basering)));}
+      else        {return(lpSickleHil(G,degbound,lpVarBlockSize(basering)));}
     }
     else
-    {if (h == 0) {return(lpSickleDim(G,degbound,attrib(basering,"isLetterplaceRing")));}
-      else {return(lpDHilbertSickle(G,degbound,attrib(basering,"isLetterplaceRing")));}
+    {if (h == 0) {return(lpSickleDim(G,degbound,lpVarBlockSize(basering)));}
+      else {return(lpDHilbertSickle(G,degbound,lpVarBlockSize(basering)));}
     }
   }
   else
   {if (d == 0)
     {if (h == 0) {ERROR("You request to do nothing, so relax and do so");}
-      else        {return(lpHilbert(G,degbound,attrib(basering,"isLetterplaceRing")));}
+      else        {return(lpHilbert(G,degbound,lpVarBlockSize(basering)));}
     }
     else
-    {if (h == 0) {return(lpKDim(G,degbound,attrib(basering,"isLetterplaceRing")));}
-      else {return(lpDHilbert(G,degbound,attrib(basering,"isLetterplaceRing")));}
+    {if (h == 0) {return(lpKDim(G,degbound,lpVarBlockSize(basering)));}
+      else {return(lpDHilbert(G,degbound,lpVarBlockSize(basering)));}
     }
   }
 }
@@ -2325,7 +2104,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   setring R; // sets basering to Letterplace ring
   ideal G = x*x, y*y,x*y*x;
   // G contains a Groebner basis
@@ -2335,206 +2114,54 @@ example
   sickle(G,0,0,1); // computes Hilbert series only
 }
 
-proc monomialBasis(int d, int donly, ideal J)
-  "USAGE: monomialBasis(d, donly, J); d, donly integers, J an ideal
-  RETURN: ideal
-  PURPOSE: computes a list of free monomials in a Letterplace
-  @*       basering R of degree at most d and not contained in <LM(J)>
-  @*       if donly <> 0, only monomials of degree d are returned
-  ASSUME: - basering is a Letterplace ring.
-  @*      - d <= attrib(basering,uptodeg) holds.
-  @*      - J is a Groebner basis
-  "
+proc lpMonomialBasis(int d, int donly, ideal J)
+"USAGE: lpMonomialBasis(d, donly, J); d, donly integers, J an ideal
+RETURN: ideal
+PURPOSE: computes a list of free monomials in a Letterplace
+@*       basering R of degree at most d and not contained in <LM(J)>
+@*       if donly <> 0, only monomials of degree d are returned
+ASSUME: - basering is a Letterplace ring.
+@*      - d <= attrib(basering,uptodeg) holds.
+@*      - J is a Groebner basis
+NOTE: will be replaced with reduce(maxideal(d), J); soon
+"
 {
-  int nv = attrib(basering,"uptodeg");
-  if ((d>nv) || (d<0) )
-  {
-    ERROR("incorrect degree");
+  if (d < 0) {
+    return (delete(ideal(0), 1)); // no monomials
   }
-  nv = attrib(basering,"isLetterplaceRing"); // nvars
-  if (d==0)
-  {
-    return(ideal(1));
+  ideal I = maxideal(d);
+  if (!donly) {
+    for (int i = d-1; i >= 0; i--) {
+      I = maxideal(i), I;
+    } kill i;
   }
-  /* from now on d>=1 */
-  ideal I;
-  if (size(J)==0)
-  {
-    I = maxideal(d);
-    if (!donly)
-    {
-      for (int i = d-1; i >= 0; i--)
-      {
-        I = maxideal(i), I;
-      } kill i;
+  for (int i = ncols(I); i >= 1; i--) {
+    if (lpLmDivides(J, I[i])) {
+      I = delete(I, i);
     }
-    return(I);
-  }
-  // ok, Sickle misbehaves: have to remove all
-  // elts from J of degree >d
-  ideal JJ;
-  int j; int sj = ncols(J);
-  int cnt=0;
-  for(j=1;j<=sj;j++)
-  {
-    if (deg(J[j]) <= d)
-    {
-      cnt++;
-      JJ[cnt]=lead(J[j]); // only LMs are needed
-    }
-  }
-  if (cnt==0)
-  {
-    // there are no elements in J of degree <= d
-    // return free stuff and the 1
-    I = monomialBasis(d, donly, ideal(0));
-    if (!donly)
-    {
-      I = 1, I;
-    }
-    return(I);
-  }
-  // from here on, Ibase is not zero
-  ideal Ibase = lpMis2Base(lpSickle(JJ,d)); // the complete K-basis modulo J up to d
-  if (!donly)
-  {
-    // for not donly, give everything back
-    // sort by DP starting with smaller terms
-    Ibase = sort(Ibase,"Dp")[1];
-    return(Ibase);
-  }
-  /* !donly: pick out only monomials of degree d */
-  int i; int si = ncols(Ibase);
-  cnt=0;
-  I=0;
-  for(i=1;i<=si;i++)
-  {
-    if (deg(Ibase[i]) == d)
-    {
-      cnt++;
-      I[cnt]=Ibase[i];
-    }
-  }
-  kill Ibase;
-  return(I);
+  } kill i;
+  return (I);
 }
 example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = makeLetterplaceRing(7); setring R;
+  def R = freeAlgebra(r, 7); setring R;
   ideal J = x*y*x - y*x*y;
   option(redSB); option(redTail);
   J = letplaceGBasis(J);
   J;
-  monomialBasis(2,1,ideal(0));
-  monomialBasis(2,0,ideal(0));
-  monomialBasis(3,1,J);
-  monomialBasis(3,0,J);
+  //monomials of degree 2 only in K<x,y>:
+  lpMonomialBasis(2,1,ideal(0));
+  //monomials of degree <=2 in K<x,y>
+  lpMonomialBasis(2,0,ideal(0));
+  //monomials of degree 3 only in K<x,y>/J
+  lpMonomialBasis(3,1,J);
+  //monomials of degree <=3 in K<x,y>/J
+  lpMonomialBasis(3,0,J);
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
-/* vl: stuff for conversion to Magma and to SD
-todo: doc, example
- */
-static proc extractVars(r)
-{
-  int i = 1;
-  int j = 1;
-  string candidate;
-  list result = list();
-  for (i = 1; i<=nvars(r);i++)
-  {
-    candidate = string(var(i))[1,find(string(var(i)),"(")-1];
-    if (!inList(result, candidate))
-    {
-      result = insert(result,candidate,size(result));
-    }
-  }
-  return(result);
-}
-
-static proc letterPlacePoly2MagmaString(poly h)
-{
-  int pos;
-  string s = string(h);
-  while(find(s,"("))
-  {
-    pos = find(s,"(");
-    while(s[pos]!=")")
-    {
-      s = s[1,pos-1]+s[pos+1,size(s)-pos];
-    }
-    if (size(s)!=pos)
-    {
-      s = s[1,pos-1]+s[pos+1,size(s)-pos]; // The last (")")
-    }
-    else
-    {
-      s = s[1,pos-1];
-    }
-  }
-  return(s);
-}
-
-static proc letterPlaceIdeal2SD(ideal I, int upToDeg)
-{
-  int i;
-  print("Don't forget to fill in the formal Data in the file");
-  string result = "<?xml version=\"1.0\"?>"+newline+"<FREEALGEBRA createdAt=\"\" createdBy=\"Singular\" id=\"FREEALGEBRA/\">"+newline;
-  result = result + "<vars>"+string(extractVars(basering))+"</vars>"+newline;
-  result = result + "<basis>"+newline;
-  for (i = 1;i<=size(I);i++)
-  {
-    result = result + "<poly>"+letterPlacePoly2MagmaString(I[i])+"</poly>"+newline;
-  }
-  result = result + "</basis>"+newline;
-  result = result + "<uptoDeg>"+ string(upToDeg)+"</uptoDeg>"+newline;
-  result = result + "<Comment></Comment>"+newline;
-  result = result + "<Version></Version>"+newline;
-  result = result + "</FREEALGEBRA>";
-  return(result);
-}
-
-
-///////////////////////////////////////////////////////////////////////////////
-
-
-proc tst_fpadim()
-{
-  example ivDHilbert;
-  example ivDHilbertSickle;
-  example ivDimCheck;
-  example ivHilbert;
-  example ivKDim;
-  example ivMis2Base;
-  example ivMis2Dim;
-  example ivOrdMisLex;
-  example ivSickle;
-  example ivSickleHil;
-  example ivSickleDim;
-  example lpDHilbert;
-  example lpDHilbertSickle;
-  example lpHilbert;
-  example lpDimCheck;
-  example lpKDim;
-  example lpMis2Base;
-  example lpMis2Dim;
-  example lpOrdMisLex;
-  example lpSickle;
-  example lpSickleHil;
-  example lpSickleDim;
-  example sickle;
-  example ivL2lpI;
-  example iv2lp;
-  example iv2lpList;
-  example iv2lpMat;
-  example lp2iv;
-  example lp2ivId;
-  example lpId2ivLi;
-  example monomialBasis;
-}
 
 /*
    Here are some examples one may try. Just copy them into your console.
@@ -2543,7 +2170,7 @@ proc tst_fpadim()
    LIB "fpadim.lib";
    ring r = 0,(x,y,z),dp;
    int d =10; // degree
-   def R = makeLetterplaceRing(d);
+   def R = freeAlgebra(r, d);
    setring R;
    ideal I = y*x*y - z*y*z, x*y*x - z*x*y,
    z*x*z - y*z*x, x*x*x + y*y*y +
@@ -2551,7 +2178,7 @@ proc tst_fpadim()
    option(prot);
    option(redSB);option(redTail);option(mem);
    ideal J = system("freegb",I,d,3);
-   lpDimCheck(J);
+   lpKDimCheck(J);
    sickle(J,1,1,1,d);//Computes mistletoes, K-dimension and the Hilbert series
 
 
@@ -2559,7 +2186,7 @@ proc tst_fpadim()
    LIB "fpadim.lib";
    ring r = 0,(x,y,z),dp;
    int d =11; // degree
-   def R = makeLetterplaceRing(d);
+   def R = freeAlgebra(r, d);
    setring R;
    ideal I = y*x*y - z*y*z, x*y*z - z*x*y,
    z*x*z - y*z*x, x*x*x + y*y*y +
@@ -2567,7 +2194,7 @@ proc tst_fpadim()
    option(prot);
    option(redSB);option(redTail);option(mem);
    ideal J = system("freegb",I,d,3);
-   lpDimCheck(J);
+   lpKDimCheck(J);
    sickle(J,1,1,1,d);
 
 
@@ -2575,14 +2202,14 @@ proc tst_fpadim()
    LIB "fpadim.lib";
    ring r = 0,(x,y,z),dp;
    int d  = 6; // degree
-   def R  = makeLetterplaceRing(d);
+   def R  = freeAlgebra(r, d);
    setring R;
    ideal I = y*x*y - z*y*z, x*y*x - z*x*y,
    z*x*z - y*z*x, x*x*x -2*y*y*y + 3*z*z*z -4*x*y*z + 5*x*z*z- 6*x*y*y +7*x*x*z - 8*x*x*y;
    option(prot);
    option(redSB);option(redTail);option(mem);
    ideal J = system("freegb",I,d,3);
-   lpDimCheck(J);
+   lpKDimCheck(J);
    sickle(J,1,1,1,d);
  */
 
@@ -2593,33 +2220,33 @@ proc tst_fpadim()
 LIB "fpadim.lib";
 ring r = 0,(x,y,z),dp;
 int d =10; // degree
-def R = makeLetterplaceRing(d);
+def R = freeAlgebra(r, d);
 setring R;
 ideal I =
 z*z*z*z + y*x*y*x - x*y*y*x - 3*z*y*x*z, x*x*x + y*x*y - x*y*x, z*y*x-x*y*z + z*x*z;
 option(prot);
 option(redSB);option(redTail);option(mem);
 ideal J = system("freegb",I,d,nvars(r));
-lpDimCheck(J);
+lpKDimCheck(J);
 sickle(J,1,1,1,d); // dimension is 24872
 
 
 LIB "fpadim.lib";
 ring r = 0,(x,y,z),dp;
 int d =10; // degree
-def R = makeLetterplaceRing(d);
+def R = freeAlgebra(r, d);
 setring R;
 ideal I = x*y + y*z, x*x + x*y - y*x - y*y;
 option(prot);
 option(redSB);option(redTail);option(mem);
 ideal J = system("freegb",I,d,3);
-lpDimCheck(J);
+lpKDimCheck(J);
 sickle(J,1,1,1,d);
  */
 
 
 /*
-   Example for computing GK dimension:
+   Example for Compute GK dimension:
    returns a ring which contains an ideal I
    run gkDim(I) inside this ring and it should return 2n (the GK dimension
    of n-th Weyl algebra including evaluation operators).
@@ -2635,7 +2262,7 @@ sickle(J,1,1,1,d);
    baseringdef = 1;
    }
    ring r = 0,(d(1..n),x(1..n),e(1..n)),dp;
-   def R = makeLetterplaceRing(d);
+   def R = freeAlgebra(r, d);
    setring R;
    ideal I; int i,j;
 
@@ -2692,7 +2319,7 @@ sickle(J,1,1,1,d);
 proc TestGKAuslander3()
 {
   ring r = (0,q),(z,x,y),(dp(2),dp(2));
-  def R = makeLetterplaceRing(5); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
   R; setring R; // sets basering to Letterplace ring
   ideal I;
   I = q*x*y - y*x, z*y - y*z, z*x - x*z;
@@ -2703,7 +2330,7 @@ proc TestGKAuslander3()
   lpGkDim(I); // must be 4
 
   ring r = 0,(y,x,z),dp;
-  def R = makeLetterplaceRing(10); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 10); // constructs a Letterplace ring
   R; setring R; // sets basering to Letterplace ring
   ideal I;
   I = x*y*z - y*x, z*y - y*z, z*x - x*z;//gkDim = 2
@@ -2713,21 +2340,21 @@ proc TestGKAuslander3()
 
   // with inverse of z
   ring r = 0,(iz,z,x,y),dp;
-  def R = makeLetterplaceRing(11); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 11); // constructs a Letterplace ring
   R; setring R; // sets basering to Letterplace ring
   ideal I;
   I = x*y*z - y*x, z*y - y*z, z*x - x*z,
     iz*y - y*iz, iz*x - x*iz, iz*z-1, z*iz -1;
   I = letplaceGBasis(I); //
   setring r;
-  def R2 = makeLetterplaceRing(23); // constructs a Letterplace ring
+  def R2 = freeAlgebra(r, 23); // constructs a Letterplace ring
   setring R2; // sets basering to Letterplace ring
   ideal I = imap(R,I);
   lpGkDim(I);
 
 
   ring r = 0,(t,z,x,y),(dp,dp);
-  def R = makeLetterplaceRing(20); // constructs a Letterplace ring
+  def R = freeAlgebra(r, 20); // constructs a Letterplace ring
   R; setring R; // sets basering to Letterplace ring
   ideal I;
   I = x*y*z - y*x*t, z*y - y*z, z*x - x*z,
@@ -2746,7 +2373,7 @@ proc TestGKAuslander3()
   lpNF(p, I); // 0 as expected
 
   ring r2 = 0,(x,y),dp;
-  def R2 = makeLetterplaceRing(50); // constructs a Letterplace ring
+  def R2 = freeAlgebra(r2, 50); // constructs a Letterplace ring
   setring R2;
   ideal J = x*y*y*x-y*x*x*y;
   J = letplaceGBasis(J);
@@ -2758,7 +2385,7 @@ proc TestGKAuslander3()
 /*   more tests : downup algebra A
 LIB "fpadim.lib";
 ring r = (0,a,b,g),(x,y),Dp;
-def R = makeLetterplaceRing(6); // constructs a Letterplace ring
+def R = freeAlgebra(r, 6); // constructs a Letterplace ring
 setring R;
 poly F1 = g*x;
 poly F2 = g*y;
@@ -2770,7 +2397,7 @@ lpGkDim(J); // 3 == correct
 // downup algebra B
 LIB "fpadim.lib";
 ring r = (0,a,b,g, p(1..7),q(1..7)),(x,y),Dp;
-def R = makeLetterplaceRing(6); // constructs a Letterplace ring
+def R = freeAlgebra(r, 6); // constructs a Letterplace ring
 setring R;
 ideal imn = 1, y*y*y, x*y, y*x, x*x, y*y, x, y;
 int i;
@@ -2784,5 +2411,4 @@ ideal J = x*x*y-a*x*y*x - b*y*x*x - F1,
 x*y*y-a*y*x*y - b*y*y*x - F2;
 J = letplaceGBasis(J);
 lpGkDim(J); // 3 == correct
-
  */

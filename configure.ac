@@ -1,5 +1,5 @@
-AC_INIT([singular], [4.1.1], [singular@mathematik.uni-kl.de])
-AC_DEFINE([VERSION_DATE],["Feb 2018"],[release date])
+AC_INIT([singular], [4.1.2], [singular@mathematik.uni-kl.de])
+AC_DEFINE([VERSION_DATE],["Feb 2019"],[release date])
 
 _AC_SRCDIRS(["$ac_dir"])
 
@@ -96,6 +96,8 @@ AC_CHECK_LIB(mpfr,mpfr_add)
 
 AC_CONFIG_GOOGLE_PERFTOOLS()
 
+LB_CHECK_CCLUSTER()
+
 AX_PYTHON_DEFAULT()
 AX_PYTHON_WITH_VERSION([2.4])
 
@@ -157,6 +159,14 @@ fi[]dnl
 
 AX_LIB_SOCKET_NSL
 
+AC_ARG_WITH([libparse],
+            [AS_HELP_STRING([--with-libparse],
+              [compile and install libparse])],
+            [optional_Singular_programs=libparse],
+            [optional_Singular_programs=])
+
+AC_SUBST(optional_Singular_programs)
+
 AC_DEFINE_UNQUOTED([CC],"$CC",[CC])
 AC_DEFINE_UNQUOTED([CXX],"$CXX",[CXX])
 AC_DEFINE_UNQUOTED([CFLAGS],"$CFLAGS",[CFLAGS])
@@ -215,7 +225,6 @@ AC_CONFIG_FILES([dox/Makefile])
 
 AC_CONFIG_SUBDIRS([resources])
 AC_CONFIG_SUBDIRS([omalloc])
-AC_CONFIG_SUBDIRS([xalloc])
 
 if test "x$ENABLE_FACTORY" = xyes; then
  AC_CONFIG_SUBDIRS([factory])
@@ -249,16 +258,19 @@ AC_CONFIG_FILES([Singular/dyn_modules/pyobject/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/singmathic/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/staticdemo/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/subsets/Makefile])
-AC_CONFIG_FILES([Singular/dyn_modules/freegb/Makefile])
+AC_CONFIG_FILES([Singular/dyn_modules/freealgebra/Makefile])
+AC_CONFIG_FILES([Singular/dyn_modules/partialgb/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/gitfan/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/interval/Makefile])
 AC_CONFIG_FILES([Singular/dyn_modules/cohomo/Makefile])
+AC_CONFIG_FILES([Singular/dyn_modules/systhreads/Makefile])
 
 AC_CONFIG_FILES([Singular/Makefile])
 
 AC_CONFIG_FILES([IntegerProgramming/Makefile])
 
-AC_CONFIG_FILES([libsingular-config Singular.pc])
+AC_CONFIG_FILES([libsingular-config], [chmod +x libsingular-config])
+AC_CONFIG_FILES([Singular.pc])
 
 AC_CONFIG_FILES([emacs/Makefile])
 

@@ -6,7 +6,7 @@
 // The actual work is done in CountingListenerProxy,
 // but this way avoids cyclic references TestListener<->CountingListenerProxy
 //
-
+#include "factory/globaldefs.h"
 #include <cxxtest/TestListener.h>
 #include <cxxtest/DummyDescriptions.h>
 
@@ -82,7 +82,7 @@ namespace CxxTest
         TestTracker( const TestTracker & );
         TestTracker &operator=( const TestTracker & );
 
-        static bool _created;
+        STATIC_VAR bool _created;
         TestListener _dummyListener;
         DummyWorldDescription _dummyWorld;
         unsigned _warnings, _failedTests, _testFailedAsserts, _suiteFailedTests, _failedSuites;

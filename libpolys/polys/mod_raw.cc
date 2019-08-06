@@ -18,22 +18,10 @@
 #include <errno.h>
 #include <unistd.h>
 
-
-
-
-
 #include "misc/auxiliary.h"
-
 #include "reporter/reporter.h"
-
 #include "resources/feResource.h"
-
-#ifdef HAVE_OMALLOC
 #include "omalloc/omalloc.h"
-#else
-#include "xalloc/omalloc.h"
-#endif
-
 #include "mod_raw.h"
 
 #ifdef HAVE_STATIC
@@ -50,8 +38,8 @@
  * somethings goes wrong
  *
  *****************************************************************************/
-static BOOLEAN warn_handle = FALSE;
-static BOOLEAN warn_proc = FALSE;
+STATIC_VAR BOOLEAN warn_handle = FALSE;
+STATIC_VAR BOOLEAN warn_proc = FALSE;
 #ifndef DL_TAIL
 #define DL_TAIL ".so"
 //#define DL_TAIL "_g.so"
@@ -146,7 +134,7 @@ extern "C" {
 #include <dlfcn.h>
 #define DL_IMPLEMENTED
 
-static void* kernel_handle = NULL;
+STATIC_VAR void* kernel_handle = NULL;
 int dynl_check_opened(
   char *filename    /* I: filename to check */
   )
@@ -158,6 +146,8 @@ void *dynl_open(
   char *filename    /* I: filename to load */
   )
 {
+  return dlopen(filename, RTLD_NOW|RTLD_GLOBAL);
+#if 0
 // glibc 2.2:
   if ((filename==NULL) || (dlopen(filename,RTLD_NOW|RTLD_NOLOAD)==NULL))
     return(dlopen(filename, RTLD_NOW|RTLD_GLOBAL));
@@ -166,6 +156,7 @@ void *dynl_open(
   return NULL;
 // alternative
 //    return(dlopen(filename, RTLD_NOW|RTLD_GLOBAL));
+#endif
 }
 
 void *dynl_sym(void *handle, const char *symbol)
@@ -243,7 +234,7 @@ int dynl_close (void *handle)
 
 const char *dynl_error()
 {
-  static char errmsg[] = "shl_load failed";
+  STATIC_VAR char errmsg[] = "shl_load failed";
 
   return errmsg;
 }
@@ -276,7 +267,7 @@ int dynl_close (void *handle)
 
 const char *dynl_error()
 {
-  static char errmsg[] = "support for dynamic loading not implemented";
+  STATIC_VAR char errmsg[] = "support for dynamic loading not implemented";
   return errmsg;
 }
 #endif

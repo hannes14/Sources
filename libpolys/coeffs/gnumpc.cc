@@ -419,7 +419,7 @@ static char* ngcCoeffString(const coeffs r)
 
 static char* ngcCoeffName(const coeffs r)
 {
-  static char ngcCoeffName_buf[40];
+  STATIC_VAR char ngcCoeffName_buf[40];
   const char *p=n_ParameterNames(r)[0];
   sprintf(ngcCoeffName_buf,"complex,%d,%d,%s",r->float_len,r->float_len2,p);
   return ngcCoeffName_buf;
@@ -519,6 +519,14 @@ static number ngcCopyMap(number from, const coeffs aRing, const coeffs r)
   return (number)b;
 }
 
+static number ngcInitMPZ(mpz_t m, const coeffs)
+{
+  gmp_float mm(m);
+  gmp_complex* res = new gmp_complex(mm);
+  return (number)res;
+}
+
+
 static nMapFunc ngcSetMap(const coeffs src, const coeffs dst)
 {
   assume( getCoeffType(dst) == n_long_C );
@@ -564,8 +572,9 @@ BOOLEAN ngcInitChar(coeffs n, void* parameter)
 
   n->cfDelete  = ngcDelete;
   //n->cfNormalize=ndNormalize;
-  n->cfInit   = ngcInit;
-  n->cfInt    = ngcInt;
+  n->cfInit    = ngcInit;
+  n->cfInitMPZ = ngcInitMPZ;
+  n->cfInt     = ngcInt;
   n->cfAdd     = ngcAdd;
   n->cfSub     = ngcSub;
   n->cfMult    = ngcMult;

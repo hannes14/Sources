@@ -40,8 +40,8 @@
 #define BITS_PER_LONG 8*SIZEOF_LONG
 
 typedef char *             char_ptr;
-omBin sip_sring_bin = omGetSpecBin(sizeof(ip_sring));
-omBin char_ptr_bin =  omGetSpecBin(sizeof(char_ptr));
+VAR omBin sip_sring_bin = omGetSpecBin(sizeof(ip_sring));
+VAR omBin char_ptr_bin =  omGetSpecBin(sizeof(char_ptr));
 
 
 static const char * const ringorder_name[] =
@@ -344,6 +344,18 @@ void   rWrite(ring r, BOOLEAN details)
 
     if (r->wvhdl[l]!=NULL)
     {
+      #ifndef SING_NDEBUG
+      if((r->order[l] != ringorder_wp)
+      &&(r->order[l] != ringorder_Wp)
+      &&(r->order[l] != ringorder_ws)
+      &&(r->order[l] != ringorder_Ws)
+      &&(r->order[l] != ringorder_a)
+      &&(r->order[l] != ringorder_am)
+      &&(r->order[l] != ringorder_M))
+      {
+        Warn("should not have wvhdl entry at pos. %d",l);
+      }
+      #endif
       for (int j= 0;
            j<(r->block1[l]-r->block0[l]+1)*(r->block1[l]-r->block0[l]+1);
            j+=i)
@@ -419,7 +431,7 @@ void   rWrite(ring r, BOOLEAN details)
   }
   if (rIsLPRing(r))
   {
-    Print("\n// letterplace ring (block size %d)",r->isLPring);
+    Print("\n// letterplace ring (block size %d, ncgen count %d)",r->isLPring, r->LPncGenCount);
   }
 #endif
   if (r->qideal!=NULL)
@@ -533,37 +545,53 @@ char * rOrdStr(ring r)
     {
       if (r->wvhdl[l]!=NULL)
       {
-        StringAppendS("(");
-        for (int j= 0;
-             j<(r->block1[l]-r->block0[l]+1)*(r->block1[l]-r->block0[l]+1);
-             j+=i+1)
+        #ifndef SING_NDEBUG
+        if((r->order[l] != ringorder_wp)
+        &&(r->order[l] != ringorder_Wp)
+        &&(r->order[l] != ringorder_ws)
+        &&(r->order[l] != ringorder_Ws)
+        &&(r->order[l] != ringorder_a)
+        &&(r->order[l] != ringorder_am)
+        &&(r->order[l] != ringorder_M))
         {
-          char c=',';
-          if(r->order[l]==ringorder_a64)
+          Warn("should not have wvhdl entry at pos. %d",l);
+          StringAppend("(%d)",r->block1[l]-r->block0[l]+1);
+        }
+        else
+        #endif
+        {
+          StringAppendS("(");
+          for (int j= 0;
+               j<(r->block1[l]-r->block0[l]+1)*(r->block1[l]-r->block0[l]+1);
+               j+=i+1)
           {
-            int64 * w=(int64 *)r->wvhdl[l];
-            for (i = 0; i<r->block1[l]-r->block0[l]; i++)
+            char c=',';
+            if(r->order[l]==ringorder_a64)
             {
-              StringAppend("%lld," ,w[i]);
+              int64 * w=(int64 *)r->wvhdl[l];
+              for (i = 0; i<r->block1[l]-r->block0[l]; i++)
+              {
+                StringAppend("%lld," ,w[i]);
+              }
+              StringAppend("%lld)" ,w[i]);
+              break;
             }
-            StringAppend("%lld)" ,w[i]);
-            break;
-          }
-          else
-          {
-            for (i = 0; i<r->block1[l]-r->block0[l]; i++)
+            else
             {
-              StringAppend("%d," ,r->wvhdl[l][i+j]);
+              for (i = 0; i<r->block1[l]-r->block0[l]; i++)
+              {
+                StringAppend("%d," ,r->wvhdl[l][i+j]);
+              }
             }
+            if (r->order[l]!=ringorder_M)
+            {
+              StringAppend("%d)" ,r->wvhdl[l][i+j]);
+              break;
+            }
+            if (j+i+1==(r->block1[l]-r->block0[l]+1)*(r->block1[l]-r->block0[l]+1))
+              c=')';
+            StringAppend("%d%c" ,r->wvhdl[l][i+j],c);
           }
-          if (r->order[l]!=ringorder_M)
-          {
-            StringAppend("%d)" ,r->wvhdl[l][i+j]);
-            break;
-          }
-          if (j+i+1==(r->block1[l]-r->block0[l]+1)*(r->block1[l]-r->block0[l]+1))
-            c=')';
-          StringAppend("%d%c" ,r->wvhdl[l][i+j],c);
         }
       }
       else
@@ -1364,6 +1392,7 @@ ring rCopy0(const ring r, BOOLEAN copy_qideal, BOOLEAN copy_ordering)
 
 #ifdef HAVE_SHIFTBBA
   res->isLPring=r->isLPring; /* 0 for non-letterplace rings, otherwise the number of LP blocks, at least 1, known also as lV */
+  res->LPncGenCount=r->LPncGenCount;
 #endif
 
   res->VectorOut=r->VectorOut;
@@ -1493,6 +1522,7 @@ ring rCopy0AndAddA(const ring r,  int64vec *wv64, BOOLEAN copy_qideal, BOOLEAN c
 
 #ifdef HAVE_SHIFTBBA
   res->isLPring=r->isLPring; /* 0 for non-letterplace rings, otherwise the number of LP blocks, at least 1, known also as lV */
+  res->LPncGenCount=r->LPncGenCount;
 #endif
 
   res->VectorOut=r->VectorOut;
@@ -1635,6 +1665,11 @@ BOOLEAN rEqual(ring r1, ring r2, BOOLEAN qr)
   if (r1 == NULL || r2 == NULL) return FALSE;
   if (r1->cf!=r2->cf) return FALSE;
   if (rVar(r1)!=rVar(r2)) return FALSE;
+  if (r1->bitmask!=r2->bitmask) return FALSE;
+  #ifdef HAVE_SHIFTBBA
+  if (r1->isLPring!=r2->isLPring) return FALSE;
+  if (r1->LPncGenCount!=r2->LPncGenCount) return FALSE;
+  #endif
 
   if( !rSamePolyRep(r1, r2) )
     return FALSE;
@@ -3869,19 +3904,16 @@ void rUnComplete(ring r)
         if( r->typ[i].ord_typ == ro_is) // Search for suffixes! (prefix have the same VarOffset)
         {
           id_Delete(&r->typ[i].data.is.F, r);
-          r->typ[i].data.is.F = NULL; // ?
 
           if( r->typ[i].data.is.pVarOffset != NULL )
           {
             omFreeSize((ADDRESS)r->typ[i].data.is.pVarOffset, (r->N +1)*sizeof(int));
-            r->typ[i].data.is.pVarOffset = NULL; // ?
           }
         }
         else if (r->typ[i].ord_typ == ro_syz)
         {
           if(r->typ[i].data.syz.limit > 0)
             omFreeSize(r->typ[i].data.syz.syz_index, ((r->typ[i].data.syz.limit) +1)*sizeof(int));
-          r->typ[i].data.syz.syz_index = NULL;
         }
         else if (r->typ[i].ord_typ == ro_syzcomp)
         {
@@ -3900,12 +3932,20 @@ void rUnComplete(ring r)
       omUnGetSpecBin(&(r->PolyBin));
 
     omFreeSize((ADDRESS)r->VarOffset, (r->N +1)*sizeof(int));
+    r->VarOffset=NULL;
 
     if (r->ordsgn != NULL && r->CmpL_Size != 0)
+    {
       omFreeSize((ADDRESS)r->ordsgn,r->ExpL_Size*sizeof(long));
+      r->ordsgn=NULL;
+    }
     if (r->p_Procs != NULL)
+    {
       omFreeSize(r->p_Procs, sizeof(p_Procs_s));
+      r->p_Procs=NULL;
+    }
     omfreeSize(r->VarL_Offset, r->VarL_Size*sizeof(int));
+    r->VarL_Offset=NULL;
   }
   if (r->NegWeightL_Offset!=NULL)
   {
@@ -4439,30 +4479,16 @@ ring rAssure_SyzComp(const ring r, BOOLEAN complete)
   return res;
 }
 
-BOOLEAN rHasTDeg(ring r)
-{
-  int i;
-  if (r->typ!=NULL)
-  {
-    for(i=r->OrdSize-1;i>=0;i--)
-    {
-      if ((r->typ[i].ord_typ==ro_dp)
-      && (r->typ[i].data.dp.start==1)
-      && (r->typ[i].data.dp.end==r->N))
-      {
-        return TRUE;
-      }
-    }
-  }
-  return FALSE;
-}
-
 ring rAssure_TDeg(ring r, int &pos)
 {
-  int i;
+  if (r->N==1) // special: dp(1)==lp(1)== no entry in typ
+  {
+    pos=r->VarL_LowIndex;
+    return r;
+  }
   if (r->typ!=NULL)
   {
-    for(i=r->OrdSize-1;i>=0;i--)
+    for(int i=r->OrdSize-1;i>=0;i--)
     {
       if ((r->typ[i].ord_typ==ro_dp)
       && (r->typ[i].data.dp.start==1)
@@ -4485,7 +4511,7 @@ ring rAssure_TDeg(ring r, int &pos)
     id_Delete(&res->qideal,r);
   }
 
-  i=rBlocks(r);
+  int i=rBlocks(r);
   int j;
 
   res->ExpL_Size=r->ExpL_Size+1; // one word more in each monom
@@ -4981,7 +5007,7 @@ BOOLEAN rSetISReference(const ring r, const ideal F, const int i, const int p)
 }
 
 #ifdef PDEBUG
-int pDBsyzComp=0;
+VAR int pDBsyzComp=0;
 #endif
 
 
@@ -5051,7 +5077,7 @@ void rSetSyzComp(int k, const ring r)
     dReportError("syzcomp in incompatible ring");
   }
 #ifdef PDEBUG
-  extern int pDBsyzComp;
+  EXTERN_VAR int pDBsyzComp;
   pDBsyzComp=k;
 #endif
 }
@@ -5084,7 +5110,7 @@ int rGetMaxSyzComp(int i, const ring r)
   }
 }
 
-BOOLEAN rRing_is_Homog(ring r)
+BOOLEAN rRing_is_Homog(const ring r)
 {
   if (r == NULL) return FALSE;
   int i, j, nb = rBlocks(r);
@@ -5106,30 +5132,41 @@ BOOLEAN rRing_is_Homog(ring r)
   return TRUE;
 }
 
-BOOLEAN rRing_has_CompLastBlock(ring r)
+BOOLEAN rRing_has_CompLastBlock(const ring r)
 {
   assume(r != NULL);
   int lb = rBlocks(r) - 2;
   return (r->order[lb] == ringorder_c || r->order[lb] == ringorder_C);
 }
 
-n_coeffType rFieldType(ring r)
+BOOLEAN rRing_ord_pure_dp(const ring r)
 {
-  return (r->cf->type);
-  if (rField_is_Zp(r))     return n_Zp;
-  if (rField_is_Q(r))      return n_Q;
-  if (rField_is_R(r))      return n_R;
-  if (rField_is_GF(r))     return n_GF;
-  if (rField_is_long_R(r)) return n_long_R;
-  if (rField_is_Zp_a(r))   return getCoeffType(r->cf);
-  if (rField_is_Q_a(r))    return getCoeffType(r->cf);
-  if (rField_is_long_C(r)) return n_long_C;
-  if (rField_is_Z(r))         return n_Z;
-  if (rField_is_Zn(r))        return n_Zn;
-  if (rField_is_Ring_PtoM(r)) return n_Znm;
-  if (rField_is_Ring_2toM(r)) return  n_Z2m;
+  if ((r->order[0]==ringorder_dp) &&(r->block0[0]==1) &&(r->block1[0]==r->N))
+    return TRUE;
+  if (((r->order[0]==ringorder_c)||(r->order[0]==ringorder_C))
+  && ((r->order[1]==ringorder_dp) &&(r->block0[1]==1) &&(r->block1[1]==r->N)))
+    return TRUE;
+  return FALSE;
+}
 
-  return n_unknown;
+BOOLEAN rRing_ord_pure_Dp(const ring r)
+{
+  if ((r->order[0]==ringorder_Dp) &&(r->block0[0]==1) &&(r->block1[0]==r->N))
+    return TRUE;
+  if (((r->order[0]==ringorder_c)||(r->order[0]==ringorder_C))
+  && ((r->order[1]==ringorder_Dp) &&(r->block0[1]==1) &&(r->block1[1]==r->N)))
+    return TRUE;
+  return FALSE;
+}
+
+BOOLEAN rRing_ord_pure_lp(const ring r)
+{
+  if ((r->order[0]==ringorder_lp) &&(r->block0[0]==1) &&(r->block1[0]==r->N))
+    return TRUE;
+  if (((r->order[0]==ringorder_c)||(r->order[0]==ringorder_C))
+  && ((r->order[1]==ringorder_lp) &&(r->block0[1]==1) &&(r->block1[1]==r->N)))
+    return TRUE;
+  return FALSE;
 }
 
 int64 * rGetWeightVec(const ring r)
@@ -5771,8 +5808,8 @@ ring rMinusVar(const ring r, char *v)
     return NULL;
   }
   ring R=rCopy0(r);
-  int i=R->N;
-  while(i>0)
+  int i=R->N-1;
+  while(i>=0)
   {
     if (strcmp(R->names[i],v)==0)
     {
@@ -5781,9 +5818,9 @@ ring rMinusVar(const ring r, char *v)
       for(int j=i;j<R->N;j++) R->names[j]=R->names[j+1];
       R->names=(char**)omReallocSize(R->names,r->N*sizeof(char_ptr),R->N*sizeof(char_ptr));
     }
-    else i--;
+    i--;
   }
   R->block1[p]=R->N;
-  rComplete(R);
+  rComplete(R,1);
   return R;
 }
