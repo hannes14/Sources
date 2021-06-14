@@ -33,9 +33,6 @@
 #include "facMul.h"
 #include "cfUnivarGcd.h"
 
-#ifdef HAVE_NTL
-#include "NTLconvert.h"
-
 TIMING_DEFINE_PRINT(fac_fq_bi_factorizer)
 TIMING_DEFINE_PRINT(fac_fq_hensel_lift)
 TIMING_DEFINE_PRINT(fac_fq_factor_recombination)
@@ -213,6 +210,7 @@ CanonicalForm myCompress (const CanonicalForm& F, CFMap& N)
   return result;
 }
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
 CFList
 extFactorRecombination (const CFList& factors, const CanonicalForm& F,
                         const CFList& M, const ExtensionInfo& info,
@@ -355,7 +353,9 @@ extFactorRecombination (const CFList& factors, const CanonicalForm& F,
   delete [] v;
   return result;
 }
+#endif
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
 CFList
 factorRecombination (const CanonicalForm& F, const CFList& factors,
                      const CFList& M)
@@ -440,7 +440,9 @@ factorRecombination (const CanonicalForm& F, const CFList& factors,
   delete [] v;
   return result;
 }
+#endif
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
 int
 liftBoundAdaption (const CanonicalForm& F, const CFList& factors, bool&
                    success, const int deg, const CFList& MOD, const int bound)
@@ -504,7 +506,9 @@ liftBoundAdaption (const CanonicalForm& F, const CFList& factors, bool&
   }
   return adaptedLiftBound;
 }
+#endif
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
 int
 extLiftBoundAdaption (const CanonicalForm& F, const CFList& factors, bool&
                       success, const ExtensionInfo& info, const CFList& eval,
@@ -600,7 +604,9 @@ extLiftBoundAdaption (const CanonicalForm& F, const CFList& factors, bool&
 
   return adaptedLiftBound;
 }
+#endif
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
 CFList
 earlyFactorDetect (CanonicalForm& F, CFList& factors, int& adaptedLiftBound,
                    bool& success, const int deg, const CFList& MOD,
@@ -651,7 +657,9 @@ earlyFactorDetect (CanonicalForm& F, CFList& factors, int& adaptedLiftBound,
   }
   return result;
 }
+#endif
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
 CFList
 extEarlyFactorDetect (CanonicalForm& F, CFList& factors, int& adaptedLiftBound,
                       bool& success, const ExtensionInfo& info, const CFList&
@@ -734,7 +742,9 @@ extEarlyFactorDetect (CanonicalForm& F, CFList& factors, int& adaptedLiftBound,
   }
   return result;
 }
+#endif
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
 #define CHAR_THRESHOLD 8
 CFList
 evalPoints (const CanonicalForm& F, CFList & eval, const Variable& alpha,
@@ -908,6 +918,7 @@ evalPoints (const CanonicalForm& F, CFList & eval, const Variable& alpha,
 
   return result;
 }
+#endif
 
 static inline
 int newMainVariableSearch (CanonicalForm& A, CFList& Aeval, CFList&
@@ -968,6 +979,7 @@ CanonicalForm lcmContent (const CanonicalForm& A, CFList& contentAi)
   return result;
 }
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // henselLift23
 CFList
 henselLiftAndEarly (CanonicalForm& A, CFList& MOD, int*& liftBounds, bool&
                     earlySuccess, CFList& earlyFactors, const CFList& Aeval,
@@ -1250,6 +1262,7 @@ henselLiftAndEarly (CanonicalForm& A, CFList& MOD, int*& liftBounds, bool&
     A= buf;
   return result;
 }
+#endif
 
 void
 gcdFreeBasis (CFFList& factors1, CFFList& factors2)
@@ -1460,6 +1473,7 @@ testFactors (const CanonicalForm& G, const CFList& uniFactors,
     return 1;
 }
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // nonMonicHenselLift12
 CFList
 precomputeLeadingCoeff (const CanonicalForm& LCF, const CFList& LCFFactors,
                         const Variable& alpha, const CFList& evaluation,
@@ -1945,6 +1959,7 @@ lcretry:
 
   return result;
 }
+#endif
 
 void
 evaluationWRTDifferentSecondVars (CFList*& Aeval, const CFList& evaluation,
@@ -1991,8 +2006,6 @@ evaluationWRTDifferentSecondVars (CFList*& Aeval, const CFList& evaluation,
       Aeval [i - 3]= CFList();
   }
 }
-
-#endif
 
 static inline
 CanonicalForm prodEval (const CFList& l, const CanonicalForm& evalPoint,
@@ -2164,7 +2177,8 @@ recombination (const CFList& factors1, const CFList& factors2, int s, int thres,
   return result;
 }
 
-#ifdef HAVE_NTL
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
+#ifdef HAVE_NTL // GFBiSqrfFactorize
 void
 factorizationWRTDifferentSecondVars (const CanonicalForm& A, CFList*& Aeval,
                                      const ExtensionInfo& info,
@@ -2203,6 +2217,8 @@ factorizationWRTDifferentSecondVars (const CanonicalForm& A, CFList*& Aeval,
     }
   }
 }
+#endif
+#endif
 
 CFList conv (const CFArray & A)
 {
@@ -2903,6 +2919,8 @@ LCHeuristic4 (const CFList& oldBiFactors, const CFList* oldAeval,
   }
 }
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
+#ifdef HAVE_NTL // biSqrfFactorizeHelper
 CFList
 extFactorize (const CanonicalForm& F, const ExtensionInfo& info);
 
@@ -3634,8 +3652,10 @@ tryAgainWithoutHeu:
 
   return factors;
 }
+#endif
 
 /// multivariate factorization over an extension of the initial field
+#ifdef HAVE_NTL // multiFactorize
 CFList
 extFactorize (const CanonicalForm& F, const ExtensionInfo& info)
 {
@@ -3827,6 +3847,5 @@ extFactorize (const CanonicalForm& F, const ExtensionInfo& info)
     return factors;
   }
 }
-
 #endif
-/* HAVE_NTL */
+#endif

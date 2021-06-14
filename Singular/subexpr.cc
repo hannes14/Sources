@@ -118,7 +118,7 @@ void sleftv::Print(leftv store, int spaces)
             &&(currRing->qideal!=NULL))
             {
               poly p=pCopy(sBucketPeek(b));
-              jjNormalizeQRingP(p);
+              p=jjNormalizeQRingP(p);
               PrintNSpaces(spaces);
               pWrite0(p);
               pDelete(&p);
@@ -147,7 +147,7 @@ void sleftv::Print(leftv store, int spaces)
         case RING_CMD:
         {
           PrintNSpaces(spaces);
-          const ring r = (const ring)d;
+          const ring r = (ring)d;
           rWrite(r, currRing == r);
           break;
         }
@@ -182,7 +182,7 @@ void sleftv::Print(leftv store, int spaces)
           {
             setFlag(this,FLAG_QRING);
             poly p=(poly)d;
-            jjNormalizeQRingP(p);
+            p=jjNormalizeQRingP(p);
             if (p!=(poly)d)
             {
               d=(void*)p;
@@ -483,8 +483,8 @@ static inline void * s_internalCopy(const int t,  void *d)
         ring r=(ring)d;
         if (r!=NULL)
         {
-          r->ref++;
-          //Print("s_internalCopy:+  ring %d, ref %d\n",r,r->ref);
+          rIncRefCnt(r);
+          //Print("s_internalCopy:+  ring %lx, ref %d\n",r,r->ref);
         }
         return d;
       }
@@ -682,35 +682,6 @@ void s_internalDelete(const int t,  void *d, const ring r)
   }
 }
 
-void * slInternalCopy(leftv source, const int t, void *d, Subexpr e)
-{
-  if (t==STRING_CMD)
-  {
-      if ((e==NULL)
-      || (source->rtyp==LIST_CMD)
-      || ((source->rtyp==IDHDL)
-          &&((IDTYP((idhdl)source->data)==LIST_CMD)
-            || (IDTYP((idhdl)source->data)>MAX_TOK)))
-      || (source->rtyp>MAX_TOK))
-        return (void *)omStrDup((char *)d);
-      else if (e->next==NULL)
-      {
-        char *s=(char*)omAllocBin(size_two_bin);
-        s[0]=*(char *)d;
-        s[1]='\0';
-        return s;
-      }
-      #ifdef TEST
-      else
-      {
-        Werror("not impl. string-op in `%s`",my_yylinebuf);
-        return NULL;
-      }
-      #endif
-  }
-  return s_internalCopy(t,d);
-}
-
 void sleftv::Copy(leftv source)
 {
   Init();
@@ -738,6 +709,13 @@ void sleftv::Copy(leftv source)
 
 void * sleftv::CopyD(int t)
 {
+  if (Sy_inset(FLAG_OTHER_RING,flag))
+  {
+     flag&=~Sy_bit(FLAG_OTHER_RING);
+     WerrorS("object from another ring");
+     return NULL;
+  }
+
   if ((rtyp!=IDHDL)&&(rtyp!=ALIAS_CMD)&&(e==NULL))
   {
     if (iiCheckRing(t)) return NULL;
@@ -756,7 +734,7 @@ void * sleftv::CopyD(int t)
     return x;
   }
   void *d=Data(); // will also do a iiCheckRing
-  if ((!errorreported) && (d!=NULL)) return slInternalCopy(this,t,d,e);
+  if ((!errorreported) && (d!=NULL)) return s_internalCopy(t,d);
   return NULL;
 }
 
@@ -1177,6 +1155,12 @@ void * sleftv::Data()
 {
   if ((rtyp!=IDHDL) && iiCheckRing(rtyp))
      return NULL;
+  if (Sy_inset(FLAG_OTHER_RING,flag))
+  {
+     flag&=~Sy_bit(FLAG_OTHER_RING);
+     WerrorS("object from another ring");
+     return NULL;
+  }
   if (e==NULL)
   {
     switch (rtyp)
@@ -1858,7 +1842,6 @@ void syMakeMonom(leftv v,const char * id)
   idhdl save_ring=currRingHdl;
   v->Init();
   v->req_packhdl = currPack;
-  idhdl h=NULL;
 #ifdef SIQ
   if (siq<=0)
 #endif
@@ -1956,7 +1939,7 @@ int sleftv::Eval()
           if (!nok)
           {
             memcpy(this,&iiRETURNEXPR,sizeof(sleftv));
-            memset(&iiRETURNEXPR,0,sizeof(sleftv));
+            iiRETURNEXPR.Init();
           }
         }
       }
@@ -2001,7 +1984,7 @@ int sleftv::Eval()
                     omCheckAddr((ADDRESS)d->arg1.name));
           if (!nok)
           {
-            memset(&d->arg1,0,sizeof(sleftv));
+            d->arg1.Init();
             this->CleanUp();
             rtyp=NONE;
           }

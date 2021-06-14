@@ -62,6 +62,49 @@ extern "C"
 #endif
 #if ( __FLINT_RELEASE >= 20503)
 #include <flint/fmpq_mpoly.h>
+
+// planed, but not yet in FLINT:
+#if (__FLINT_RELEASE < 20700)
+// helper for fq_nmod_t -> nmod_poly_t
+static void fq_nmod_get_nmod_poly(nmod_poly_t a, const fq_nmod_t b, const fq_nmod_ctx_t ctx)
+{
+    FLINT_ASSERT(b->mod.n == ctx->modulus->mod.n);
+    a->mod = ctx->modulus->mod;
+    nmod_poly_set(a, b);
+}
+#else
+#include <flint/fq_nmod_mpoly.h>
+#endif
+
+#if (__FLINT_RELEASE < 20700)
+// helper for nmod_poly_t -> fq_nmod_t
+void fq_nmod_set_nmod_poly(fq_nmod_t a, const nmod_poly_t b, const fq_nmod_ctx_t ctx)
+{
+    FLINT_ASSERT(a->mod.n == b->mod.n);
+    FLINT_ASSERT(a->mod.n == ctx->modulus->mod.n);
+    nmod_poly_set(a, b);
+    fq_nmod_reduce(a, ctx);
+}
+#else
+void fq_nmod_set_nmod_poly(fq_nmod_t a, const nmod_poly_t b,
+                                                       const fq_nmod_ctx_t ctx)
+{
+    FLINT_ASSERT(a->mod.n == b->mod.n);
+    FLINT_ASSERT(a->mod.n == ctx->modulus->mod.n);
+
+    if (b->length <= 2*(ctx->modulus->length - 1))
+    {
+        nmod_poly_set(a, b);
+        fq_nmod_reduce(a, ctx);
+    }
+    else
+    {
+        nmod_poly_rem(a, b, ctx->modulus);
+    }
+}
+#endif
+
+
 #endif
 #ifdef __cplusplus
 }
@@ -69,7 +112,23 @@ extern "C"
 
 #include "FLINTconvert.h"
 
+// assumes result to be uninitialiazed
 void convertCF2Fmpz (fmpz_t result, const CanonicalForm& f)
+{
+  if (f.isImm())
+    *result=f.intval();
+  else
+  {
+    mpz_t gmp_val;
+    f.mpzval(gmp_val);
+    fmpz_init(result);
+    fmpz_set_mpz (result, gmp_val);
+    mpz_clear (gmp_val);
+  }
+}
+
+// special version assuming result is already initialized
+void convertCF2initFmpz (fmpz_t result, const CanonicalForm& f)
 {
   if (f.isImm())
     fmpz_set_si (result, f.intval());
@@ -77,7 +136,10 @@ void convertCF2Fmpz (fmpz_t result, const CanonicalForm& f)
   {
     mpz_t gmp_val;
     f.mpzval(gmp_val);
-    fmpz_set_mpz (result, gmp_val);
+
+    mpz_swap(gmp_val, _fmpz_promote(result));
+    _fmpz_demote_val(result);
+
     mpz_clear (gmp_val);
   }
 }
@@ -87,13 +149,14 @@ void convertFacCF2Fmpz_poly_t (fmpz_poly_t result, const CanonicalForm& f)
   fmpz_poly_init2 (result, degree (f)+1);
   _fmpz_poly_set_length(result, degree(f)+1);
   for (CFIterator i= f; i.hasTerms(); i++)
-    convertCF2Fmpz (fmpz_poly_get_coeff_ptr(result, i.exp()), i.coeff());
+    convertCF2initFmpz (fmpz_poly_get_coeff_ptr(result, i.exp()), i.coeff()); // assumes initialized
 }
 
 CanonicalForm convertFmpz2CF (const fmpz_t coefficient)
 {
-  if (fmpz_cmp_si (coefficient, MINIMMEDIATE) >= 0 &&
-      fmpz_cmp_si (coefficient, MAXIMMEDIATE) <= 0)
+  if(!COEFF_IS_MPZ(*coefficient)
+  &&  (fmpz_cmp_si (coefficient, MINIMMEDIATE) >= 0)
+  &&  (fmpz_cmp_si (coefficient, MAXIMMEDIATE) <= 0))
   {
     long coeff= fmpz_get_si (coefficient);
     return CanonicalForm (coeff);
@@ -188,7 +251,7 @@ void convertCF2Fmpq (fmpq_t result, const CanonicalForm& f)
   }
 }
 
-CanonicalForm convertFmpq_t2CF (const fmpq_t q)
+CanonicalForm convertFmpq2CF (const fmpq_t q)
 {
   bool isRat= isOn (SW_RATIONAL);
   if (!isRat)
@@ -244,7 +307,7 @@ convertFmpq_poly_t2FacCF (const fmpq_poly_t p, const Variable& x)
       fmpq_clear (coeff);
       continue;
     }
-    result += convertFmpq_t2CF (coeff)*power (x, i);
+    result += convertFmpq2CF (coeff)*power (x, i);
     fmpq_clear (coeff);
   }
   return result;
@@ -253,7 +316,7 @@ convertFmpq_poly_t2FacCF (const fmpq_poly_t p, const Variable& x)
 void convertFacCF2Fmpz_array (fmpz* result, const CanonicalForm& f)
 {
   for (CFIterator i= f; i.hasTerms(); i++)
-    convertCF2Fmpz (&result[i.exp()], i.coeff());
+    convertCF2initFmpz (&result[i.exp()], i.coeff()); // assumes initialized
 }
 
 void convertFacCF2Fmpq_poly_t (fmpq_poly_t result, const CanonicalForm& f)
@@ -266,7 +329,7 @@ void convertFacCF2Fmpq_poly_t (fmpq_poly_t result, const CanonicalForm& f)
   _fmpq_poly_set_length (result, degree (f) + 1);
   CanonicalForm den= bCommonDen (f);
   convertFacCF2Fmpz_array (fmpq_poly_numref (result), f*den);
-  convertCF2Fmpz (fmpq_poly_denref (result), den);
+  convertCF2initFmpz (fmpq_poly_denref (result), den); // assumes initialized
 
   if (!isRat)
     Off (SW_RATIONAL);
@@ -291,6 +354,28 @@ convertFLINTnmod_poly_factor2FacCFFList (const nmod_poly_factor_t fac,
   return result;
 }
 
+#if __FLINT_RELEASE >= 20503
+CFFList
+convertFLINTfmpz_poly_factor2FacCFFList (
+                   const fmpz_poly_factor_t fac, ///< [in] a nmod_poly_factor_t
+                   const Variable& x       ///< [in] variable the result should
+                                           ///< have
+                                        )
+
+{
+  CFFList result;
+  long i;
+
+  result.append (CFFactor(convertFmpz2CF(&fac->c),1));
+
+  for (i = 0; i < fac->num; i++)
+    result.append (CFFactor (convertFmpz_poly_t2FacCF (
+                             (fmpz_poly_t &)fac->p[i],x),
+                             fac->exp[i]));
+  return result;
+}
+#endif
+
 #if __FLINT_RELEASE >= 20400
 CFFList
 convertFLINTFq_nmod_poly_factor2FacCFFList (const fq_nmod_poly_factor_t fac,
@@ -314,10 +399,21 @@ void
 convertFacCF2Fmpz_mod_poly_t (fmpz_mod_poly_t result, const CanonicalForm& f,
                               const fmpz_t p)
 {
+  #if (__FLINT_RELEASE >= 20700)
+  fmpz_mod_ctx_t ctx;
+  fmpz_mod_ctx_init(ctx,p);
+  fmpz_mod_poly_init2 (result, degree (f) + 1, ctx);
+  #else
   fmpz_mod_poly_init2 (result, p, degree (f) + 1);
+  #endif
   fmpz_poly_t buf;
   convertFacCF2Fmpz_poly_t (buf, f);
+  #if (__FLINT_RELEASE >= 20700)
+  fmpz_mod_poly_set_fmpz_poly (result, buf, ctx);
+  fmpz_mod_ctx_clear(ctx);
+  #else
   fmpz_mod_poly_set_fmpz_poly (result, buf);
+  #endif
   fmpz_poly_clear (buf);
 }
 
@@ -327,7 +423,17 @@ convertFmpz_mod_poly_t2FacCF (const fmpz_mod_poly_t poly, const Variable& x,
 {
   fmpz_poly_t buf;
   fmpz_poly_init (buf);
+  #if (__FLINT_RELEASE >= 20700)
+  fmpz_t FLINTp;
+  fmpz_init (FLINTp);
+  convertCF2initFmpz (FLINTp, b.getpk()); // assumes initialized
+  fmpz_mod_ctx_t ctx;
+  fmpz_mod_ctx_init(ctx,FLINTp);
+  fmpz_clear(FLINTp);
+  fmpz_mod_poly_get_fmpz_poly (buf, poly, ctx);
+  #else
   fmpz_mod_poly_get_fmpz_poly (buf, poly);
+  #endif
   CanonicalForm result= convertFmpz_poly_t2FacCF (buf, x);
   fmpz_poly_clear (buf);
   return b (result);
@@ -340,6 +446,10 @@ convertFacCF2Fq_nmod_t (fq_nmod_t result, const CanonicalForm& f,
 {
   bool save_sym_ff= isOn (SW_SYMMETRIC_FF);
   if (save_sym_ff) Off (SW_SYMMETRIC_FF);
+  #if __FLINT_RELEASE >= 20503
+  nmod_poly_t res;
+  nmod_poly_init(res,getCharacteristic());
+  #endif
   for (CFIterator i= f; i.hasTerms(); i++)
   {
     CanonicalForm c= i.coeff();
@@ -353,14 +463,22 @@ convertFacCF2Fq_nmod_t (fq_nmod_t result, const CanonicalForm& f,
     else
     {
       STICKYASSERT (i.exp() <= fq_nmod_ctx_degree(ctx), "convertFacCF2Fq_nmod_t: element is not reduced");
+      #if __FLINT_RELEASE >= 20503
+      nmod_poly_set_coeff_ui (res, i.exp(), c.intval());
+      #else
       nmod_poly_set_coeff_ui (result, i.exp(), c.intval());
+      #endif
     }
   }
+  #if __FLINT_RELEASE >= 20503
+  fq_nmod_init(result,ctx);
+  fq_nmod_set_nmod_poly(result,res,ctx);
+  #endif
   if (save_sym_ff) On (SW_SYMMETRIC_FF);
 }
 
 CanonicalForm
-convertFq_nmod_t2FacCF (const fq_nmod_t poly, const Variable& alpha)
+convertFq_nmod_t2FacCF (const fq_nmod_t poly, const Variable& alpha, const fq_nmod_ctx_t ctx)
 {
   return convertnmod_poly_t2FacCF (poly, alpha);
 }
@@ -369,12 +487,17 @@ void
 convertFacCF2Fq_t (fq_t result, const CanonicalForm& f, const fq_ctx_t ctx)
 {
   fmpz_poly_init2 (result, fq_ctx_degree(ctx));
-  ASSERT (degree (f) < fq_ctx_degree (ctx), "input is not reduced");
-  _fmpz_poly_set_length(result, degree(f)+1);
+  _fmpz_poly_set_length(result, fq_ctx_degree(ctx));
+
   for (CFIterator i= f; i.hasTerms(); i++)
-    convertCF2Fmpz (fmpz_poly_get_coeff_ptr(result, i.exp()), i.coeff());
-  _fmpz_vec_scalar_mod_fmpz (result->coeffs, result->coeffs, degree (f) + 1,
-                             &ctx->p);
+  {
+    ASSERT(i.exp() < result->length, "input is not reduced");
+    convertCF2initFmpz (fmpz_poly_get_coeff_ptr(result, i.exp()), i.coeff()); // assumes initialized
+  }
+
+  _fmpz_vec_scalar_mod_fmpz (result->coeffs, result->coeffs, result->length,
+                             fq_ctx_prime(ctx));
+
   _fmpz_poly_normalise (result);
 }
 
@@ -389,16 +512,15 @@ convertFacCF2Fq_poly_t (fq_poly_t result, const CanonicalForm& f,
                         const fq_ctx_t ctx)
 {
   fq_poly_init2 (result, degree (f)+1, ctx);
+
   _fq_poly_set_length (result, degree (f) + 1, ctx);
-  fmpz_poly_t buf;
+
   for (CFIterator i= f; i.hasTerms(); i++)
   {
-    convertFacCF2Fmpz_poly_t (buf, i.coeff());
-    _fmpz_vec_scalar_mod_fmpz (buf->coeffs, buf->coeffs, degree (i.coeff()) + 1,
-                               &ctx->p);
-    _fmpz_poly_normalise (buf);
+    fq_t buf;
+    convertFacCF2Fq_t (buf, i.coeff(), ctx);
     fq_poly_set_coeff (result, i.exp(), buf, ctx);
-    fmpz_poly_clear (buf);
+    fq_clear (buf, ctx);
   }
 }
 
@@ -453,7 +575,7 @@ convertFq_nmod_poly_t2FacCF (const fq_nmod_poly_t p, const Variable& x,
     fq_nmod_poly_get_coeff (coeff, p, i, ctx);
     if (fq_nmod_is_zero (coeff, ctx))
       continue;
-    result += convertFq_nmod_t2FacCF (coeff, alpha)*power (x, i);
+    result += convertFq_nmod_t2FacCF (coeff, alpha, ctx)*power (x, i);
     fq_nmod_zero (coeff, ctx);
   }
   fq_nmod_clear (coeff, ctx);
@@ -471,7 +593,7 @@ void convertFacCFMatrix2Fmpz_mat_t (fmpz_mat_t M, const CFMatrix &m)
   {
     for(j=m.columns();j>0;j--)
     {
-      convertCF2Fmpz (fmpz_mat_entry (M,i-1,j-1), m(i,j));
+      convertCF2initFmpz (fmpz_mat_entry (M,i-1,j-1), m(i,j)); // assumes initialized
     }
   }
 }
@@ -550,7 +672,7 @@ convertFq_nmod_mat_t2FacCFMatrix(const fq_nmod_mat_t m,
     for(j=res->columns();j>0;j--)
     {
       (*res)(i,j)=convertFq_nmod_t2FacCF (fq_nmod_mat_entry (m, i-1, j-1),
-                                          alpha);
+                                          alpha, fq_con);
     }
   }
   return res;
@@ -600,6 +722,52 @@ static void convFlint_RecPP ( const CanonicalForm & f, ulong * exp, fmpq_mpoly_t
   }
 }
 
+static void convFlint_RecPP ( const CanonicalForm & f, ulong * exp, fmpz_mpoly_t result, fmpz_mpoly_ctx_t ctx, int N )
+{
+  // assume f!=0
+  if ( ! f.inBaseDomain() )
+  {
+    int l = f.level();
+    for ( CFIterator i = f; i.hasTerms(); i++ )
+    {
+      exp[N-l] = i.exp();
+      convFlint_RecPP( i.coeff(), exp, result, ctx, N );
+    }
+    exp[N-l] = 0;
+  }
+  else
+  {
+    fmpz_t c;
+    fmpz_init(c);
+    convertCF2initFmpz(c,f); // assumes initialized
+    fmpz_mpoly_push_term_fmpz_ui(result,c,exp,ctx);
+    fmpz_clear(c);
+  }
+}
+
+#if __FLINT_RELEASE >= 20700
+static void convFlint_RecPP ( const CanonicalForm & f, ulong * exp, fq_nmod_mpoly_t result, const fq_nmod_mpoly_ctx_t ctx, int N, const fq_nmod_ctx_t fq_ctx )
+{
+  // assume f!=0
+  if ( ! f.inCoeffDomain() )
+  {
+    int l = f.level();
+    for ( CFIterator i = f; i.hasTerms(); i++ )
+    {
+      exp[N-l] = i.exp();
+      convFlint_RecPP( i.coeff(), exp, result, ctx, N, fq_ctx );
+    }
+    exp[N-l] = 0;
+  }
+  else
+  {
+    fq_nmod_t c;
+    convertFacCF2Fq_nmod_t (c, f, fq_ctx);
+    fq_nmod_mpoly_push_term_fq_nmod_ui(result,c,exp,ctx);
+  }
+}
+#endif
+
 void convFactoryPFlintMP ( const CanonicalForm & f, nmod_mpoly_t res, nmod_mpoly_ctx_t ctx, int N )
 {
   if (f.isZero()) return;
@@ -621,6 +789,30 @@ void convFactoryPFlintMP ( const CanonicalForm & f, fmpq_mpoly_t res, fmpq_mpoly
   fmpq_mpoly_reduce(res,ctx);
   Free(exp,N*sizeof(ulong));
 }
+
+void convFactoryPFlintMP ( const CanonicalForm & f, fmpz_mpoly_t res, fmpz_mpoly_ctx_t ctx, int N )
+{
+  if (f.isZero()) return;
+  ulong * exp = (ulong*)Alloc(N*sizeof(ulong));
+  memset(exp,0,N*sizeof(ulong));
+  convFlint_RecPP( f, exp, res, ctx, N );
+  //fmpz_mpoly_reduce(res,ctx);
+  Free(exp,N*sizeof(ulong));
+}
+
+#if __FLINT_RELEASE >= 20700
+void convFactoryPFlintMP ( const CanonicalForm & f, fq_nmod_mpoly_t res, fq_nmod_mpoly_ctx_t ctx, int N, fq_nmod_ctx_t fq_ctx )
+{
+  if (f.isZero()) return;
+  ulong * exp = (ulong*)Alloc(N*sizeof(ulong));
+  memset(exp,0,N*sizeof(ulong));
+  bool save_sym_ff= isOn (SW_SYMMETRIC_FF);
+  if (save_sym_ff) Off (SW_SYMMETRIC_FF);
+  convFlint_RecPP( f, exp, res, ctx, N, fq_ctx );
+  if (save_sym_ff) On(SW_SYMMETRIC_FF);
+  Free(exp,N*sizeof(ulong));
+}
+#endif
 
 CanonicalForm convFlintMPFactoryP(nmod_mpoly_t f, nmod_mpoly_ctx_t ctx, int N)
 {
@@ -653,7 +845,7 @@ CanonicalForm convFlintMPFactoryP(fmpq_mpoly_t f, fmpq_mpoly_ctx_t ctx, int N)
   {
     fmpq_mpoly_get_term_coeff_fmpq(c,f,i,ctx);
     fmpq_mpoly_get_term_exp_ui(exp,f,i,ctx);
-    CanonicalForm term=convertFmpq_t2CF(c);
+    CanonicalForm term=convertFmpq2CF(c);
     for ( int i = 0; i <N; i++ )
     {
       if (exp[i]!=0) term*=CanonicalForm( Variable( N-i ), exp[i] );
@@ -665,20 +857,27 @@ CanonicalForm convFlintMPFactoryP(fmpq_mpoly_t f, fmpq_mpoly_ctx_t ctx, int N)
   return result;
 }
 
-// stolen from:
-// https://graphics.stanford.edu/~seander/bithacks.html#IntegerLog
-static inline int SI_LOG2(int v)
+CanonicalForm convFlintMPFactoryP(fmpz_mpoly_t f, fmpz_mpoly_ctx_t ctx, int N)
 {
-  const unsigned int b[] = {0x2, 0xC, 0xF0, 0xFF00, 0xFFFF0000};
-  const unsigned int S[] = {1, 2, 4, 8, 16};
-
-  unsigned int r = 0; // result of log2(v) will go here
-  if (v & b[4]) { v >>= S[4]; r |= S[4]; }
-  if (v & b[3]) { v >>= S[3]; r |= S[3]; }
-  if (v & b[2]) { v >>= S[2]; r |= S[2]; }
-  if (v & b[1]) { v >>= S[1]; r |= S[1]; }
-  if (v & b[0]) { v >>= S[0]; r |= S[0]; }
-  return (int)r;
+  CanonicalForm result;
+  int d=fmpz_mpoly_length(f,ctx)-1;
+  ulong* exp=(ulong*)Alloc(N*sizeof(ulong));
+  fmpz_t c;
+  fmpz_init(c);
+  for(int i=d; i>=0; i--)
+  {
+    fmpz_mpoly_get_term_coeff_fmpz(c,f,i,ctx);
+    fmpz_mpoly_get_term_exp_ui(exp,f,i,ctx);
+    CanonicalForm term=convertFmpz2CF(c);
+    for ( int i = 0; i <N; i++ )
+    {
+      if (exp[i]!=0) term*=CanonicalForm( Variable( N-i ), exp[i] );
+    }
+    result+=term;
+  }
+  fmpz_clear(c);
+  Free(exp,N*sizeof(ulong));
+  return result;
 }
 
 CanonicalForm mulFlintMP_Zp(const CanonicalForm& F,int lF, const CanonicalForm& G, int lG,int m)
@@ -802,8 +1001,82 @@ CanonicalForm gcdFlintMP_QQ(const CanonicalForm& F, const CanonicalForm& G)
   return RES;
 }
 
-#endif
+#endif // FLINT 2.5.3
+
+#if __FLINT_RELEASE >= 20700
+CFFList
+convertFLINTFq_nmod_mpoly_factor2FacCFFList (
+                   fq_nmod_mpoly_factor_t fac, 
+                   const fq_nmod_mpoly_ctx_t& ctx,
+                   const int N,
+                   const fq_nmod_ctx_t& fq_ctx,
+                   const Variable alpha)
+{
+  CFFList result;
+
+  long i;
+
+  fq_nmod_t c;
+  fq_nmod_init(c,fq_ctx);
+  fq_nmod_mpoly_factor_get_constant_fq_nmod(c,fac,ctx);
+  result.append(CFFactor(convertFq_nmod_t2FacCF(c,alpha,fq_ctx),1));
+  fq_nmod_clear(c,fq_ctx);
+
+  fq_nmod_mpoly_t p;
+  fq_nmod_mpoly_init(p,ctx);
+  long exp;
+  for (i = 0; i < fac->num; i++)
+  {
+    fq_nmod_mpoly_factor_get_base(p,fac,i,ctx);
+    exp=fq_nmod_mpoly_factor_get_exp_si(fac,i,ctx);
+    result.append (CFFactor (convertFq_nmod_mpoly_t2FacCF (
+                             p,ctx,N,fq_ctx,alpha), exp));
+  }
+  fq_nmod_mpoly_clear(p,ctx);
+  return result;
+}
+
+void
+convertFacCF2Fq_nmod_mpoly_t (fq_nmod_mpoly_t result,
+                        const CanonicalForm& f,
+                        const fq_nmod_mpoly_ctx_t ctx,
+                        const int N,
+                        const fq_nmod_ctx_t fq_ctx
+                       )
+{
+  if (f.isZero()) return;
+  ulong * exp = (ulong*)Alloc(N*sizeof(ulong));
+  memset(exp,0,N*sizeof(ulong));
+  convFlint_RecPP( f, exp, result, ctx, N, fq_ctx );
+  Free(exp,N*sizeof(ulong));
+}
+
+CanonicalForm
+convertFq_nmod_mpoly_t2FacCF (const fq_nmod_mpoly_t f,
+                              const fq_nmod_mpoly_ctx_t& ctx,
+                              const int N,
+                              const fq_nmod_ctx_t& fq_ctx,
+                              const Variable alpha)
+{
+  CanonicalForm result;
+  int d=fq_nmod_mpoly_length(f,ctx)-1;
+  ulong* exp=(ulong*)Alloc(N*sizeof(ulong));
+  fq_nmod_t c;
+  fq_nmod_init(c,fq_ctx);
+  for(int i=d; i>=0; i--)
+  {
+    fq_nmod_mpoly_get_term_coeff_fq_nmod(c,f,i,ctx);
+    fq_nmod_mpoly_get_term_exp_ui(exp,f,i,ctx);
+    CanonicalForm term=convertFq_nmod_t2FacCF(c,alpha,fq_ctx);
+    for ( int i = 0; i <N; i++ )
+    {
+      if (exp[i]!=0) term*=CanonicalForm( Variable( N-i ), exp[i] );
+    }
+    result+=term;
+  }
+  Free(exp,N*sizeof(ulong));
+  return result;
+}
 
 #endif
-
-
+#endif // FLINT

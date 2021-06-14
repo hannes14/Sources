@@ -17,6 +17,10 @@
 #include "Singular/fevoices.h"
 #include "Singular/lists.h"
 
+#ifndef SINGULAR_PATH_LENGTH
+#define SINGULAR_PATH_LENGTH 512
+#endif
+
 #include <ctype.h>
 
 #if SIZEOF_LONG == 8
@@ -192,7 +196,7 @@ char * iiProcArgs(char *e,BOOLEAN withParenth)
 */
 char* iiGetLibProcBuffer(procinfo *pi, int part )
 {
-  char buf[256], *s = NULL, *p;
+  char buf[SINGULAR_PATH_LENGTH], *s = NULL, *p;
   long procbuflen;
 
   FILE * fp = feFopen( pi->libname, "rb", NULL, TRUE );
@@ -293,16 +297,29 @@ char* iiGetLibProcBuffer(procinfo *pi, int part )
 
 BOOLEAN iiAllStart(procinfov pi, const char *p, feBufferTypes t, int l)
 {
+  int save_trace=traceit;
+  int restore_traceit=0;
+  if (traceit_stop
+  && (traceit & TRACE_SHOW_LINE))
+  {
+    traceit &=(~TRACE_SHOW_LINE);
+    traceit_stop=0;
+    restore_traceit=1;
+  }
   // see below:
   BITSET save1=si_opt_1;
   BITSET save2=si_opt_2;
   newBuffer( omStrDup(p /*pi->data.s.body*/), t /*BT_proc*/,
                pi, l );
   BOOLEAN err=yyparse();
+
   if (sLastPrinted.rtyp!=0)
   {
     sLastPrinted.CleanUp();
   }
+
+  if (restore_traceit) traceit=save_trace;
+
   // the access to optionStruct and verboseStruct do not work
   // on x86_64-Linux for pic-code
   if ((TEST_V_ALLWARN) &&
@@ -384,13 +401,12 @@ BOOLEAN iiPStart(idhdl pn, leftv v)
   {
     iiCurrArgs=(leftv)omAllocBin(sleftv_bin);
     memcpy(iiCurrArgs,v,sizeof(sleftv)); // keeps track of v->next etc.
-    memset(v,0,sizeof(sleftv));
+    v->Init();
   }
   else
   {
     iiCurrArgs=NULL;
   }
-  iiCurrProc=pn;
   /* start interpreter ======================================*/
   myynest++;
   if (myynest > SI_MAX_NEST)
@@ -400,7 +416,9 @@ BOOLEAN iiPStart(idhdl pn, leftv v)
   }
   else
   {
+    iiCurrProc=pn;
     err=iiAllStart(pi,pi->data.s.body,BT_proc,pi->data.s.body_lineno-(v!=NULL));
+    iiCurrProc=NULL;
 
     if (iiLocalRing[myynest-1] != currRing)
     {
@@ -581,8 +599,7 @@ static void iiCallLibProcBegin()
     }
     // need to define a ring-hdl for currRingHdl
     tmp_ring=enterid(" tmpRing",myynest,RING_CMD,&IDROOT,FALSE);
-    IDRING(tmp_ring)=currRing;
-    currRing->ref++;
+    IDRING(tmp_ring)=rIncRefCnt(currRing);
     rSetHdl(tmp_ring);
   }
 }
@@ -591,7 +608,7 @@ static void iiCallLibProcEnd(idhdl save_ringhdl, ring save_ring)
   if ((currRing!=NULL)
   &&(currRing!=save_ring))
   {
-    currRing->ref--;
+    rDecRefCnt(currRing);
     idhdl hh=IDROOT;
     idhdl prev=NULL;
     while((hh!=currRingHdl) && (hh!=NULL)) { prev=hh; hh=hh->next; }
@@ -648,7 +665,7 @@ ideal ii_CallProcId2Id(const char *lib,const char *proc, ideal arg, const ring R
   omFree(plib);
   if (h==NULL)
   {
-    BOOLEAN bo=iiLibCmd(omStrDup(lib),TRUE,TRUE,FALSE);
+    BOOLEAN bo=iiLibCmd(lib,TRUE,TRUE,FALSE);
     if (bo) return NULL;
   }
   ring oldR=currRing;
@@ -667,7 +684,7 @@ int ii_CallProcId2Int(const char *lib,const char *proc, ideal arg, const ring R)
   omFree(plib);
   if (h==NULL)
   {
-    BOOLEAN bo=iiLibCmd(omStrDup(lib),TRUE,TRUE,FALSE);
+    BOOLEAN bo=iiLibCmd(lib,TRUE,TRUE,FALSE);
     if (bo) return 0;
   }
   BOOLEAN err;
@@ -725,7 +742,7 @@ leftv ii_CallLibProcM(const char*n, void **args, int* arg_types, const ring R, B
   {
     leftv h=(leftv)omAllocBin(sleftv_bin);
     memcpy(h,&iiRETURNEXPR,sizeof(sleftv));
-    memset(&iiRETURNEXPR,0,sizeof(sleftv));
+    iiRETURNEXPR.Init();
     return h;
   }
   return NULL;
@@ -784,10 +801,14 @@ extern "C"
 #  undef  SI_GET_BUILTIN_MOD_INIT0
 };
 
+extern "C" int flint_mod_init(SModulFunctions* psModulFunctions);
 
 SModulFunc_t
 iiGetBuiltinModInit(const char* libname)
 {
+#ifdef HAVE_FLINT
+  if (strcmp(libname,"flint.so")==0) return SI_MOD_INIT0(flint);
+#endif
 #  define SI_GET_BUILTIN_MOD_INIT(name) if (strcmp(libname, #name ".so") == 0){ return SI_MOD_INIT0(name); }
           SI_FOREACH_BUILTIN(SI_GET_BUILTIN_MOD_INIT)
 #  undef  SI_GET_BUILTIN_MOD_INIT
@@ -816,20 +837,19 @@ BOOLEAN iiTryLoadLib(leftv v, const char *id)
     *libname = mytolower(*libname);
     if((LT = type_of_LIB(libname, libnamebuf)) > LT_NOTFOUND)
     {
-      char *s=omStrDup(libname);
       #ifdef HAVE_DYNAMIC_LOADING
       char libnamebuf[1024];
       #endif
 
       if (LT==LT_SINGULAR)
-        LoadResult = iiLibCmd(s, FALSE, FALSE,TRUE);
+        LoadResult = iiLibCmd(libname, FALSE, FALSE,TRUE);
       #ifdef HAVE_DYNAMIC_LOADING
       else if ((LT==LT_ELF) || (LT==LT_HPUX))
-        LoadResult = load_modules(s,libnamebuf,FALSE);
+        LoadResult = load_modules(libname,libnamebuf,FALSE);
       #endif
       else if (LT==LT_BUILTIN)
       {
-        LoadResult=load_builtin(s,FALSE, iiGetBuiltinModInit(s));
+        LoadResult=load_builtin(libname,FALSE, iiGetBuiltinModInit(libname));
       }
       if(!LoadResult )
       {
@@ -861,14 +881,11 @@ BOOLEAN iiLocateLib(const char* lib, char* where)
     return FALSE;;
 }
 
-BOOLEAN iiLibCmd( char *newlib, BOOLEAN autoexport, BOOLEAN tellerror, BOOLEAN force )
+BOOLEAN iiLibCmd( const char *newlib, BOOLEAN autoexport, BOOLEAN tellerror, BOOLEAN force )
 {
+  if (strcmp(newlib,"Singular")==0) return FALSE;
   char libnamebuf[1024];
-  // procinfov pi;
-  // idhdl h;
   idhdl pl;
-  // idhdl hl;
-  // long pos = 0L;
   char *plib = iiConvName(newlib);
   FILE * fp = feFopen( newlib, "r", libnamebuf, tellerror );
   // int lines = 1;
@@ -890,19 +907,22 @@ BOOLEAN iiLibCmd( char *newlib, BOOLEAN autoexport, BOOLEAN tellerror, BOOLEAN f
   {
     if(IDTYP(pl)!=PACKAGE_CMD)
     {
+      omFree(plib);
       WarnS("not of type package.");
       fclose(fp);
       return TRUE;
     }
-    if (!force) return FALSE;
+    if (!force)
+    {
+      omFree(plib);
+      return FALSE;
+    }
   }
   LoadResult = iiLoadLIB(fp, libnamebuf, newlib, pl, autoexport, tellerror);
-  omFree((ADDRESS)newlib);
 
   if(!LoadResult) IDPACKAGE(pl)->loaded = TRUE;
   omFree((ADDRESS)plib);
-
- return LoadResult;
+  return LoadResult;
 }
 /*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*/
 static void iiCleanProcs(idhdl &root)
@@ -1160,10 +1180,6 @@ void close_all_dyn_modules() {
 }
 BOOLEAN load_modules_aux(const char *newlib, char *fullname, BOOLEAN autoexport)
 {
-#ifdef HAVE_STATIC
-  WerrorS("mod_init: static version can not load modules");
-  return TRUE;
-#else
 /*
   typedef int (*fktn_t)(int(*iiAddCproc)(const char *libname, const char *procname,
                                BOOLEAN pstatic,
@@ -1174,13 +1190,12 @@ BOOLEAN load_modules_aux(const char *newlib, char *fullname, BOOLEAN autoexport)
   char *plib = iiConvName(newlib);
   BOOLEAN RET=TRUE;
   int token;
-  char FullName[256];
-
-  memset(FullName,0,256);
+  int l=si_max((int)strlen(fullname),(int)strlen(newlib))+3;
+  char *FullName=(char*)omAlloc0(l);
 
   if( *fullname != '/' &&  *fullname != '.' )
     sprintf(FullName, "./%s", newlib);
-  else strncpy(FullName, fullname,255);
+  else strncpy(FullName, fullname,l);
 
 
   if(IsCmd(plib, token))
@@ -1216,6 +1231,7 @@ BOOLEAN load_modules_aux(const char *newlib, char *fullname, BOOLEAN autoexport)
   if (dynl_check_opened(FullName))
   {
     if (BVERBOSE(V_LOAD_LIB)) Warn( "%s already loaded as C library", fullname);
+    omFreeSize(FullName,l);
     return FALSE;
   }
   if((IDPACKAGE(pl)->handle=dynl_open(FullName))==(void *)NULL)
@@ -1261,11 +1277,12 @@ BOOLEAN load_modules_aux(const char *newlib, char *fullname, BOOLEAN autoexport)
   }
 
   load_modules_end:
+  omFreeSize(FullName,l);
   return RET;
-#endif /*STATIC */
 }
 
-BOOLEAN load_modules(const char *newlib, char *fullname, BOOLEAN autoexport) {
+BOOLEAN load_modules(const char *newlib, char *fullname, BOOLEAN autoexport)
+{
   GLOBAL_VAR static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
   pthread_mutex_lock(&mutex);
   BOOLEAN r = load_modules_aux(newlib, fullname, autoexport);
@@ -1305,6 +1322,7 @@ BOOLEAN load_builtin(const char *newlib, BOOLEAN autoexport, SModulFunc_t init)
     pl = enterid( plib,0, PACKAGE_CMD, &IDROOT, TRUE );
     IDPACKAGE(pl)->libname=omStrDup(newlib);
   }
+  omFree(plib);
   IDPACKAGE(pl)->language = LANG_C;
 
   IDPACKAGE(pl)->handle=(void *)NULL;
@@ -1351,10 +1369,10 @@ void module_help_proc(const char *newlib,const char *p, const char *help)
   {
     package s=currPack;
     currPack=IDPACKAGE(pl);
-    char buff[256];
-    buff[255]='\0';
-    strncpy(buff,p,255);
-    strncat(buff,"_help",255-strlen(p));
+    char buff[SINGULAR_PATH_LENGTH];
+    buff[SINGULAR_PATH_LENGTH-1]='\0';
+    strncpy(buff,p,SINGULAR_PATH_LENGTH-1);
+    strncat(buff,"_help",SINGULAR_PATH_LENGTH-1-strlen(p));
     idhdl h=enterid(buff,0,STRING_CMD,&IDROOT,FALSE);
     IDSTRING(h)=omStrDup(help);
     currPack=s;

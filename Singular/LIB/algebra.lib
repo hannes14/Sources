@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-version="version algebra.lib 4.1.2.0 Feb_2019 "; // $Id$
+version="version algebra.lib 4.2.0.1 Mar_2021 "; // $Id$
 category="Commutative Algebra";
 info="
 LIBRARY:  algebra.lib   Compute with Algbras and Algebra Maps
@@ -65,29 +65,39 @@ EXAMPLE: example algebra_containment; shows an example
     int n = nvars(br);
     int m = ncols(A);
     int i;
-    string mp=string(minpoly);
     //-----------------
     // neu CL 10/05:
     int is_qring;
-    if (size(ideal(br))>0) {
+    if (size(ideal(br))>0)
+    {
       is_qring=1;
       ideal IdQ = ideal(br);
     }
     //-----------------
     // ---------- create new ring with extra variables --------------------
-    execute ("ring R=("+charstr(br)+"),(x(1..n),y(1..m)),(dp(n),dp(m));");
-    if (mp!="0")
-    { execute ("minpoly=number("+mp+");"); }
-    ideal vars=x(1..n);
-    map emb=br,vars;
-    ideal A=ideal(emb(A));
-    poly check=emb(p);
+    list l3;  
+    for (int zz = 1; zz <= n; zz++)
+    {
+     l3[size(l3)+1] = "x("+string(zz)+")";
+    }
+    for (int yy = 1; yy <= m; yy++)
+    {
+     l3[size(l3)+1] = "y("+string(yy)+")";
+    }
+    list RL=ringlist(br);
+    RL[2]=l3; //vars
+    RL[3]=list(list("dp",1:n),list("dp",1:m)); //ord
+    RL[4]=ideal(0); // reset qring
+    ring R=ring(RL);
+    ideal A=fetch(br,A);
+    poly check=fetch(br,p);
     for (i=1;i<=m;i=i+1)
-    { A[i]=A[i]-y(i);
+    {
+      A[i]=A[i]-y(i);
     }
     //-----------------
     // neu CL 10/05:
-    if (is_qring) { A = A,emb(IdQ); }
+    if (is_qring) { A = A,fetch(br,IdQ); }
     //-----------------
     A=std(A);
     check=reduce(check,A);
@@ -98,14 +108,14 @@ EXAMPLE: example algebra_containment; shows an example
   // if so, then the sum of the first n leading exponents is 0, hence i=1
   // use i also to control the display
     i = (sum(leadexp(check),1..n)==0);
-  degBound = DEGB;
+    degBound = DEGB;
     if( #[1] == 0 )
     { dbprint(printlevel-voice+3,"// "+string(check));
       return(i);
     }
     else
     { list l = i,R;
-      kill A,vars,emb;
+      kill A;
       export check;
       dbprint(printlevel-voice+3,"
 // 'algebra_containment' created a ring as 2nd element of the list.
@@ -178,8 +188,20 @@ EXAMPLE: example module_containment; shows an example
   { int m=ncols(S);
     string mp=string(minpoly);
   // ---------- create new ring with extra variables --------------------
-    execute
-   ("ring R=("+charstr(br)+"),(x(1..n),y(1..m),z(1..n)),(lp(n),dp(m),lp(n));");
+    list l4;  
+    for (int xx = 1; xx <= n; xx++)
+    {
+     l4[size(l4)+1] = "x("+string(xx)+")";
+    }
+    for (int yy = 1; yy <= m; yy++)
+    {
+     l4[size(l4)+1] = "y("+string(yy)+")";
+    }
+    for (int zz = 1; zz <= n; zz++)
+    {
+     l4[size(l4)+1] = "z("+string(zz)+")";
+    }
+    ring R = create_ring(ringlist(br)[1], l4, "(lp("+string(n)+"),dp("+string(m)+"),lp("+string(n)+"))", "no_minpoly");
     if (mp!="0")
     { execute ("minpoly=number("+mp+");"); }
     ideal vars = x(1..n);
@@ -276,7 +298,16 @@ EXAMPLE: example inSubring; shows an example
   // ---------- create new ring with extra variables --------------------
   //the intersection of ideal nett=(p-y(0),I[1]-y(1),...)
   //with the ring k[y(0),...,y(n)] is computed, the result is ker
-   execute ("ring r1= ("+charstr(basering)+"),(x(1..n),y(0..z)),lp;");
+  list l5;  
+  for (int xx = 1; xx <= n; xx++)
+  {
+   l5[size(l5)+1] = "x("+string(xx)+")";
+  }
+  for (int yy = 0; yy <= z; yy++)
+  {
+   l5[size(l5)+1] = "y("+string(yy)+")";
+  }
+  ring r1 = create_ring(ringlist(basering)[1], l5, "lp", "no_minpoly");
   if (mp!="0")
   { execute ("minpoly=number("+mp+");"); }
   ideal va = x(1..n);
@@ -291,7 +322,7 @@ EXAMPLE: example inSubring; shows an example
   //-----------------
   ideal ker=eliminate(nett,product(va));
   ker=std(ker);
-  //---------- test wether y(0)-h(y(1),...,y(z)) is in ker --------------
+  //---------- test whether y(0)-h(y(1),...,y(z)) is in ker --------------
   l[1]=0;
   l[2]="";
   for (i=1;i<=size(ker);i++)
@@ -359,13 +390,18 @@ EXAMPLE: example algDependent; shows an example
     ideal B = ideal(br);
     int m = ncols(A);
     int s = size(B);
-    int i;
+    int i,@xx,@yy;
     string mp = string(minpoly);
  // --------------------- 1st variant of algorithm ----------------------
  // use internal preimage command (should be equivalent to 2nd variant)
     if ( tt == 1 )
     {
-      execute ("ring R1=("+charstr(br)+"),y(1..m),dp;");
+      list l6;  
+      for (@xx = 1; @xx <= m; @xx++)
+      {
+       l6[size(l6)+1] = "y("+string(@xx)+")";
+      }
+      ring R1 = create_ring(ringlist(br)[1], l6, "dp", "no_minpoly");
       if (mp!="0")
       { execute ("minpoly=number("+mp+");"); }
       setring br;
@@ -374,7 +410,16 @@ EXAMPLE: example algDependent; shows an example
       ideal ker = preimage(br,phi,B);
     }
  // ---------- create new ring with extra variables --------------------
-    execute ("ring R2=("+charstr(br)+"),(x(1..n),y(1..m)),(dp);");
+    list l7;  
+    for (@xx = n; @xx >= 1; @xx--)
+    {
+     l7[@xx] = "x("+string(@xx)+")";
+    }
+    for (@yy = m; @yy >= 1; @yy--)
+    {
+     l7[n+@yy] = "y("+string(@yy)+")";
+    }
+    ring R2 = create_ring(ringlist(br)[1], l7, "dp", "no_minpoly");
     if (mp!="0")
     { execute ("minpoly=number("+mp+");"); }
     if( tt == 1 )
@@ -400,7 +445,18 @@ EXAMPLE: example algDependent; shows an example
  // --------------------- 3rd variant of algorithm ----------------------
  // eliminate m variables x(i) from ideal A[i] - y(i) by choosing product
  // order
-       {execute ("ring R3=("+charstr(br)+"),(x(1..n),y(1..m)),(dp(n),dp(m));");
+       {
+        list l8;  
+        for (@xx = n; @xx >=1; @xx--)
+        {
+         l8[@xx] = "x("+string(@xx)+")";
+        }
+        for (@yy = m; @yy >= 1; @yy--)
+        {
+         l8[n+@yy] = "y("+string(@yy)+")";
+        }
+        setring(br);
+        ring R3 = create_ring(ringlist(br)[1], l8, "(dp("+string(n)+"),dp("+string(m)+"))", "no_minpoly");
         if (mp!="0")
         { execute ("minpoly=number("+mp+");"); }
         if ( s != 0 )
@@ -499,7 +555,12 @@ EXAMPLE: example alg_kernel; shows an example
     list L = algDependent(A,tt);
     // algDependent is called with "bestoption" if tt = 0
     def S = L[2];
-    execute ("ring R=("+charstr(basering)+"),(@(1..n),"+varstr(pr)+"),(dp);");
+    list l9;  
+    for (int xx = 1; xx <= n; xx++)
+    {
+     l9[size(l9)+1] = "@("+string(xx)+")";
+    }
+    ring R = create_ring(ringlist(basering)[1], "("+string(l9)+","+varstr(pr)+")", "dp", "no_minpoly");
     if (mp!="0")
     { execute ("minpoly=number("+mp+");"); }
     ideal ker = fetch(S,ker);       //in order to have variable names correct
@@ -542,7 +603,7 @@ RETURN:
            basering has n variables and the map m components, it contains the
            ideal 'ker', depending only on the y(i), the kernel of the given map
 @end format
-NOTE:    Three differnt algorithms are used depending on c = 1,2,3.
+NOTE:    Three different algorithms are used depending on c = 1,2,3.
          If c is not given or c=0, a heuristically best method is chosen.
          The basering may be a quotient ring. However, if the preimage ring is
          a quotient ring, say pr = P/I, consider phi as a map from P and then
@@ -650,7 +711,17 @@ EXAMPLE: example is_surjective; shows an example
     int ii,t=1,1;
     string mp=string(minpoly);
   // ------------ create new ring with extra variables ---------------------
-    execute ("ring R=("+charstr(br)+"),(x(1..n),y(1..m)),(dp(n),dp(m));");
+    list l10;  
+    for (int yy = 1; yy <= n; yy++)
+    {
+     l10[size(l10)+1] = "x("+string(yy)+")";
+    }
+    for (int zz = 1; zz <= m; zz++)
+    {
+     l10[size(l10)+1] = "y("+string(zz)+")";
+    }
+    ring R = create_ring(ringlist(br)[1], l10, "(dp("+string(n)+"),dp("+string(m)+"))", "no_minpoly");
+
     if (mp!="0")
     { execute ("minpoly=number("+mp+");"); }
     ideal vars = x(1..n);
@@ -702,7 +773,7 @@ proc is_bijective ( map phi,def pr )
 "USAGE:   is_bijective(phi,pr); phi map to basering, pr preimage ring
 RETURN:  an integer,  1 if phi is bijective, 0 if not
 NOTE:    The algorithm checks first injectivity and then surjectivity.
-         To interprete this for local/mixed orderings, or for quotient rings
+         To interpret this for local/mixed orderings, or for quotient rings
          type help is_surjective; and help is_injective;
 DISPLAY: A comment if printlevel >= voice-1 (default)
 EXAMPLE: example is_bijective; shows an example
@@ -723,7 +794,16 @@ EXAMPLE: example is_bijective; shows an example
     int ii,t = 1,1;
     string mp=string(minpoly);
   // ------------ create new ring with extra variables ---------------------
-    execute ("ring R=("+charstr(br)+"),(x(1..n),y(1..m)),(dp(n),dp(m));");
+    list l11;  
+    for (int yy = 1; yy <= n; yy++)
+    {
+     l11[size(l11)+1] = "x("+string(yy)+")";
+    }
+    for (int zz = 1; zz <= m; zz++)
+    {
+     l11[size(l11)+1] = "y("+string(zz)+")";
+    }
+    ring R = create_ring(ringlist(br)[1], l11, "(dp("+string(n)+"),dp("+string(m)+"))", "no_minpoly");
     if (mp!="0")
     { execute ("minpoly=number("+mp+");"); }
     ideal vars = x(1..n);
@@ -898,7 +978,7 @@ EXAMPLE: example noetherNormal; shows an example
       {
        "// WARNING: In case of a finite ground field";
        "// the characteristic may be too small.";
-       "// This could result in an infinte loop.";
+       "// This could result in an infinite loop.";
        "// Loop in noetherNormal, voice:";, voice;"";
       }
      if ( voice >= 16 )
@@ -1041,7 +1121,16 @@ EXAMPLE: example mapIsFinite; shows an example
   ideal PHI = fetch(bsr,PHI);
 
   // --------------------------- enlarging ring -----------------------------
-  execute("ring @rr = ("+charstr(bsr)+"),(y(1..m),x(1..n)),(lp(m),dp);");
+  list l12;  
+  for (int yy = 1; yy <= m; yy++)
+  {
+   l12[size(l12)+1] = "y("+string(yy)+")";
+  }
+  for (int zz = 1; zz <= n; zz++)
+  {
+   l12[size(l12)+1] = "x("+string(zz)+")";
+  }
+  ring @rr = create_ring(ringlist(bsr)[1], l12, "(lp("+string(m)+"),dp)", "no_minpoly");
   ideal J = imap(@bsr,J);
   ideal PHI = imap(@bsr,PHI);
   ideal M;

@@ -632,12 +632,18 @@ void kBucket_Mult_n(kBucket_pt bucket, number n)
       }
 #else
       bucket->buckets[i] = __p_Mult_nn(bucket->buckets[i], n, r);
-      if (rField_is_Ring(r) && !(rField_is_Domain(r)))
+#endif
+    }
+  }
+  if (rField_is_Ring(r) && !(rField_is_Domain(r)))
+  {
+    for (i=0; i<= bucket->buckets_used; i++)
+    {
+      if (bucket->buckets[i] != NULL)
       {
         bucket->buckets_length[i] = pLength(bucket->buckets[i]);
         kBucketAdjust(bucket, i);
       }
-#endif
     }
   }
   kbTest(bucket);
@@ -1148,7 +1154,7 @@ number kBucketPolyRed(kBucket_pt bucket,
   poly lmRight;
   if (r->isLPring) {
     int firstBlock = p_mFirstVblock(p1, r);
-    k_SplitFrame(lm, lmRight, firstBlock, r);
+    k_SplitFrame(lm, lmRight, si_max(firstBlock, 1), r);
   }
 #endif
 #if 0

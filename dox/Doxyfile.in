@@ -1635,8 +1635,8 @@ EXTRA_PACKAGES         =
 # Note: Only use a user-defined header if you know what you are doing! The
 # following commands have a special meaning inside the header: $title,
 # $datetime, $date, $doxygenversion, $projectname, $projectnumber,
-# $projectbrief, $projectlogo. Doxygen will replace $title with the empy string,
-# for the replacement values of the other commands the user is refered to
+# $projectbrief, $projectlogo. Doxygen will replace $title with the empty string,
+# for the replacement values of the other commands the user is referred to
 # HTML_HEADER.
 # This tag requires that the tag GENERATE_LATEX is set to YES.
 
@@ -2024,7 +2024,6 @@ HAVE_POLYMAKE \
 HAVE_PSEUDO_BUCKETS \
 HAVE_PYTHON \
 HAVE_RATGRING \
-HAVE_RING2TOM \
 HAVE_SBRK \
 HAVE_SDB \
 HAVE_SHEAFCOH_TRICKS \
@@ -2034,7 +2033,6 @@ HAVE_SUMMATOR \
 HAVE_SVD \
 HAVE_TAIL_BIN \
 HAVE_TAIL_RING \
-HAVE_VANIDEAL \
 HAVE_WALK \
 HAVE_ZERODIVISORS \
 IPARITH \

@@ -7,6 +7,7 @@
 /*
 * ABSTRACT: identfier handling
 */
+#include "misc/options.h"
 #include "Singular/idrec.h"
 #include "Singular/subexpr.h"
 #include "Singular/lists.h"
@@ -86,7 +87,7 @@ void module_help_proc(const char *newlib,const char *p, const char *help);
 
 /*extern ring     currRing;  in ring.h */
 
-idhdl enterid(const char * a, int lev, int t, idhdl* root, BOOLEAN init=TRUE, BOOLEAN serach=TRUE);
+idhdl enterid(const char * a, int lev, int t, idhdl* root, BOOLEAN init=TRUE, BOOLEAN search=TRUE);
 idhdl ggetid(const char *n);
 //idhdl ggetid(const char *n, idhdl *packhdl);
 void  killid(const char * a, idhdl * i);
@@ -97,13 +98,17 @@ lists ipNameListLev(idhdl root, int lev);
 void  ipMoveId(idhdl h);
 BOOLEAN checkPackage(package pack);
 idhdl packFindHdl(package r);
-void jjNormalizeQRingP(poly &p);
+poly jj_NormalizeQRingP(poly p, const ring r);
 void jjNormalizeQRingId(leftv I);
+#define jjNormalizeQRingP(p) jj_NormalizeQRingP(p,currRing)
 void *idrecDataInit(int t);
 
-#define FLAG_STD   0
-#define FLAG_TWOSTD  3
-#define FLAG_QRING   4
+#define FLAG_STD        0 // is a SB wrt. currRing ("isSB")
+#define FLAG_TWOSTD     3 // is a 2-sided SB wrt. currRing (" 2SB")
+#define FLAG_QRING      4 // is normalized wrt. qring ("qringNF")
+#define FLAG_QRING_DEF  5 // is a qring to be defined
+#define FLAG_OTHER_RING 6 // mark newstruct parts as "write-only"
+#define FLAG_RING       7 // mark newstruct parts as "ring dep."
 #define hasFlag(A,F) Sy_inset((F),(A)->flag)
 #define setFlag(A,F) (A)->flag|=Sy_bit(F)
 #define resetFlag(A,F) (A)->flag&=~Sy_bit(F)

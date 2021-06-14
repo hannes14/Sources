@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-version="version sets.lib 4.1.2.0 Feb_2019 "; //$id$
+version="version sets.lib 4.2.0.0 Dec_2020 "; //$Id$
 category="Miscellaneous";
 info="
 LIBRARY:  sets.lib    Sets in Singular
@@ -19,7 +19,7 @@ There is a comparison operator, we access the operator via the function isEqual.
 This function isEqual can be used to compare two elements of the same type
 (Set, list, int, bigint, string, intmat, bigintmat, intvec, ring, map, poly, matrix,
 ideal, module, vector, resolution) and also works for comparing of int, bigint and
-number with each other, similarily for matrix, bigintmat and intmat.
+number with each other, similarly for matrix, bigintmat and intmat.
 
 The function size can be used to determine the number of elements.
 
@@ -33,7 +33,7 @@ Note that the implementation of the underlying data structure and algorithms is
 very trivial and will at some point be replaced with something more efficient.
 
 KEYWORDS:
-set, intersection, union, complement, equality, isEqual
+set, intersectionSet, union, complement, equality, isEqual
 
 TYPES:
 Set                     The class of all sets
@@ -41,7 +41,7 @@ Set                     The class of all sets
 PROCEDURES:
 set(list)               general procedure to generate a set from a list
 union(Set,Set)          union of sets
-intersection(Set,Set)   intersection of sets
+intersectionSet(Set,Set) intersection of sets
 complement(Set,Set)     complement of sets
 isElement(def,Set)      test whether an object is in a set
 isSubset(Set,Set)        test whether a set is a subset of another set
@@ -56,7 +56,7 @@ static proc mod_init()
   newstruct("Set","list elements");
   system("install","Set","print",printSet,1);
   system("install","Set","+",union,2);
-  system("install","Set","*",intersection,2);
+  system("install","Set","*",intersectionSet,2);
   system("install","Set","<",isSubset,2);
   system("install","Set","size",sizeSet,1);
   system("install","Set",">",isSuperset,2);
@@ -164,12 +164,15 @@ proc isEqualList(def a, def b)
 
 proc isEqualSet(def a, def b)
 {
-  if(size(a)!=size(b)){                //check if the two sets have the same size
+  if(size(a)!=size(b))             //check if the two sets have the same size
+  {
    return(0);
   }
   list L = a.elements;
-  for(int i=1;i<=size(a);i++){                //chek if every element of the first set occurs in
-    if(!(isElement(L[i],b))){        //the second set
+  for(int i=1;i<=size(a);i++)      //check if every element of the first set occurs in
+  {
+    if(!(isElement(L[i],b)))       //the second set
+    {
       return(0);
     }
   }
@@ -390,10 +393,11 @@ static proc setIntersectionOfLists(list L1,list L2)
   return(M);
 }
 
-proc intersection(Set N, Set M)
-"USAGE: intersection(N,M) or N*M; N,M sets
+proc intersectionSet(Set N, Set M)
+"USAGE: intersectionSet(N,M) or N*M; N,M sets
 RETURN: Set, the interseection of the sets N and M
 EXAMPLE: example intersection, shows an example
+KEYWORDS: intersection
 "
 {
   Set S;

@@ -14,18 +14,18 @@ SLIB0 = absfact.lib ainvar.lib aksaka.lib alexpoly.lib algebra.lib \
 	homolog.lib hyperel.lib integralbasis.lib inout.lib intprog.lib \
 	jacobson.lib \
 	kskernel.lib latex.lib linalg.lib makedbm.lib \
-	matrix.lib modstd.lib mondromy.lib monomialideal.lib \
+	matrix.lib moddiq.lib modnormal.lib modular.lib modstd.lib mondromy.lib monomialideal.lib \
 	mprimdec.lib mregular.lib \
-	noether.lib normal.lib normaliz.lib ntsolve.lib \
-	paraplanecurves.lib phindex.lib \
-	pointid.lib poly.lib \
+	nfmodstd.lib nfmodsyz.lib noether.lib normal.lib normaliz.lib ntsolve.lib \
+	paraplanecurves.lib pfd.lib phindex.lib \
+	pointid.lib polylib.lib \
 	presolve.lib primdec.lib primdecint.lib \
 	primitiv.lib qhmoduli.lib random.lib realclassify.lib \
-	realrad.lib reesclos.lib resbinomial.lib \
+	realrad.lib redcgs.lib reesclos.lib resbinomial.lib \
 	resgraph.lib resjung.lib resolve.lib \
-	reszeta.lib ring.lib rinvar.lib rootsmr.lib rootsur.lib \
+	reszeta.lib ring.lib ringgb.lib rinvar.lib rootsmr.lib rootsur.lib \
 	sagbi.lib sheafcoh.lib sing.lib sing4ti2.lib signcond.lib \
-	solve.lib spcurve.lib spectrum.lib standard.lib stratify.lib \
+	solve.lib spcurve.lib spectrum.lib standard.lib stanleyreisner.lib stratify.lib \
 	surf.lib surf_jupyter.lib surfacesignature.lib surfex.lib \
 	teachstd.lib toric.lib triang.lib \
 	weierstr.lib zeroset.lib
@@ -42,26 +42,29 @@ SLIB1 = arr.lib arnoldclassify.lib \
         ffsolve.lib ffmodstd.lib decomp.lib template.lib \
         findifs.lib finitediff.lib \
         gfan.lib gitfan.lib gradedModules.lib GND.lib graal.lib goettsche.lib \
-	hess.lib hdepth.lib \
+	hess.lib hdepth.lib hodge.lib\
 	JMBTest.lib JMSConst.lib \
         locnormal.lib \
-	methods.lib modnormal.lib modular.lib modules.lib multigrading.lib modwalk.lib\
-	nets.lib ncfrac.lib ncloc.lib ncModslimgb.lib\
-	nfmodstd.lib nfmodsyz.lib numerAlg.lib numerDecom.lib \
+	methods.lib modules.lib multigrading.lib modwalk.lib\
+	nets.lib ncfrac.lib ncloc.lib \
+	numerAlg.lib numerDecom.lib \
         olga.lib orbitparam.lib \
 	parallel.lib polyclass.lib polymake.lib polybori.lib \
-	realclassify.lib realizationMatroids.lib resources.lib ringgb.lib \
+	realizationMatroids.lib resources.lib \
 	rootisolation.lib rwalk.lib rstandard.lib \
 	schreyer.lib sets.lib SingularityDBM.lib symodstd.lib schubert.lib swalk.lib \
-	tasks.lib tropical.lib tropicalNewton.lib
+	tateProdCplxNegGrad.lib tasks.lib tropical.lib tropicalNewton.lib
 
 PLIBS = bimodules.lib bfun.lib central.lib dmod.lib dmodapp.lib dmodvar.lib\
+        dmodideal.lib \
         fpadim.lib fpalgebras.lib fpaprops.lib freegb.lib\
 	gkdim.lib involut.lib\
-	ncall.lib ncalg.lib ncdecomp.lib ncfactor.lib nchomolog.lib ncpreim.lib nctools.lib \
+	ncall.lib ncalg.lib ncdecomp.lib ncfactor.lib nchomolog.lib \
+        ncModslimgb.lib ncpreim.lib nctools.lib \
 	perron.lib purityfiltration.lib  qmatrix.lib \
         ratgb.lib
 
 # contributed libs, status not yet decided
-SLIB2 = KVequiv.lib deflation.lib lejeune.lib ncHilb.lib ncrat.lib \
-	mathml.lib maxlike.lib recover.lib redcgs.lib difform.lib autgradalg.lib
+SLIB2 = KVequiv.lib deflation.lib invar.lib lejeune.lib ncHilb.lib ncrat.lib \
+	mathml.lib maxlike.lib recover.lib autgradalg.lib dummy.lib \
+	interval.lib lrcalc.lib nchilbert.lib systhreads.lib VecField.lib

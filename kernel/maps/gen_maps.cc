@@ -86,7 +86,7 @@ non_trivial:
 // nMap: map for coefficients
 ideal maMapIdeal(const ideal map_id, const ring preimage_r,const ideal image_id, const ring image_r, const nMapFunc nMap)
 {
-  if(!rIsPluralRing(image_r))
+  if(!rIsNCRing(image_r))
   {
     // heuristic:
     // is the map a permutation ?
@@ -173,7 +173,13 @@ number maEvalAt(const poly p,const number* pt, const ring r)
   }
   poly v=maMapPoly(p,r,map,r,ndCopyMap);
   id_Delete(&map,r);
-  number vv=pGetCoeff(v);
-  p_LmFree(&v,r);
+  number vv;
+  if (v==NULL)
+    vv=n_Init(0,r->cf);
+  else
+  {
+    vv=pGetCoeff(v);
+    p_LmFree(&v,r);
+  }
   return vv;
 }

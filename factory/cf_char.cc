@@ -16,6 +16,11 @@
 #include "imm.h"
 #include "cf_primes.h"
 #include "cf_util.h"
+#include "int_pp.h"
+
+#ifdef HAVE_FLINT
+#include "FLINTconvert.h" // for __FLINT_RELEASE
+#endif
 
 STATIC_VAR int theCharacteristic = 0;
 STATIC_VAR int theDegree = 1;
@@ -41,6 +46,17 @@ void setCharacteristic( int c )
         theCharacteristic = c;
     }
 }
+
+#if !defined(HAVE_NTL)
+void setCharacteristic( int c, int n )
+{
+    ASSERT( c > 1 && n > 0, "illegal characteristic" );
+    setCharacteristic( c );
+    InternalPrimePower::setPrimePower( c, n );
+    CFFactory::settype( PrimePowerDomain );
+}
+#endif
+
 
 void setCharacteristic( int c, int n, char name )
 {

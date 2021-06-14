@@ -72,7 +72,7 @@ poly p_One(const ring r);
 
 int p_MinDeg(poly p,intvec *w, const ring R);
 
-long p_DegW(poly p, const short *w, const ring R);
+long p_DegW(poly p, const int *w, const ring R);
 
 /// return TRUE if all monoms have the same component
 BOOLEAN   p_OneComp(poly p, const ring r);
@@ -211,6 +211,7 @@ void      p_ProjectiveUnique(poly p,const ring r);
 
 void      p_ContentForGB(poly p, const ring r);
 void      p_Content(poly p, const ring r);
+void      p_Content_n(poly p, number &c,const ring r);
 #if 1
 // currently only used by Singular/janet
 void      p_SimpleContent(poly p, int s, const ring r);
@@ -996,6 +997,16 @@ static inline poly pp_Mult_mm(poly p, poly m, const ring r)
     return r->p_Procs->pp_Mult_mm(p, m, r);
 }
 
+// returns m*Copy(p), does neither destroy p nor m
+static inline poly pp_mm_Mult(poly p, poly m, const ring r)
+{
+  if (p==NULL) return NULL;
+  if (p_LmIsConstant(m, r))
+    return __pp_Mult_nn(p, pGetCoeff(m), r);
+  else
+    return r->p_Procs->pp_mm_Mult(p, m, r);
+}
+
 // returns p*m, destroys p, const: m
 static inline poly p_Mult_mm(poly p, poly m, const ring r)
 {
@@ -1004,6 +1015,16 @@ static inline poly p_Mult_mm(poly p, poly m, const ring r)
     return __p_Mult_nn(p, pGetCoeff(m), r);
   else
     return r->p_Procs->p_Mult_mm(p, m, r);
+}
+
+// returns m*p, destroys p, const: m
+static inline poly p_mm_Mult(poly p, poly m, const ring r)
+{
+  if (p==NULL) return NULL;
+  if (p_LmIsConstant(m, r))
+    return __p_Mult_nn(p, pGetCoeff(m), r);
+  else
+    return r->p_Procs->p_mm_Mult(p, m, r);
 }
 
 static inline poly p_Minus_mm_Mult_qq(poly p, const poly m, const poly q, int &lp, int lq,
@@ -1078,7 +1099,7 @@ static inline poly p_Mult_q(poly p, poly q, const ring r)
     p_LmDelete(&q, r);
     return p;
   }
-#ifdef HAVE_PLURAL
+#if defined(HAVE_PLURAL) || defined(HAVE_SHIFTBBA)
   if (rIsNCRing(r))
     return _nc_p_Mult_q(p, q, r);
   else
@@ -1106,8 +1127,8 @@ static inline poly pp_Mult_qq(poly p, poly q, const ring r)
     qq = p_Copy(q, r);
 
   poly res;
-#ifdef HAVE_PLURAL
-  if (rIsPluralRing(r))
+#if defined(HAVE_PLURAL) || defined(HAVE_SHIFTBBA)
+  if (rIsNCRing(r))
     res = _nc_pp_Mult_qq(p, qq, r);
   else
 #endif
@@ -1471,6 +1492,15 @@ static inline void p_GetExpVL(poly p, int64 *ev, const ring r)
   for (unsigned j = r->N; j!=0; j--)
       ev[j-1] = p_GetExp(p, j, r);
 }
+// p_GetExpVLV is used in Singular,jl
+static inline int64 p_GetExpVLV(poly p, int64 *ev, const ring r)
+{
+  p_LmCheckPolyRing1(p, r);
+  for (unsigned j = r->N; j!=0; j--)
+      ev[j-1] = p_GetExp(p, j, r);
+  return (int64)p_GetComp(p,r);
+}
+// p_GetExpVL is used in Singular,jl
 static inline void p_SetExpV(poly p, int *ev, const ring r)
 {
   p_LmCheckPolyRing1(p, r);
@@ -1480,13 +1510,23 @@ static inline void p_SetExpV(poly p, int *ev, const ring r)
   if(ev[0]!=0) p_SetComp(p, ev[0],r);
   p_Setm(p, r);
 }
-// p_SetExpVL is used in Singular,jl
 static inline void p_SetExpVL(poly p, int64 *ev, const ring r)
 {
   p_LmCheckPolyRing1(p, r);
   for (unsigned j = r->N; j!=0; j--)
       p_SetExp(p, j, ev[j-1], r);
   p_SetComp(p, 0,r);
+
+  p_Setm(p, r);
+}
+
+// p_SetExpVLV is used in Singular,jl
+static inline void p_SetExpVLV(poly p, int64 *ev, int64 comp, const ring r)
+{
+  p_LmCheckPolyRing1(p, r);
+  for (unsigned j = r->N; j!=0; j--)
+      p_SetExp(p, j, ev[j-1], r);
+  p_SetComp(p, comp,r);
 
   p_Setm(p, r);
 }
@@ -1938,6 +1978,7 @@ static inline BOOLEAN p_IsConstant(const poly p, const ring r)
 /// either poly(1)  or gen(k)?!
 static inline BOOLEAN p_IsOne(const poly p, const ring R)
 {
+  if (p == NULL) return FALSE; /* TODO check if 0 == 1 */
   p_Test(p, R);
   return (p_IsConstant(p, R) && n_IsOne(p_GetCoeff(p, R), R->cf));
 }
@@ -2056,8 +2097,8 @@ void p_SetModDeg(intvec *w, ring r);
 /*------------ Jet ----------------------------------*/
 poly pp_Jet(poly p, int m, const ring R);
 poly p_Jet(poly p, int m,const ring R);
-poly pp_JetW(poly p, int m, short *w, const ring R);
-poly p_JetW(poly p, int m, short *w, const ring R);
+poly pp_JetW(poly p, int m, int *w, const ring R);
+poly p_JetW(poly p, int m, int *w, const ring R);
 
 poly n_PermNumber(const number z, const int *par_perm, const int OldPar, const ring src, const ring dst);
 

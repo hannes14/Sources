@@ -17,7 +17,6 @@
 #include "canonicalform.h"
 #include "fac_util.h"
 
-#ifdef HAVE_NTL
 /// multiplication of univariate polys using FLINT/NTL over F_p, F_q, Z/p^k,
 /// Z/p^k[t]/(f), Z, Q, Q(a), if we are in GF factory's default multiplication
 /// is used. If @a b!= 0 and getCharacteristic() == 0 the input will be
@@ -73,7 +72,7 @@ void divrem2 (const CanonicalForm& F, ///< [in] bivariate, compressed polynomial
 /// Uses an algorithm based on Burnikel, Ziegler "Fast recursive division".
 ///
 /// @sa divrem2()
-void divrem (
+void FACTORY_PUBLIC divrem (
            const CanonicalForm& F, ///< [in] multivariate, compressed polynomial
            const CanonicalForm& G, ///< [in] multivariate, compressed polynomial
            CanonicalForm& Q,       ///< [in,out] dividend
@@ -173,7 +172,6 @@ newtonDivrem (const CanonicalForm& F, ///<[in] univariate poly
               CanonicalForm& Q,       ///<[in, out] quotient
               CanonicalForm& R        ///<[in, out] remainder
              );
-#endif
 #endif
 
 #endif

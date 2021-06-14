@@ -504,6 +504,28 @@ KINLINE void  sTObject::pCleardenom()
   }
 }
 
+KINLINE void  sTObject::pContent()
+{
+  assume(p != NULL);
+  if (t_p != NULL)
+  {
+    p_SimpleContent(t_p, 1, tailRing);
+    if (!n_GreaterZero(pGetCoeff(t_p),tailRing->cf))
+    {
+      t_p=p_Neg (t_p,tailRing);
+    }
+    pSetCoeff0(p, pGetCoeff(t_p));
+  }
+  else
+  {
+    p_SimpleContent(p, 1, currRing);
+    if (!n_GreaterZero(pGetCoeff(p),currRing->cf))
+    {
+      p=p_Neg (p,currRing);
+    }
+  }
+}
+
 KINLINE void sTObject::pNorm() // pNorm seems to be a _bad_ method name...
 {
   assume(p != NULL);
@@ -1168,6 +1190,11 @@ KINLINE poly redtailBbaBound (poly p,int pos,kStrategy strat,int bound,BOOLEAN n
 }
 
 #ifdef HAVE_RINGS
+KINLINE poly redtailBba_Ring (poly p,int pos,kStrategy strat)
+{
+  LObject L(p, currRing, strat->tailRing);
+  return redtailBba_Ring(&L, pos, strat);
+}
 KINLINE poly redtailBba_Z (poly p,int pos,kStrategy strat)
 {
   LObject L(p, currRing, strat->tailRing);

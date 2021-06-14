@@ -24,6 +24,7 @@
 #include "cfEzgcd.h"
 #include "cfModGcd.h"
 #include "cf_util.h"
+#include "cf_iter.h"
 #include "cf_map_ext.h"
 #include "cf_algorithm.h"
 #include "cf_reval.h"
@@ -33,8 +34,13 @@
 #include "cf_map.h"
 #include "facHensel.h"
 
+#ifdef HAVE_FLINT
+#include "FLINTconvert.h"
+#endif
+
 #ifdef HAVE_NTL
 #include "NTLconvert.h"
+#endif
 
 static const double log2exp= 1.442695041;
 
@@ -44,6 +50,7 @@ TIMING_DEFINE_PRINT(ez_hensel_lift)
 TIMING_DEFINE_PRINT(ez_content)
 TIMING_DEFINE_PRINT(ez_termination)
 
+#ifdef HAVE_NTL // unused otherwise
 static
 int compress4EZGCD (const CanonicalForm& F, const CanonicalForm& G, CFMap & M,
                     CFMap & N, int& both_non_zero)
@@ -182,6 +189,7 @@ int compress4EZGCD (const CanonicalForm& F, const CanonicalForm& G, CFMap & M,
 
   return both_non_zero;
 }
+#endif
 
 static inline
 CanonicalForm myShift2Zero (const CanonicalForm& F, CFList& Feval,
@@ -289,6 +297,7 @@ Evaluation optimize4Lift (const CanonicalForm& F, CFMap & M,
   return result;
 }
 
+#ifdef HAVE_NTL // nonMonicHenselLift2
 static inline
 int Hensel (const CanonicalForm & UU, CFArray & G, const Evaluation & AA,
             const CFArray& LeadCoeffs )
@@ -307,10 +316,11 @@ int Hensel (const CanonicalForm & UU, CFArray & G, const Evaluation & AA,
 
   CFList evaluation;
   long termEstimate= size (U);
+  int ch=getCharacteristic();
   for (int i= A.min(); i <= A.max(); i++)
   {
     if (!A[i].isZero() &&
-        ((getCharacteristic() > degree (U,i)) || getCharacteristic() == 0))
+        ((ch > degree (U,i)) || ch == 0))
     {
       termEstimate *= degree (U,i)*2;
       termEstimate /= 3;
@@ -369,7 +379,9 @@ int Hensel (const CanonicalForm & UU, CFArray & G, const Evaluation & AA,
   G[2]= NN (G[2]);
   return 1;
 }
+#endif
 
+#ifdef HAVE_NTL // unused otherwise
 static
 bool findeval (const CanonicalForm & F, const CanonicalForm & G,
                CanonicalForm & Fb, CanonicalForm & Gb, CanonicalForm & Db,
@@ -435,6 +447,8 @@ bool findeval (const CanonicalForm & F, const CanonicalForm & G,
       return false;
   }
 }
+#endif
+
 static void gcd_mon_rec(CanonicalForm G, CanonicalForm &cf,int *exp,int pl)
 {  // prevoius level: pl
   if (G.inCoeffDomain())
@@ -452,6 +466,7 @@ static void gcd_mon_rec(CanonicalForm G, CanonicalForm &cf,int *exp,int pl)
   }
 }
 
+#ifdef HAVE_NTL // unused otherwise
 static CanonicalForm gcd_mon(CanonicalForm F, CanonicalForm G)
 {
   // assume: size(F)==1
@@ -475,7 +490,9 @@ static CanonicalForm gcd_mon(CanonicalForm F, CanonicalForm G)
   DELETE_ARRAY(exp);
   return res;
 }
+#endif
 
+#ifdef HAVE_NTL // Hensel
 /// real implementation of EZGCD over Z
 static CanonicalForm
 ezgcd ( const CanonicalForm & FF, const CanonicalForm & GG, REvaluation & b,
@@ -837,22 +854,19 @@ ezgcd ( const CanonicalForm & FF, const CanonicalForm & GG, REvaluation & b,
 }
 #endif
 
+#ifdef HAVE_NTL // Hensel
 /// Extended Zassenhaus GCD over Z.
 /// In case things become too dense we switch to a modular algorithm.
 CanonicalForm
 ezgcd ( const CanonicalForm & FF, const CanonicalForm & GG )
 {
-#ifdef HAVE_NTL
   REvaluation b;
   return ezgcd( FF, GG, b, false );
-#else
-  Off (SW_USE_EZGCD);
-  return gcd (FF, GG);
-  On (SW_USE_EZGCD);
-#endif
 }
+#endif
 
-#ifdef HAVE_NTL
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
+#ifdef HAVE_NTL // Hensel
 // parameters for heuristic
 STATIC_VAR int maxNumEval= 200;
 STATIC_VAR int sizePerVars1= 500; //try dense gcd if size/#variables is bigger
@@ -898,8 +912,9 @@ CanonicalForm EZGCD_P( const CanonicalForm & FF, const CanonicalForm & GG )
   CFArray DD( 1, 2 ), lcDD( 1, 2 );
   int degF, degG, delta, count;
   int maxeval;
-  maxeval= tmin((getCharacteristic()/
-                (int)(ilog2(getCharacteristic())*log2exp))*2, maxNumEval);
+  int ch=getCharacteristic();
+  maxeval= tmin((ch/
+                (int)(ilog2(ch)*log2exp))*2, maxNumEval);
   count= 0; // number of eval. used
   REvaluation b, bt;
   int gcdfound = 0;
@@ -1007,27 +1022,52 @@ CanonicalForm EZGCD_P( const CanonicalForm & FF, const CanonicalForm & GG )
     Variable v2;
     if (p == 2 && d < 6)
     {
-      if (fac_NTL_char != p)
-      {
-        fac_NTL_char= p;
-        zz_p::init (p);
-      }
       bool primFail= false;
       Variable vBuf;
       primElem= primitiveElement (a, vBuf, primFail);
       ASSERT (!primFail, "failure in integer factorizer");
       if (d < 3)
       {
+        #ifdef HAVE_FLINT
+        nmod_poly_t Irredpoly;
+        nmod_poly_init(Irredpoly,p);
+        nmod_poly_randtest_monic_irreducible(Irredpoly, FLINTrandom, 3*d+1);
+        CanonicalForm newMipo=convertnmod_poly_t2FacCF(Irredpoly,Variable(1));
+        nmod_poly_clear(Irredpoly);
+        #elif defined(HAVE_NTL)
+        if (fac_NTL_char != p)
+        {
+          fac_NTL_char= p;
+          zz_p::init (p);
+        }
         zz_pX NTLIrredpoly;
         BuildIrred (NTLIrredpoly, d*3);
         CanonicalForm newMipo= convertNTLzzpX2CF (NTLIrredpoly, Variable (1));
+        #else
+        factoryError("NTL/FLINT missing: EZGCD_P");
+        #endif
         v2= rootOf (newMipo);
       }
       else
       {
+        #ifdef HAVE_FLINT
+        nmod_poly_t Irredpoly;
+        nmod_poly_init(Irredpoly,p);
+        nmod_poly_randtest_monic_irreducible(Irredpoly, FLINTrandom, 2*d+1);
+        CanonicalForm newMipo=convertnmod_poly_t2FacCF(Irredpoly,Variable(1));
+        nmod_poly_clear(Irredpoly);
+        #elif defined(HAVE_NTL)
+        if (fac_NTL_char != p)
+        {
+          fac_NTL_char= p;
+          zz_p::init (p);
+        }
         zz_pX NTLIrredpoly;
         BuildIrred (NTLIrredpoly, d*2);
         CanonicalForm newMipo= convertNTLzzpX2CF (NTLIrredpoly, Variable (1));
+        #else
+        factoryError("NTL/FLINT missing: EZGCD_P");
+        #endif
         v2= rootOf (newMipo);
       }
       imPrimElem= mapPrimElem (primElem, a, v2);
@@ -1035,18 +1075,28 @@ CanonicalForm EZGCD_P( const CanonicalForm & FF, const CanonicalForm & GG )
     }
     else if ((p == 3 && d < 4) || ((p == 5 || p == 7) && d < 3))
     {
+      bool primFail= false;
+      Variable vBuf;
+      primElem= primitiveElement (a, vBuf, primFail);
+      ASSERT (!primFail, "failure in integer factorizer");
+      #ifdef HAVE_FLINT
+      nmod_poly_t Irredpoly;
+      nmod_poly_init(Irredpoly,p);
+      nmod_poly_randtest_monic_irreducible(Irredpoly, FLINTrandom, 2*d+1);
+      CanonicalForm newMipo=convertnmod_poly_t2FacCF(Irredpoly,Variable(1));
+      nmod_poly_clear(Irredpoly);
+      #elif defined(HAVE_NTL)
       if (fac_NTL_char != p)
       {
         fac_NTL_char= p;
         zz_p::init (p);
       }
-      bool primFail= false;
-      Variable vBuf;
-      primElem= primitiveElement (a, vBuf, primFail);
-      ASSERT (!primFail, "failure in integer factorizer");
       zz_pX NTLIrredpoly;
       BuildIrred (NTLIrredpoly, d*2);
       CanonicalForm newMipo= convertNTLzzpX2CF (NTLIrredpoly, Variable (1));
+      #else
+      factoryError("NTL/FLINT missing: EZGCD_P");
+      #endif
       v2= rootOf (newMipo);
       imPrimElem= mapPrimElem (primElem, a, v2);
       extOfExt= true;
@@ -1467,4 +1517,4 @@ CanonicalForm EZGCD_P( const CanonicalForm & FF, const CanonicalForm & GG )
   return N (d*cand);
 }
 #endif
-
+#endif

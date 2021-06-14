@@ -1,4 +1,4 @@
-AC_INIT([libpolys], [4.1.2])
+AC_INIT([libpolys], [4.2.1])
 
 AC_CONFIG_MACRO_DIR([../m4])
 AC_CONFIG_AUX_DIR([../build-aux])
@@ -13,6 +13,8 @@ m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 
 dnl Check if build env is sane
 AM_SANITY_CHECK
+
+AX_PROG_CXX_FOR_BUILD
 
 # Add pre'prefixed config
 AX_PREFIX_CONFIG_H([libpolysconfig.h],[],[_config.h])
@@ -44,18 +46,18 @@ AC_SEARCH_LIBS(sem_wait,[rt pthreads pthread],[],[
   AC_MSG_ERROR([sem_wait not found in rt,pthreads,pthread])
 ])
 
-LB_CHECK_GMP(3.1.1,,AC_MSG_ERROR([Unable to find GMP on your machine: please use --with-gmp=PATH_TO_DIR_CONTAINING_LIB_AND_INCLUDE (see also ./configure --help if you do not understand what we are talking about)]))
-LB_CHECK_NTL(5.0,,AC_MSG_WARN([Unable to find NTL (which is strongly recommended) on your machine: please use --with-ntl=PATH_TO_DIR_CONTAINING_LIB_AND_INCLUDE (see also ./configure --help if you do not understand what we are talking about)]))
+# Check whether --with-gmp was given.
+SING_CHECK_GMP
+
+dnl ntl check in factory
 LB_CHECK_FLINT(2.4,,AC_MSG_WARN([Unable to find FLINT (which is strongly recommended) on your machine: please use --with-flint=PATH_TO_DIR_CONTAINING_LIB_AND_INCLUDE (see also ./configure --help if you do not understand what we are talking about)]))
 
 SING_CHECK_JULIA
-
 
 # Checks for library functions.
 AC_FUNC_ERROR_AT_LINE
 AC_CHECK_FUNCS([memmove memset pow sqrt strchr setenv putenv])
 AC_FUNC_VPRINTF
-AC_FUNC_MALLOC
 AC_CHECK_FUNC([vsnprintf], [AC_DEFINE([HAVE_VSNPRINTF], [1], [Define if vsnprintf exists.])])
 
 # Checks for header files.
@@ -158,5 +160,6 @@ AC_CONFIG_FILES([reporter/Makefile])
 AC_CONFIG_FILES([coeffs/Makefile])
 AC_CONFIG_FILES([polys/Makefile])
 AC_CONFIG_FILES([tests/Makefile])
-AC_CONFIG_FILES([libpolys-config libpolys.pc])
+AC_CONFIG_FILES([libpolys-config], [chmod +x libpolys-config])
+AC_CONFIG_FILES([libpolys.pc])
 AC_OUTPUT

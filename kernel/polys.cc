@@ -41,18 +41,14 @@ poly p_Divide(poly p, poly q, const ring r)
     p_Delete(&q,r);
     return NULL;
   }
-  if (pNext(q)!=NULL)
+  if ((pNext(q)!=NULL)||rIsPluralRing(r))
   { /* This means that q != 0 consists of at least two terms*/
-    if (rIsLPRing(r))
-    {
-      WerrorS("not implemented for letterplace rings");
-      return NULL;
-    }
     if(p_GetComp(p,r)==0)
     {
       if((rFieldType(r)==n_transExt)
       &&(convSingTrP(p,r))
-      &&(convSingTrP(q,r)))
+      &&(convSingTrP(q,r))
+      &&(!rIsNCRing(r)))
       {
         poly res=singclap_pdivide(p, q, r);
         p_Delete(&p,r);
@@ -60,7 +56,8 @@ poly p_Divide(poly p, poly q, const ring r)
         return res;
       }
       else if ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
-      &&(!rField_is_Ring(r)))
+      &&(!rField_is_Ring(r))
+      &&(!rIsNCRing(r)))
       {
         poly res=singclap_pdivide(p, q, r);
         p_Delete(&p,r);
@@ -116,12 +113,14 @@ poly p_Divide(poly p, poly q, const ring r)
         {
           if((rFieldType(r)==n_transExt)
           &&(convSingTrP(I->m[i],r))
-          &&(convSingTrP(q,r)))
+          &&(convSingTrP(q,r))
+          &&(!rIsNCRing(r)))
           {
             h=singclap_pdivide(I->m[i],q,r);
           }
           else if ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
-          &&(!rField_is_Ring(r)))
+          &&(!rField_is_Ring(r))
+          &&(!rIsNCRing(r)))
             h=singclap_pdivide(I->m[i],q,r);
           else
           {
@@ -159,14 +158,8 @@ poly p_Divide(poly p, poly q, const ring r)
     }
   }
   else
-  { /* This means that q != 0 consists of just one term,
-       or that r is over a coefficient ring. */
+  { /* This means that q != 0 consists of just one term, or LetterPlace */
 #ifdef HAVE_RINGS
-    if (!rField_is_Domain(r))
-    {
-      WerrorS("division only defined over coefficient domains");
-      return NULL;
-    }
     if (pNext(q)!=NULL)
     {
       WerrorS("division over a coefficient domain only implemented for terms");
@@ -190,24 +183,21 @@ poly pp_Divide(poly p, poly q, const ring r)
   {
     return NULL;
   }
-  if (pNext(q)!=NULL)
+  if ((pNext(q)!=NULL)||rIsPluralRing(r))
   { /* This means that q != 0 consists of at least two terms*/
-    if (rIsLPRing(r))
-    {
-      WerrorS("not implemented for letterplace rings");
-      return NULL;
-    }
     if(p_GetComp(p,r)==0)
     {
       if((rFieldType(r)==n_transExt)
       &&(convSingTrP(p,r))
-      &&(convSingTrP(q,r)))
+      &&(convSingTrP(q,r))
+      &&(!rIsNCRing(r)))
       {
         poly res=singclap_pdivide(p, q, r);
         return res;
       }
       else if ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
-      &&(!rField_is_Ring(r)))
+      &&(!rField_is_Ring(r))
+      &&(!rIsNCRing(r)))
       {
         poly res=singclap_pdivide(p, q, r);
         return res;
@@ -263,12 +253,14 @@ poly pp_Divide(poly p, poly q, const ring r)
         {
           if((rFieldType(r)==n_transExt)
           &&(convSingTrP(I->m[i],r))
-          &&(convSingTrP(q,r)))
+          &&(convSingTrP(q,r))
+          &&(!rIsNCRing(r)))
           {
             h=singclap_pdivide(I->m[i],q,r);
           }
           else if ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
-          &&(!rField_is_Ring(r)))
+          &&(!rField_is_Ring(r))
+          &&(!rIsNCRing(r)))
             h=singclap_pdivide(I->m[i],q,r);
           else
           {
@@ -309,11 +301,6 @@ poly pp_Divide(poly p, poly q, const ring r)
   { /* This means that q != 0 consists of just one term,
        or that r is over a coefficient ring. */
 #ifdef HAVE_RINGS
-    if (!rField_is_Domain(r))
-    {
-      WerrorS("division only defined over coefficient domains");
-      return NULL;
-    }
     if (pNext(q)!=NULL)
     {
       WerrorS("division over a coefficient domain only implemented for terms");
@@ -339,16 +326,12 @@ poly p_DivRem(poly p, poly q, poly &rest, const ring r)
     p_Delete(&q,r);
     return NULL;
   }
-  if (rIsLPRing(r))
-  {
-    WerrorS("not implemented for letterplace rings");
-    return NULL;
-  }
   if(p_GetComp(p,r)==0)
   {
     if((rFieldType(r)==n_transExt)
     &&(convSingTrP(p,r))
-    &&(convSingTrP(q,r)))
+    &&(convSingTrP(q,r))
+    &&(!rIsNCRing(r)))
     {
       poly res=singclap_pdivide(p, q, r);
       rest=singclap_pmod(p,q,r);
@@ -357,7 +340,8 @@ poly p_DivRem(poly p, poly q, poly &rest, const ring r)
       return res;
     }
     else if ((r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
-    &&(!rField_is_Ring(r)))
+    &&(!rField_is_Ring(r))
+    &&(!rIsNCRing(r)))
     {
       poly res=singclap_pdivide(p, q, r);
       rest=singclap_pmod(p,q,r);

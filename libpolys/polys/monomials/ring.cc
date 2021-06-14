@@ -121,7 +121,7 @@ ring rDefault(const coeffs cf, int N, char **n,int ord_size, rRingOrder_t *ord, 
   r->order = ord;
   r->block0 = block0;
   r->block1 = block1;
-  r->bitmask = bitmask;
+  if (bitmask!=0) r->wanted_maxExp=bitmask;
 
   /* complete ring intializations */
   rComplete(r);
@@ -244,6 +244,7 @@ void   rWrite(ring r, BOOLEAN details)
   nblocks--;
 
 
+  //Print("ref:%d, C->ref:%d\n",r->ref,C->ref);
   PrintS("// coefficients: ");
   if( nCoeff_is_algExt(C) )
   {
@@ -450,11 +451,8 @@ void rDelete(ring r)
   int i, j;
 
   if (r == NULL) return;
-
-  assume( r->ref <= 0 );
-
   if( r->ref > 0 ) // ->ref means the number of Interpreter objects referring to the ring...
-    return;       // this should never happen.
+    return;
 
   if( r->qideal != NULL )
   {
@@ -608,9 +606,9 @@ char * rOrdStr(ring r)
 
     if (l==nblocks)
     {
-      if (r->bitmask!=0xffff)
+      if (r->wanted_maxExp!=0)
       {
-        long mm=r->bitmask;
+        long mm=r->wanted_maxExp;
         if (mm>MAX_INT_VAL) mm=MAX_INT_VAL;
         StringAppend(",L(%ld)",mm);
       }
@@ -1351,7 +1349,7 @@ int rSum(ring r1, ring r2, ring &sum)
   if (r1==r2)
   {
     sum=r1;
-    r1->ref++;
+    rIncRefCnt(r1);
     return 0;
   }
   return rSumInternal(r1,r2,sum,TRUE,FALSE);
@@ -2648,14 +2646,13 @@ ring rModifyRing(ring r, BOOLEAN omit_degree,
 {
   assume (r != NULL );
   assume (exp_limit > 1);
-  BOOLEAN need_other_ring;
   BOOLEAN omitted_degree = FALSE;
 
-  int iNeedInducedOrderingSetup = 0; ///< How many induced ordering block do we have?
   int bits;
-
   exp_limit=rGetExpSize(exp_limit, bits, r->N);
-  need_other_ring = (exp_limit != r->bitmask);
+  BOOLEAN need_other_ring = (exp_limit != r->bitmask);
+
+  int iNeedInducedOrderingSetup = 0; ///< How many induced ordering block do we have?
 
   int nblocks=rBlocks(r);
   rRingOrder_t *order=(rRingOrder_t*)omAlloc0((nblocks+1)*sizeof(rRingOrder_t));
@@ -2802,6 +2799,7 @@ ring rModifyRing(ring r, BOOLEAN omit_degree,
   res->block0=block0;
   res->block1=block1;
   res->bitmask=exp_limit;
+  res->wanted_maxExp=r->wanted_maxExp;
   //int tmpref=r->cf->ref0;
   rComplete(res, 1);
   //r->cf->ref=tmpref;
@@ -2973,6 +2971,7 @@ ring rModifyRing_Simple(ring r, BOOLEAN ommit_degree, BOOLEAN ommit_comp, unsign
     res->block0=block0;
     res->block1=block1;
     res->bitmask=exp_limit;
+    res->wanted_maxExp=r->wanted_maxExp;
     //int tmpref=r->cf->ref;
     rComplete(res, 1);
     //r->cf->ref=tmpref;
@@ -3405,7 +3404,7 @@ BOOLEAN rComplete(ring r, int force)
   int n=rBlocks(r)-1;
   int i;
   int bits;
-  r->bitmask=rGetExpSize(r->bitmask,bits,r->N);
+  r->bitmask=rGetExpSize(r->wanted_maxExp,bits,r->N);
   r->BitsPerExp = bits;
   r->ExpPerLong = BIT_SIZEOF_LONG / bits;
   r->divmask=rGetDivMask(bits);
@@ -3862,10 +3861,30 @@ static void rCheckOrdSgn(ring r,int b/*last block*/)
           }
           else
           {
-            // very bad:
-            nonpos++;
-            nonneg++;
-            found=1;
+            // very bad: try next row(s)
+            int add=r->block1[j]-r->block0[j]+1;
+            int max_i=r->block0[j]+add*add-add-1;
+            while(found==0)
+            {
+              i+=add;
+              if (r->wvhdl[j][i-r->block0[j]]<0)
+              {
+                r->OrdSgn=-1;
+                nonpos++;
+                found=1;
+              }
+              else if(r->wvhdl[j][i-r->block0[j]]>0)
+              {
+                nonneg++;
+                found=1;
+              }
+              else if(i>max_i)
+              {
+                nonpos++;
+                nonneg++;
+                found=1;
+              }
+            }
           }
         }
         else if ((r->order[j]==ringorder_lp)
@@ -5214,6 +5233,8 @@ static int rReallocM1(ring r, int size, int pos)
 #endif
 static void rOppWeight(int *w, int l)
 {
+  /* works for commutative/Plural; need to be changed for Letterplace */
+  /* Letterpace: each block of vars needs to be reverted on it own */
   int i2=(l+1)/2;
   for(int j=0; j<=i2; j++)
   {
@@ -5224,6 +5245,7 @@ static void rOppWeight(int *w, int l)
 }
 
 #define rOppVar(R,I) (rVar(R)+1-I)
+/* nice for Plural, need to be changed for Letterplace: requires also the length of a monomial */
 
 ring rOpposite(ring src)
   /* creates an opposite algebra of R */
@@ -5232,20 +5254,18 @@ ring rOpposite(ring src)
 {
   if (src == NULL) return(NULL);
 
-#ifdef RDEBUG
-  rTest(src);
-#endif
-
   //rChangeCurrRing(src);
-
 #ifdef RDEBUG
   rTest(src);
 //  rWrite(src);
 //  rDebugPrint(src);
 #endif
 
-
-  ring r = rCopy0(src,FALSE); /* qideal will be deleted later on!!! */
+  ring r = rCopy0(src,FALSE);
+  if (src->qideal != NULL)
+  {
+    id_Delete(&(r->qideal), src);
+  }
 
   // change vars v1..vN -> vN..v1
   int i;
@@ -5272,6 +5292,7 @@ ring rOpposite(ring src)
 //    r->VarOffset[rOppVar(r,i)]=t;
 //  }
   // change names:
+  // TODO: does this work the same way for Letterplace?
   for (i=rVar(r)-1; i>=0; i--)
   {
     char *p=r->names[i];
@@ -5321,156 +5342,219 @@ ring rOpposite(ring src)
 //    }
 //  }
   // Change order/block structures (needed for rPrint, rAdd etc.)
+
   int j=0;
   int l=rBlocks(src);
-  for(i=0; src->order[i]!=0; i++)
+  if ( ! rIsLPRing(src) )
   {
-    switch (src->order[i])
+    // ie Plural or commutative
+    for(i=0; src->order[i]!=0; i++)
     {
-      case ringorder_c: /* c-> c */
-      case ringorder_C: /* C-> C */
-      case ringorder_no /*=0*/: /* end-of-block */
-        r->order[j]=src->order[i];
-        j++; break;
-      case ringorder_lp: /* lp -> rp */
-        r->order[j]=ringorder_rp;
-        r->block0[j]=rOppVar(r, src->block1[i]);
-        r->block1[j]=rOppVar(r, src->block0[i]);
-        break;
-      case ringorder_rp: /* rp -> lp */
-        r->order[j]=ringorder_lp;
-        r->block0[j]=rOppVar(r, src->block1[i]);
-        r->block1[j]=rOppVar(r, src->block0[i]);
-        break;
-      case ringorder_dp: /* dp -> a(1..1),ls */
+      switch (src->order[i])
       {
-        l=rRealloc1(r,l,j);
-        r->order[j]=ringorder_a;
-        r->block0[j]=rOppVar(r, src->block1[i]);
-        r->block1[j]=rOppVar(r, src->block0[i]);
-        r->wvhdl[j]=(int*)omAlloc((r->block1[j]-r->block0[j]+1)*sizeof(int));
-        for(int k=r->block0[j]; k<=r->block1[j]; k++)
-          r->wvhdl[j][k-r->block0[j]]=1;
-        j++;
-        r->order[j]=ringorder_ls;
-        r->block0[j]=rOppVar(r, src->block1[i]);
-        r->block1[j]=rOppVar(r, src->block0[i]);
-        j++;
-        break;
-      }
-      case ringorder_Dp: /* Dp -> a(1..1),rp */
-      {
-        l=rRealloc1(r,l,j);
-        r->order[j]=ringorder_a;
-        r->block0[j]=rOppVar(r, src->block1[i]);
-        r->block1[j]=rOppVar(r, src->block0[i]);
-        r->wvhdl[j]=(int*)omAlloc((r->block1[j]-r->block0[j]+1)*sizeof(int));
-        for(int k=r->block0[j]; k<=r->block1[j]; k++)
-          r->wvhdl[j][k-r->block0[j]]=1;
-        j++;
-        r->order[j]=ringorder_rp;
-        r->block0[j]=rOppVar(r, src->block1[i]);
-        r->block1[j]=rOppVar(r, src->block0[i]);
-        j++;
-        break;
-      }
-      case ringorder_wp: /* wp -> a(...),ls */
-      {
-        l=rRealloc1(r,l,j);
-        r->order[j]=ringorder_a;
-        r->block0[j]=rOppVar(r, src->block1[i]);
-        r->block1[j]=rOppVar(r, src->block0[i]);
-        r->wvhdl[j]=r->wvhdl[j+1]; r->wvhdl[j+1]=NULL;
-        rOppWeight(r->wvhdl[j], r->block1[j]-r->block0[j]);
-        j++;
-        r->order[j]=ringorder_ls;
-        r->block0[j]=rOppVar(r, src->block1[i]);
-        r->block1[j]=rOppVar(r, src->block0[i]);
-        j++;
-        break;
-      }
-      case ringorder_Wp: /* Wp -> a(...),rp */
-      {
-        l=rRealloc1(r,l,j);
-        r->order[j]=ringorder_a;
-        r->block0[j]=rOppVar(r, src->block1[i]);
-        r->block1[j]=rOppVar(r, src->block0[i]);
-        r->wvhdl[j]=r->wvhdl[j+1]; r->wvhdl[j+1]=NULL;
-        rOppWeight(r->wvhdl[j], r->block1[j]-r->block0[j]);
-        j++;
-        r->order[j]=ringorder_rp;
-        r->block0[j]=rOppVar(r, src->block1[i]);
-        r->block1[j]=rOppVar(r, src->block0[i]);
-        j++;
-        break;
-      }
-      case ringorder_M: /* M -> M */
-      {
-        r->order[j]=ringorder_M;
-        r->block0[j]=rOppVar(r, src->block1[i]);
-        r->block1[j]=rOppVar(r, src->block0[i]);
-        int n=r->block1[j]-r->block0[j];
-        /* M is a (n+1)x(n+1) matrix */
-        for (int nn=0; nn<=n; nn++)
+        case ringorder_c: /* c-> c */
+        case ringorder_C: /* C-> C */
+        case ringorder_no /*=0*/: /* end-of-block */
+          r->order[j]=src->order[i];
+          j++; break;
+        case ringorder_lp: /* lp -> rp */
+          r->order[j]=ringorder_rp;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          j++;break;
+        case ringorder_rp: /* rp -> lp */
+          r->order[j]=ringorder_lp;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          j++;break;
+        case ringorder_dp: /* dp -> a(1..1),ls */
         {
-          rOppWeight(&(r->wvhdl[j][nn*(n+1)]), n /*r->block1[j]-r->block0[j]*/);
-        }
-        j++;
-        break;
-      }
-      case ringorder_a: /*  a(...),ls -> wp/dp */
-      {
-        r->block0[j]=rOppVar(r, src->block1[i]);
-        r->block1[j]=rOppVar(r, src->block0[i]);
-        rOppWeight(r->wvhdl[j], r->block1[j]-r->block0[j]);
-        if (src->order[i+1]==ringorder_ls)
-        {
-          r->order[j]=ringorder_wp;
-          i++;
-          //l=rReallocM1(r,l,j);
-        }
-        else
-        {
+          l=rRealloc1(r,l,j);
           r->order[j]=ringorder_a;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          r->wvhdl[j]=(int*)omAlloc((r->block1[j]-r->block0[j]+1)*sizeof(int));
+          for(int k=r->block0[j]; k<=r->block1[j]; k++)
+            r->wvhdl[j][k-r->block0[j]]=1;
+          j++;
+          r->order[j]=ringorder_ls;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          j++;
+          break;
         }
-        j++;
-        break;
+        case ringorder_Dp: /* Dp -> a(1..1),rp */
+        {
+          l=rRealloc1(r,l,j);
+          r->order[j]=ringorder_a;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          r->wvhdl[j]=(int*)omAlloc((r->block1[j]-r->block0[j]+1)*sizeof(int));
+          for(int k=r->block0[j]; k<=r->block1[j]; k++)
+            r->wvhdl[j][k-r->block0[j]]=1;
+          j++;
+          r->order[j]=ringorder_rp;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          j++;
+          break;
+        }
+        case ringorder_wp: /* wp -> a(...),ls */
+        {
+          l=rRealloc1(r,l,j);
+          r->order[j]=ringorder_a;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          r->wvhdl[j]=r->wvhdl[j+1]; r->wvhdl[j+1]=NULL;
+          rOppWeight(r->wvhdl[j], r->block1[j]-r->block0[j]);
+          j++;
+          r->order[j]=ringorder_ls;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          j++;
+          break;
+        }
+        case ringorder_Wp: /* Wp -> a(...),rp */
+        {
+          l=rRealloc1(r,l,j);
+          r->order[j]=ringorder_a;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          r->wvhdl[j]=r->wvhdl[j+1]; r->wvhdl[j+1]=NULL;
+          rOppWeight(r->wvhdl[j], r->block1[j]-r->block0[j]);
+          j++;
+          r->order[j]=ringorder_rp;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          j++;
+          break;
+        }
+        case ringorder_M: /* M -> M */
+        {
+          r->order[j]=ringorder_M;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          int n=r->block1[j]-r->block0[j];
+          /* M is a (n+1)x(n+1) matrix */
+          for (int nn=0; nn<=n; nn++)
+          {
+            rOppWeight(&(r->wvhdl[j][nn*(n+1)]), n /*r->block1[j]-r->block0[j]*/);
+          }
+          j++;
+          break;
+        }
+        case ringorder_a: /*  a(...),ls -> wp/dp */
+        {
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          rOppWeight(r->wvhdl[j], r->block1[j]-r->block0[j]);
+          if (src->order[i+1]==ringorder_ls)
+          {
+            r->order[j]=ringorder_wp;
+            i++;
+            //l=rReallocM1(r,l,j);
+          }
+          else
+          {
+            r->order[j]=ringorder_a;
+          }
+          j++;
+          break;
+        }
+        // not yet done:
+        case ringorder_ls:
+        case ringorder_rs:
+        case ringorder_ds:
+        case ringorder_Ds:
+        case ringorder_ws:
+        case ringorder_Ws:
+        case ringorder_am:
+        case ringorder_a64:
+        // should not occur:
+        case ringorder_S:
+        case ringorder_IS:
+        case ringorder_s:
+        case ringorder_aa:
+        case ringorder_L:
+        case ringorder_unspec:
+          Werror("order %s not (yet) supported", rSimpleOrdStr(src->order[i]));
+          break;
       }
-      // not yet done:
-      case ringorder_ls:
-      case ringorder_rs:
-      case ringorder_ds:
-      case ringorder_Ds:
-      case ringorder_ws:
-      case ringorder_Ws:
-      case ringorder_am:
-      case ringorder_a64:
-      // should not occur:
-      case ringorder_S:
-      case ringorder_IS:
-      case ringorder_s:
-      case ringorder_aa:
-      case ringorder_L:
-      case ringorder_unspec:
-        Werror("order %s not (yet) supported", rSimpleOrdStr(src->order[i]));
-        break;
     }
-  }
+  } /* end if (!rIsLPRing(src)) */
+  if (rIsLPRing(src))
+  {
+    // applies to Letterplace only
+    // Letterplace conventions: dp<->Dp, lp<->rp
+    // Wp(v) cannot be converted since wp(v) does not encode a monomial ordering
+    // (a(w),<) is troublesome and thus postponed
+    for(i=0; src->order[i]!=0; i++)
+    {
+      switch (src->order[i])
+      {
+        case ringorder_c: /* c-> c */
+        case ringorder_C: /* C-> C */
+        case ringorder_no /*=0*/: /* end-of-block */
+          r->order[j]=src->order[i];
+          j++; break;
+        case ringorder_lp: /* lp -> rp */
+          r->order[j]=ringorder_rp;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          j++;break;
+        case ringorder_rp: /* rp -> lp */
+          r->order[j]=ringorder_lp;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          j++;break;
+        case ringorder_dp: /* dp -> Dp */
+        {
+          r->order[j]=ringorder_Dp;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          j++;break;
+        }
+        case ringorder_Dp: /* Dp -> dp*/
+        {
+          r->order[j]=ringorder_dp;
+          r->block0[j]=rOppVar(r, src->block1[i]);
+          r->block1[j]=rOppVar(r, src->block0[i]);
+          j++;break;
+        }
+        // not clear how to do:
+        case ringorder_wp:
+        case ringorder_Wp:
+        case ringorder_M:
+        case ringorder_a:
+        // not yet done:
+        case ringorder_ls:
+        case ringorder_rs:
+        case ringorder_ds:
+        case ringorder_Ds:
+        case ringorder_ws:
+        case ringorder_Ws:
+        case ringorder_am:
+        case ringorder_a64:
+        // should not occur:
+        case ringorder_S:
+        case ringorder_IS:
+        case ringorder_s:
+        case ringorder_aa:
+        case ringorder_L:
+        case ringorder_unspec:
+          Werror("order %s not (yet) supported", rSimpleOrdStr(src->order[i]));
+          break;
+      }
+    }
+  } /* end if (rIsLPRing(src)) */
   rComplete(r);
 
-
-#ifdef RDEBUG
-  rTest(r);
-#endif
-
   //rChangeCurrRing(r);
-
 #ifdef RDEBUG
   rTest(r);
 //  rWrite(r);
 //  rDebugPrint(r);
 #endif
-
 
 #ifdef HAVE_PLURAL
   // now, we initialize a non-comm structure on r
@@ -5526,8 +5610,6 @@ ring rOpposite(ring src)
   /* now oppose the qideal for qrings */
   if (src->qideal != NULL)
   {
-    id_Delete(&(r->qideal), r);
-
 #ifdef HAVE_PLURAL
     r->qideal = idOppose(src, src->qideal, r); // into the currRing: r
 #else
@@ -5651,31 +5733,31 @@ void rModify_a_to_A(ring r)
 // to be called BEFORE rComplete:
 // changes every Block with a(...) to A(...)
 {
-   int i=0;
-   int j;
-   while(r->order[i]!=0)
-   {
-      if (r->order[i]==ringorder_a)
-      {
-        r->order[i]=ringorder_a64;
-        int *w=r->wvhdl[i];
-        int64 *w64=(int64 *)omAlloc((r->block1[i]-r->block0[i]+1)*sizeof(int64));
-        for(j=r->block1[i]-r->block0[i];j>=0;j--)
-                w64[j]=(int64)w[j];
-        r->wvhdl[i]=(int*)w64;
-        omFreeSize(w,(r->block1[i]-r->block0[i]+1)*sizeof(int));
-      }
-      i++;
-   }
+  int i=0;
+  int j;
+  while(r->order[i]!=0)
+  {
+    if (r->order[i]==ringorder_a)
+    {
+      r->order[i]=ringorder_a64;
+      int *w=r->wvhdl[i];
+      int64 *w64=(int64 *)omAlloc((r->block1[i]-r->block0[i]+1)*sizeof(int64));
+      for(j=r->block1[i]-r->block0[i];j>=0;j--)
+              w64[j]=(int64)w[j];
+      r->wvhdl[i]=(int*)w64;
+      omFreeSize(w,(r->block1[i]-r->block0[i]+1)*sizeof(int));
+    }
+    i++;
+  }
 }
 
 
 poly rGetVar(const int varIndex, const ring r)
 {
-    poly p = p_ISet(1, r);
-    p_SetExp(p, varIndex, 1, r);
-    p_Setm(p, r);
-    return p;
+  poly p = p_ISet(1, r);
+  p_SetExp(p, varIndex, 1, r);
+  p_Setm(p, r);
+  return p;
 }
 
 

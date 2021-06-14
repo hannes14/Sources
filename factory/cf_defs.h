@@ -9,7 +9,7 @@
 #ifndef INCL_CF_DEFS_H
 #define INCL_CF_DEFS_H
 
-#include "factory/globaldefs.h"
+#include "globaldefs.h"
 // #include "config.h"
 
 /*BEGINPUBLIC*/
@@ -20,6 +20,7 @@
 #define LEVELEXPR 1000001
 
 #define UndefinedDomain 32000
+#define PrimePowerDomain 5
 #define GaloisFieldDomain 4
 #define FiniteFieldDomain 3
 #define RationalDomain 2
@@ -45,7 +46,16 @@ static const int SW_USE_FF_MOD_GCD=7;
 static const int SW_USE_FL_GCD_P=8;
 /// set to 1 to use Flints gcd over Q/Z
 static const int SW_USE_FL_GCD_0=9;
+/// set to 1 to use Factorys Berlekamp alg.
+static const int SW_BERLEKAMP=10;
 
+static const int SW_FAC_QUADRATICLIFT=11;
+/// set to 1 to prefer flints multivariate factorization over Z/p
+static const int SW_USE_FL_FAC_P=12;
+/// set to 1 to prefer flints multivariate factorization over Z/p
+static const int SW_USE_FL_FAC_0=13;
+/// set to 1 to prefer flints multivariate factorization over Z/p(a)
+static const int SW_USE_FL_FAC_0A=14;
 /*ENDPUBLIC*/
 
 #ifdef HAVE_OMALLOC

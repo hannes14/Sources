@@ -163,12 +163,82 @@ static void jjMINPOLY_red(idhdl h)
       {
         jjMINPOLY_red((idhdl)&(L->m[i]));
       }
+      break;
     }
     default:
     //case RESOLUTION_CMD:
        Werror("type %d too complex...set minpoly before",IDTYP(h)); break;
   }
 }
+// change the coeff cf=K[x] (of type n_transExt) to K[x]/a
+// return NULL in error case
+coeffs jjSetMinpoly(coeffs cf, number a)
+{
+  if ( !nCoeff_is_transExt(cf) )
+  {
+    if(!nCoeff_is_algExt(cf) )
+    {
+      WerrorS("cannot set minpoly for these coeffients");
+      return NULL;
+    }
+  }
+  if (rVar(cf->extRing)!=1)
+  {
+    WerrorS("only univariate minpoly allowed");
+    return NULL;
+  }
+
+  number p = n_Copy(a,cf);
+  n_Normalize(p, cf);
+
+  if (n_IsZero(p, cf))
+  {
+    n_Delete(&p, cf);
+    return cf;
+  }
+
+  AlgExtInfo A;
+
+  A.r = rCopy(cf->extRing); // Copy  ground field!
+  // if minpoly was already set:
+  if( cf->extRing->qideal != NULL ) id_Delete(&(A.r->qideal),A.r);
+  ideal q = idInit(1,1);
+  if ((p==NULL) ||(NUM((fraction)p)==NULL))
+  {
+    WerrorS("Could not construct the alg. extension: minpoly==0");
+    // cleanup A: TODO
+    rDelete( A.r );
+    return NULL;
+  }
+  if (DEN((fraction)(p)) != NULL) // minpoly must be a fraction with poly numerator...!!
+  {
+    poly n=DEN((fraction)(p));
+    if(!p_IsConstant(n,cf->extRing))
+    {
+      WarnS("denominator must be constant - ignoring it");
+    }
+    p_Delete(&n,cf->extRing);
+    DEN((fraction)(p))=NULL;
+  }
+
+  q->m[0] = NUM((fraction)p);
+  A.r->qideal = q;
+
+  EXTERN_VAR omBin fractionObjectBin;
+  NUM((fractionObject *)p) = NULL; // not necessary, but still...
+  omFreeBin((ADDRESS)p, fractionObjectBin);
+
+  coeffs new_cf = nInitChar(n_algExt, &A);
+  if (new_cf==NULL)
+  {
+    WerrorS("Could not construct the alg. extension: illegal minpoly?");
+    // cleanup A: TODO
+    rDelete( A.r );
+    return NULL;
+  }
+  return new_cf;
+}
+
 static BOOLEAN jjMINPOLY(leftv, leftv a)
 {
   if( !nCoeff_is_transExt(currRing->cf) && (currRing->idroot == NULL) && n_IsZero((number)a->Data(), currRing->cf) )
@@ -259,7 +329,7 @@ static BOOLEAN jjMINPOLY(leftv, leftv a)
   if (!redefine_from_algext && (DEN((fraction)(p)) != NULL)) // minpoly must be a fraction with poly numerator...!!
   {
     poly n=DEN((fraction)(p));
-    if(!p_IsConstantPoly(n,currRing->cf->extRing))
+    if(!p_IsConstant(n,currRing->cf->extRing))
     {
       WarnS("denominator must be constant - ignoring it");
     }
@@ -303,6 +373,7 @@ static BOOLEAN jjMINPOLY(leftv, leftv a)
   }
   return FALSE;
 }
+
 
 static BOOLEAN jjNOETHER(leftv, leftv a)
 {
@@ -389,9 +460,29 @@ static BOOLEAN jiA_INT(leftv res, leftv a, Subexpr e)
   }
   return FALSE;
 }
+static inline ring jjCheck_FLAG_OTHER_RING(leftv res)
+{
+  ring old_r=currRing;
+  if (Sy_inset(FLAG_RING,res->flag))
+  {
+    if ((res-1)->data!=currRing)
+    {
+      if ((res-1)->data!=NULL)
+      {
+        old_r=(ring)(res-1)->data;
+        rDecRefCnt(old_r);
+      }
+      (res-1)->data=rIncRefCnt(currRing);
+      (res-1)->rtyp=RING_CMD;
+    }
+  }
+  res->flag &= ~(Sy_bit(FLAG_OTHER_RING) |Sy_bit(FLAG_RING));
+  return old_r;
+}
 static BOOLEAN jiA_NUMBER(leftv res, leftv a, Subexpr)
 {
   number p=(number)a->CopyD(NUMBER_CMD);
+  if (errorreported) return TRUE;
   if (res->data!=NULL) nDelete((number *)&res->data);
   nNormalize(p);
   res->data=(void *)p;
@@ -616,6 +707,7 @@ static BOOLEAN jiA_BIGINT(leftv res, leftv a, Subexpr e)
 static BOOLEAN jiA_LIST_RES(leftv res, leftv a,Subexpr)
 {
   syStrategy r=(syStrategy)a->CopyD(RESOLUTION_CMD);
+  if (errorreported) return TRUE;
   if (res->data!=NULL) ((lists)res->data)->Clean();
   int add_row_shift = 0;
   intvec *weights=(intvec*)atGet(a,"isHomog",INTVEC_CMD);
@@ -627,6 +719,7 @@ static BOOLEAN jiA_LIST_RES(leftv res, leftv a,Subexpr)
 static BOOLEAN jiA_LIST(leftv res, leftv a,Subexpr)
 {
   lists l=(lists)a->CopyD(LIST_CMD);
+  if (errorreported) return TRUE;
   if (res->data!=NULL) ((lists)res->data)->Clean();
   res->data=(void *)l;
   jiAssignAttr(res,a);
@@ -635,13 +728,14 @@ static BOOLEAN jiA_LIST(leftv res, leftv a,Subexpr)
 static BOOLEAN jiA_POLY(leftv res, leftv a,Subexpr e)
 {
   poly p=(poly)a->CopyD(POLY_CMD);
+  if (errorreported) return TRUE;
   pNormalize(p);
   if (e==NULL)
   {
     if ((p!=NULL) && TEST_V_QRING && (currRing->qideal!=NULL)
     && (!hasFlag(a,FLAG_QRING)))
     {
-      jjNormalizeQRingP(p);
+      p=jjNormalizeQRingP(p);
       setFlag(res,FLAG_QRING);
     }
     if (res->data!=NULL) pDelete((poly*)&res->data);
@@ -661,7 +755,7 @@ static BOOLEAN jiA_POLY(leftv res, leftv a,Subexpr e)
       {
         if (TEST_V_ALLWARN)
         {
-          Warn("increase ideal %d -> %d in %s",MATCOLS(m),j,my_yylinebuf);
+          Warn("increase ideal %d -> %d in %s(%d):%s",MATCOLS(m),j,VoiceName(),VoiceLine(),my_yylinebuf);
         }
         pEnlargeSet(&(m->m),MATCOLS(m),j-MATCOLS(m));
         MATCOLS(m)=j;
@@ -679,7 +773,7 @@ static BOOLEAN jiA_POLY(leftv res, leftv a,Subexpr e)
     }
     if ((p!=NULL) && TEST_V_QRING && (currRing->qideal!=NULL))
     {
-      jjNormalizeQRingP(p);
+      p=jjNormalizeQRingP(p);
     }
     if (res->rtyp==SMATRIX_CMD)
     {
@@ -730,6 +824,7 @@ static BOOLEAN jiA_1x1MATRIX(leftv res, leftv a,Subexpr e)
     return TRUE;
   }
   matrix am=(matrix)a->CopyD(MATRIX_CMD);
+  if (errorreported) return TRUE;
   if ((MATROWS(am)!=1) || (MATCOLS(am)!=1))
   {
     WerrorS("must be 1x1 matrix");
@@ -821,6 +916,7 @@ static BOOLEAN jiA_BUCKET(leftv res, leftv a, Subexpr e)
 // there should be no assign bucket:=bucket, here we have poly:=bucket
 {
   sBucket_pt b=(sBucket_pt)a->CopyD();
+  if (errorreported) return TRUE;
   poly p; int l;
   sBucketDestroyAdd(b,&p,&l);
   sleftv tmp;
@@ -831,37 +927,46 @@ static BOOLEAN jiA_BUCKET(leftv res, leftv a, Subexpr e)
 }
 static BOOLEAN jiA_IDEAL(leftv res, leftv a, Subexpr)
 {
+  ideal I=(ideal)a->CopyD(MATRIX_CMD);
+  if (errorreported) return TRUE;
   if (res->data!=NULL) idDelete((ideal*)&res->data);
-  res->data=(void *)a->CopyD(MATRIX_CMD);
+  res->data=(void*)I;
   if (a->rtyp==IDHDL) id_Normalize((ideal)a->Data(), currRing);
-  else                id_Normalize((ideal)res->data, currRing);
+  else                id_Normalize(I/*(ideal)res->data*/, currRing);
   jiAssignAttr(res,a);
   if (((res->rtyp==IDEAL_CMD)||(res->rtyp==MODUL_CMD))
-  && (IDELEMS((ideal)(res->data))==1)
+  && (IDELEMS(I/*(ideal)(res->data)*/)==1)
   && (currRing->qideal==NULL)
   && (!rIsPluralRing(currRing))
   )
   {
     setFlag(res,FLAG_STD);
   }
-  if (TEST_V_QRING && (currRing->qideal!=NULL)&& (!hasFlag(res,FLAG_QRING))) jjNormalizeQRingId(res);
+  if (TEST_V_QRING && (currRing->qideal!=NULL))
+  {
+    if (hasFlag(a,FLAG_QRING)) setFlag(res,FLAG_QRING);
+    else                       jjNormalizeQRingId(res);
+  }
   return FALSE;
 }
 static BOOLEAN jiA_RESOLUTION(leftv res, leftv a, Subexpr)
 {
+  syStrategy R=(syStrategy)a->CopyD(RESOLUTION_CMD);
+  if (errorreported) return TRUE;
   if (res->data!=NULL) syKillComputation((syStrategy)res->data);
-  res->data=(void *)a->CopyD(RESOLUTION_CMD);
+  res->data=(void*)R;
   jiAssignAttr(res,a);
   return FALSE;
 }
 static BOOLEAN jiA_MODUL_P(leftv res, leftv a, Subexpr)
 /* module = poly */
 {
-  if (res->data!=NULL) idDelete((ideal*)&res->data);
   ideal I=idInit(1,1);
   I->m[0]=(poly)a->CopyD(POLY_CMD);
+  if (errorreported) return TRUE;
   if (I->m[0]!=NULL) pSetCompP(I->m[0],1);
   pNormalize(I->m[0]);
+  if (res->data!=NULL) idDelete((ideal*)&res->data);
   res->data=(void *)I;
   if (TEST_V_QRING && (currRing->qideal!=NULL))
   {
@@ -872,8 +977,8 @@ static BOOLEAN jiA_MODUL_P(leftv res, leftv a, Subexpr)
 }
 static BOOLEAN jiA_IDEAL_M(leftv res, leftv a, Subexpr)
 {
-  if (res->data!=NULL) idDelete((ideal*)&res->data);
   matrix m=(matrix)a->CopyD(MATRIX_CMD);
+  if (errorreported) return TRUE;
   if (TEST_V_ALLWARN)
     if (MATROWS(m)>1)
       Warn("assign matrix with %d rows to an ideal in >>%s<<",MATROWS(m),my_yylinebuf);
@@ -881,13 +986,19 @@ static BOOLEAN jiA_IDEAL_M(leftv res, leftv a, Subexpr)
   ((ideal)m)->rank=1;
   MATROWS(m)=1;
   id_Normalize((ideal)m, currRing);
+  if (res->data!=NULL) idDelete((ideal*)&res->data);
   res->data=(void *)m;
-  if (TEST_V_QRING && (currRing->qideal!=NULL)) jjNormalizeQRingId(res);
+  if (TEST_V_QRING && (currRing->qideal!=NULL))
+  {
+    if (hasFlag(a,FLAG_QRING)) setFlag(res,FLAG_QRING);
+    else                       jjNormalizeQRingId(res);
+  }
   return FALSE;
 }
 static BOOLEAN jiA_IDEAL_Mo(leftv res, leftv a, Subexpr)
 {
   ideal m=(ideal)a->CopyD(MODUL_CMD);
+  if (errorreported) return TRUE;
   if (m->rank>1)
   {
     Werror("rank of module is %ld in assignment to ideal",m->rank);
@@ -898,7 +1009,11 @@ static BOOLEAN jiA_IDEAL_Mo(leftv res, leftv a, Subexpr)
   id_Shift(m,-1,currRing);
   m->rank=1;
   res->data=(void *)m;
-  if (TEST_V_QRING && (currRing->qideal!=NULL)) jjNormalizeQRingId(res);
+  if (TEST_V_QRING && (currRing->qideal!=NULL))
+  {
+    if (hasFlag(a,FLAG_QRING)) setFlag(res,FLAG_QRING);
+    else                       jjNormalizeQRingId(res);
+  }
   return FALSE;
 }
 static BOOLEAN jiA_LINK(leftv res, leftv a, Subexpr)
@@ -934,6 +1049,7 @@ static BOOLEAN jiA_MAP(leftv res, leftv a, Subexpr)
     idDelete((ideal*)&res->data);
   }
   res->data=(void *)a->CopyD(MAP_CMD);
+  if (errorreported) return TRUE;
   jiAssignAttr(res,a);
   return FALSE;
 }
@@ -945,6 +1061,7 @@ static BOOLEAN jiA_MAP_ID(leftv res, leftv a, Subexpr)
   f->preimage=NULL;
   idDelete((ideal *)&f);
   res->data=(void *)a->CopyD(IDEAL_CMD);
+  if (errorreported) return TRUE;
   f=(map)res->data;
   id_Normalize((ideal)f, currRing);
   f->preimage = rn;
@@ -959,10 +1076,12 @@ static BOOLEAN jiA_QRING(leftv res, leftv a,Subexpr e)
     WerrorS("qring_id expected");
     return TRUE;
   }
+
   ring old_ring=(ring)res->Data();
 
   coeffs newcf = currRing->cf;
   ideal id = (ideal)a->Data(); //?
+  if (errorreported) return TRUE;
   const int cpos = idPosConstant(id);
   if(rField_is_Ring(currRing))
     if (cpos >= 0)
@@ -1079,7 +1198,7 @@ static BOOLEAN jiA_RING(leftv res, leftv a, Subexpr e)
       return TRUE;
     }
   }
-  r->ref++;
+  rIncRefCnt(r);
   jiAssignAttr(res,a);
   return FALSE;
 }
@@ -1097,6 +1216,7 @@ static BOOLEAN jiA_DEF(leftv res, leftv, Subexpr)
 static BOOLEAN jiA_CRING(leftv res, leftv a, Subexpr)
 {
   coeffs r=(coeffs)a->Data();
+  if (errorreported) return TRUE;
   if (r==NULL) return TRUE;
   if (res->data!=NULL) nKillChar((coeffs)res->data);
   res->data=(void *)a->CopyD(CRING_CMD);
@@ -1113,9 +1233,8 @@ static BOOLEAN jiA_CRING(leftv res, leftv a, Subexpr)
 /*2
 * assign a = b
 */
-static BOOLEAN jiAssign_1(leftv l, leftv r, BOOLEAN toplevel)
+static BOOLEAN jiAssign_1(leftv l, leftv r, int rt, BOOLEAN toplevel, BOOLEAN is_qring=FALSE)
 {
-  int rt=r->Typ();
   if (rt==0)
   {
     if (!errorreported) Werror("`%s` is undefined",r->Fullname());
@@ -1156,6 +1275,11 @@ static BOOLEAN jiAssign_1(leftv l, leftv r, BOOLEAN toplevel)
     }
     if (l->rtyp==IDHDL)
     {
+      if((currRingHdl==NULL) && RingDependend(rt))
+      {
+        WerrorS("basering required");
+        return TRUE;
+      }
       if (rt==BUCKET_CMD) IDTYP((idhdl)l->data)=POLY_CMD;
       else                IDTYP((idhdl)l->data)=rt;
     }
@@ -1198,6 +1322,12 @@ static BOOLEAN jiAssign_1(leftv l, leftv r, BOOLEAN toplevel)
     Print("bb-assign: bb=%lx\n",bb);
 #endif
     return (bb==NULL) || bb->blackbox_Assign(l,r);
+  }
+  if ((is_qring)
+  &&(lt==RING_CMD)
+  &&(rt==RING_CMD))
+  {
+    Warn("qring .. = <ring>; is misleading in >>%s<<",my_yylinebuf);
   }
   int start=0;
   while ((dAssign[start].res!=lt)
@@ -1376,7 +1506,7 @@ static BOOLEAN jiA_INTVEC_L(leftv l,leftv r)
     t.data=(char *)(long)(*iv)[i];
     h=l->next;
     l->next=NULL;
-    nok=jiAssign_1(l,&t,TRUE);
+    nok=jiAssign_1(l,&t,INT_CMD,TRUE);
     l->next=h;
     if (nok) return TRUE;
     i++;
@@ -1410,7 +1540,7 @@ static BOOLEAN jiA_VECTOR_L(leftv l,leftv r)
     }
     h=l->next;
     l->next=NULL;
-    nok=jiAssign_1(l,&t,TRUE);
+    nok=jiAssign_1(l,&t,POLY_CMD,TRUE);
     l->next=h;
     t.CleanUp();
     if (nok)
@@ -1424,7 +1554,7 @@ static BOOLEAN jiA_VECTOR_L(leftv l,leftv r)
   idDelete(&I);
   l1->CleanUp();
   r->CleanUp();
-  //if (TEST_V_QRING && (currRing->qideal!=NULL)) jjNormalizeQRingP(l);
+  //if (TEST_V_QRING && (currRing->qideal!=NULL)) l=jjNormalizeQRingP(l);
   return FALSE;
 }
 static BOOLEAN jjA_L_LIST(leftv l, leftv r)
@@ -1648,7 +1778,7 @@ static BOOLEAN jiA_MATRIX_L(leftv l,leftv r)
       l->next=NULL;
       idhdl hh=NULL;
       if ((l->rtyp==IDHDL)&&(l->Typ()==DEF_CMD)) hh=(idhdl)l->data;
-      nok=jiAssign_1(l,&t,TRUE);
+      nok=jiAssign_1(l,&t,POLY_CMD,TRUE);
       if (hh!=NULL) { ipMoveId(hh);hh=NULL;}
       l->next=h;
       if (nok)
@@ -1724,7 +1854,7 @@ static BOOLEAN jiA_STRING_L(leftv l,leftv r)
     t.data=ss;
     h=l->next;
     l->next=NULL;
-    nok=jiAssign_1(l,&t,TRUE);
+    nok=jiAssign_1(l,&t,STRING_CMD,TRUE);
     if (nok)
     {
       break;
@@ -1763,7 +1893,7 @@ static BOOLEAN jiAssign_list(leftv l, leftv r)
   {
     if (TEST_V_ALLWARN)
     {
-      Warn("increase list %d -> %d in %s",li->nr,i,my_yylinebuf);
+      Warn("increase list %d -> %d in %s(%d):%s",li->nr,i,VoiceName(),VoiceLine(),my_yylinebuf);
     }
     li->m=(leftv)omreallocSize(li->m,(li->nr+1)*sizeof(sleftv),(i+1)*sizeof(sleftv));
     memset(&(li->m[li->nr+1]),0,(i-li->nr)*sizeof(sleftv));
@@ -1781,19 +1911,23 @@ static BOOLEAN jiAssign_list(leftv l, leftv r)
   &&*/(ld->e==NULL)
   && (ld->Typ()!=r->Typ()))
   {
+    ring old_r=jjCheck_FLAG_OTHER_RING(ld);
     tmp.rtyp=DEF_CMD;
+    tmp.flag=ld->flag;
     b=iiAssign(&tmp,r,FALSE);
-    ld->CleanUp();
+    ld->CleanUp(old_r);
     memcpy(ld,&tmp,sizeof(sleftv));
   }
   else if ((ld->e==NULL)
   && (ld->Typ()==r->Typ())
   && (ld->Typ()<MAX_TOK))
   {
+    ring old_r=jjCheck_FLAG_OTHER_RING(ld);
     tmp.rtyp=r->Typ();
+    tmp.flag=ld->flag;
     tmp.data=(char*)idrecDataInit(r->Typ());
     b=iiAssign(&tmp,r,FALSE);
-    ld->CleanUp();
+    ld->CleanUp(old_r);
     memcpy(ld,&tmp,sizeof(sleftv));
   }
   else
@@ -1834,7 +1968,8 @@ BOOLEAN iiAssign(leftv l, leftv r, BOOLEAN toplevel)
   int rl;
   int lt=l->Typ();
   int rt=NONE;
-  BOOLEAN b;
+  int is_qring=FALSE;
+  BOOLEAN b=FALSE;
   if (l->rtyp==ALIAS_CMD)
   {
     Werror("`%s` is read-only",l->Name());
@@ -1843,13 +1978,13 @@ BOOLEAN iiAssign(leftv l, leftv r, BOOLEAN toplevel)
   if (l->rtyp==IDHDL)
   {
     atKillAll((idhdl)l->data);
+    is_qring=hasFlag((idhdl)l->data,FLAG_QRING_DEF);
     IDFLAG((idhdl)l->data)=0;
     l->attribute=NULL;
     toplevel=FALSE;
   }
   else if (l->attribute!=NULL)
     atKillAll((idhdl)l);
-  l->flag=0;
   if (ll==1)
   {
     /* l[..] = ... */
@@ -1928,7 +2063,7 @@ BOOLEAN iiAssign(leftv l, leftv r, BOOLEAN toplevel)
       &&(lt!=INTMAT_CMD)
       &&((lt==rt)||(lt!=LIST_CMD)))
       {
-        b=jiAssign_1(l,r,toplevel);
+        b=jiAssign_1(l,r,rt,toplevel,is_qring);
         if (l->rtyp==IDHDL)
         {
           if ((lt==DEF_CMD)||(lt==LIST_CMD))
@@ -1953,7 +2088,7 @@ BOOLEAN iiAssign(leftv l, leftv r, BOOLEAN toplevel)
         &&(rt==RESOLUTION_CMD))
       )
       {
-        b=jiAssign_1(l,r,toplevel);
+        b=jiAssign_1(l,r,rt,toplevel);
         if((l->rtyp==IDHDL)&&(l->data!=NULL))
         {
           if ((lt==DEF_CMD) || (lt==LIST_CMD))
@@ -1999,21 +2134,20 @@ BOOLEAN iiAssign(leftv l, leftv r, BOOLEAN toplevel)
   }
 
   leftv hh=r;
-  BOOLEAN nok=FALSE;
   BOOLEAN map_assign=FALSE;
   switch (lt)
   {
     case INTVEC_CMD:
-      nok=jjA_L_INTVEC(l,r,new intvec(exprlist_length(r)));
+      b=jjA_L_INTVEC(l,r,new intvec(exprlist_length(r)));
       break;
     case INTMAT_CMD:
     {
-      nok=jjA_L_INTVEC(l,r,new intvec(IDINTVEC((idhdl)l->data)));
+      b=jjA_L_INTVEC(l,r,new intvec(IDINTVEC((idhdl)l->data)));
       break;
     }
     case BIGINTMAT_CMD:
     {
-      nok=jjA_L_BIGINTMAT(l, r, new bigintmat(IDBIMAT((idhdl)l->data)));
+      b=jjA_L_BIGINTMAT(l, r, new bigintmat(IDBIMAT((idhdl)l->data)));
       break;
     }
     case MAP_CMD:
@@ -2029,23 +2163,23 @@ BOOLEAN iiAssign(leftv l, leftv r, BOOLEAN toplevel)
       else
       {
         WerrorS("expected ring-name");
-        nok=TRUE;
+        b=TRUE;
         break;
       }
       if (hh==NULL) /* map-assign: map f=r; */
       {
         WerrorS("expected image ideal");
-        nok=TRUE;
+        b=TRUE;
         break;
       }
       if ((hh->next==NULL)&&(hh->Typ()==IDEAL_CMD))
       {
-        BOOLEAN bo=jiAssign_1(l,hh,toplevel); /* map-assign: map f=r,i; */
+        b=jiAssign_1(l,hh,IDEAL_CMD,toplevel); /* map-assign: map f=r,i; */
         omFreeBin(hh,sleftv_bin);
-        return bo;
+        return b;
       }
       //no break, handle the rest like an ideal:
-      map_assign=TRUE;
+      map_assign=TRUE; // and continue
     }
     case MATRIX_CMD:
     case IDEAL_CMD:
@@ -2053,11 +2187,11 @@ BOOLEAN iiAssign(leftv l, leftv r, BOOLEAN toplevel)
     {
       sleftv t;
       matrix olm = (matrix)l->Data();
-      int rk;
+      long rk;
       char *pr=((map)olm)->preimage;
       BOOLEAN module_assign=(/*l->Typ()*/ lt==MODUL_CMD);
       matrix lm ;
-      int  num;
+      long  num;
       int j,k;
       int i=0;
       int mtyp=MATRIX_CMD; /*Type of left side object*/
@@ -2099,34 +2233,34 @@ BOOLEAN iiAssign(leftv l, leftv r, BOOLEAN toplevel)
           ht=hh->Typ();
           if ((j=iiTestConvert(ht,etyp))!=0)
           {
-            nok=iiConvert(ht,etyp,j,hh,&t);
+            b=iiConvert(ht,etyp,j,hh,&t);
             hh->next=t.next;
-            if (nok)
+            if (b)
             { Werror("can not convert %s(%s) -> %s",Tok2Cmdname(ht),hh->Name(),Tok2Cmdname(etyp));
                break;
             }
             lm->m[i]=(poly)t.CopyD(etyp);
             pNormalize(lm->m[i]);
-            if (module_assign) rk=si_max(rk,(int)pMaxComp(lm->m[i]));
+            if (module_assign) rk=si_max(rk,pMaxComp(lm->m[i]));
             i++;
           }
           else
           if ((j=iiTestConvert(ht,mtyp))!=0)
           {
-            nok=iiConvert(ht,mtyp,j,hh,&t);
+            b=iiConvert(ht,mtyp,j,hh,&t);
             hh->next=t.next;
-            if (nok)
+            if (b)
             { Werror("can not convert %s(%s) -> %s",Tok2Cmdname(ht),hh->Name(),Tok2Cmdname(mtyp));
                break;
             }
             rm = (matrix)t.CopyD(mtyp);
             if (module_assign)
             {
-              j = si_min(num,rm->cols());
-              rk=si_max(rk,(int)rm->rank);
+              j = si_min((int)num,rm->cols());
+              rk=si_max(rk,rm->rank);
             }
             else
-              j = si_min(num-i,rm->rows() * rm->cols());
+              j = si_min(num-i,(long)rm->rows() * (long)rm->cols());
             for(k=0;k<j;k++,i++)
             {
               lm->m[i]=rm->m[k];
@@ -2137,10 +2271,8 @@ BOOLEAN iiAssign(leftv l, leftv r, BOOLEAN toplevel)
           }
           else
           {
-            nok=TRUE;
-            if (nok)
-            { Werror("can not convert %s(%s) -> %s",Tok2Cmdname(ht),hh->Name(),Tok2Cmdname(mtyp));
-            }
+            b=TRUE;
+            Werror("can not convert %s(%s) -> %s",Tok2Cmdname(ht),hh->Name(),Tok2Cmdname(mtyp));
             break;
           }
           t.next=NULL;t.CleanUp();
@@ -2148,7 +2280,7 @@ BOOLEAN iiAssign(leftv l, leftv r, BOOLEAN toplevel)
           hh=hh->next;
         }
       }
-      if (nok)
+      if (b)
         idDelete((ideal *)&lm);
       else
       {
@@ -2164,29 +2296,29 @@ BOOLEAN iiAssign(leftv l, leftv r, BOOLEAN toplevel)
       break;
     }
     case STRING_CMD:
-      nok=jjA_L_STRING(l,r);
+      b=jjA_L_STRING(l,r);
       break;
     //case DEF_CMD:
     case LIST_CMD:
-      nok=jjA_L_LIST(l,r);
+      b=jjA_L_LIST(l,r);
       break;
     case NONE:
     case 0:
       Werror("cannot assign to %s",l->Fullname());
-      nok=TRUE;
+      b=TRUE;
       break;
     default:
       WerrorS("assign not impl.");
-      nok=TRUE;
+      b=TRUE;
       break;
   } /* end switch: typ */
-  if (nok && (!errorreported)) WerrorS("incompatible type in list assignment");
+  if (b && (!errorreported)) WerrorS("incompatible type in list assignment");
   r->CleanUp();
-  return nok;
+  return b;
 }
 void jjNormalizeQRingId(leftv I)
 {
-  if ((currRing->qideal!=NULL) && (!hasFlag(I,FLAG_QRING)))
+  assume ((currRing->qideal!=NULL) && (!hasFlag(I,FLAG_QRING)));
   {
     if (I->e==NULL)
     {
@@ -2219,17 +2351,21 @@ void jjNormalizeQRingId(leftv I)
     }
   }
 }
-void jjNormalizeQRingP(poly &p)
+poly jj_NormalizeQRingP(poly p, const ring r)
 {
-  if((p!=NULL) && (currRing->qideal!=NULL))
+  if((p!=NULL) && (r->qideal!=NULL))
   {
+    ring save=currRing;
+    if (r!=currRing) rChangeCurrRing(r);
     ideal F=idInit(1,1);
-    poly p2=kNF(F,currRing->qideal,p);
-    pNormalize(p2);
-    idDelete(&F);
-    pDelete(&p);
+    poly p2=kNF(F,r->qideal,p);
+    p_Normalize(p2,r);
+    id_Delete(&F,r);
+    p_Delete(&p,r);
     p=p2;
+    if (r!=save) rChangeCurrRing(save);
   }
+  return p;
 }
 BOOLEAN jjIMPORTFROM(leftv, leftv u, leftv v)
 {

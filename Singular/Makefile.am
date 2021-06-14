@@ -1,12 +1,10 @@
 ACLOCAL_AMFLAGS = -I../m4
 
-GIT_VERSION := $(shell $(top_srcdir)/git-version-gen $(top_srcdir)/.tarball-git-version)
-
-AM_CPPFLAGS = -I${top_srcdir} -I${top_builddir} -I${top_srcdir}/kernel -I${top_builddir}/kernel -I${top_srcdir}/libpolys -I${top_builddir}/libpolys $(FACTORY_INCLUDES) $(CCLUSTER_CPPFLAGS)  $(GMP_CPPFLAGS) $(FLINT_CFLAGS) -DGIT_VERSION='"$(GIT_VERSION)"'
+AM_CPPFLAGS = -I${top_srcdir} -I${top_builddir} -I${top_srcdir}/kernel -I${top_builddir}/kernel -I${top_srcdir}/libpolys -I${top_builddir}/libpolys $(FACTORY_INCLUDES) $(CCLUSTER_CPPFLAGS)  $(GMP_CPPFLAGS) $(FLINT_CFLAGS)
 
 AM_CXXFLAGS=$(NTL_CPPFLAGS)
 
-all-local: feOpt.inc feOptTS.inc feOptES.inc iparith.inc all.lib gftables MOD ${abs_builddir}/LIB Singular$(EXEEXT) ESingular$(EXEEXT) TSingular$(EXEEXT)
+all-local: all.lib gftables MOD ${abs_builddir}/LIB Singular$(EXEEXT) ESingular$(EXEEXT) TSingular$(EXEEXT)
 
 if SING_WIN
 SUBDIRS = ${BUILTIN_MODULES} . dyn_modules
@@ -87,11 +85,12 @@ SingularHEADERS = \
    links/dbm_sl.h \
    distrib.h \
    eigenval_ip.h \
-   feOpt.h feOptTab.h fehelp.h \
+   feOpt.h feOptTab.h fehelp.h feOpt.inc feOptTS.inc feOptES.inc\
    fglm.h \
    gms.h \
    grammar.h \
    idrec.h \
+   iparith.inc \
    ipconv.h \
    ipid.h \
    ipprint.h \
@@ -141,24 +140,8 @@ libSingular_la_LIBADD     =${USEPPROCSDYNAMICLDFLAGS} ${USEPPROCSDYNAMICLD} ${BU
 libSingular_includedir = ${includedir}/singular/Singular
 nobase_libSingular_include_HEADERS = $(SingularHEADERS)
 
-#########################################################
-# handle all the generated *.inc
-
-noinst_PROGRAMS = gentable1 feOptGen feOptES feOptTS
-
-gentable1_SOURCES = gentable.cc grammar.h tok.h table.h
-gentable1_CPPFLAGS = ${AM_CPPFLAGS}
-
-feOptGen_SOURCES = feOptGen.cc feOptGen.h
-feOptGen_CPPFLAGS = ${AM_CPPFLAGS}
-
-feOptES_SOURCES = feOptGen.cc feOptGen.h
-feOptES_CPPFLAGS = ${AM_CPPFLAGS} -DESINGULAR
-
-feOptTS_SOURCES = feOptGen.cc feOptGen.h
-feOptTS_CPPFLAGS = ${AM_CPPFLAGS} -DTSINGULAR
-
 ########################### Singular* #########################
+dist_man1_MANS = Singular.man ESingular.man TSingular.man
 
 EXTRA_PROGRAMS =  libparse Singulard
 
@@ -171,7 +154,7 @@ Singular_SOURCES = tesths.cc fegetopt.c fegetopt.h utils.cc  utils.h
 
 Singular_LDADD = libSingular.la ${OMALLOC_LIBS} ${BUILTIN_FLAGS}
 
-Singular_LDFLAGS = -static ${AM_LDFLAGS} ${BUILTIN_FLAGS}
+Singular_LDFLAGS = ${AM_LDFLAGS} ${BUILTIN_FLAGS}
 
 Singulard_SOURCES = tesths.cc fegetopt.c fegetopt.h utils.cc  utils.h
 
@@ -184,7 +167,6 @@ dist_script_SCRIPTS = singularsurf singularsurf_jupyter singularsurf_win surfex
 
 #### ESingular
 ESingular_CPPFLAGS = ${AM_CPPFLAGS} -DESINGULAR -DPROTO
-# ESingular_LDFLAGS = -static ${AM_LDFLAGS}
 ESingular_LDADD =  ${top_builddir}/libpolys/reporter/libreporter.la \
 ${top_builddir}/libpolys/misc/libmisc.la ${OMALLOC_LIBS} \
 ${top_builddir}/resources/libsingular_resources.la
@@ -194,7 +176,6 @@ ESingular_SOURCES = emacs.cc fegetopt.c fegetopt.h feOptES.inc feOpt.cc
 
 #### same for TSingular
 TSingular_CPPFLAGS = ${AM_CPPFLAGS} -DTSINGULAR -DPROTO
-# TSingular_LDFLAGS = -static ${AM_LDFLAGS}
 TSingular_LDADD = ${top_builddir}/libpolys/reporter/libreporter.la \
 ${top_builddir}/libpolys/misc/libmisc.la ${OMALLOC_LIBS} \
 ${top_builddir}/resources/libsingular_resources.la
@@ -208,8 +189,8 @@ libparse_CPPFLAGS = ${AM_CPPFLAGS} -DSTANDALONE_PARSER
 
 libparse_SOURCES = libparse.cc fegetopt.c fegetopt.h utils.cc  utils.h
 
-libparse_LDADD = ${OMALLOC_LIBS}
-libparse_LDFLAGS = -static ${AM_LDFLAGS}
+libparse_LDADD =
+libparse_LDFLAGS = ${AM_LDFLAGS}
 
 #########################################################
 # the Singular library (*.lib files)
@@ -219,9 +200,9 @@ include ${srcdir}/singular-libs
 singularlibrarydir = ${datadir}/singular
 singularlibrary = $(SLIB0:%=LIB/%) $(SLIB1:%=LIB/%) $(PLIBS:%=LIB/%) $(SLIB2:%=LIB/%)
 nobase_dist_singularlibrary_DATA = LIB/tst.lib LIB/help.cnf ${singularlibrary}
-EXTRA_DIST = grammar.y libparse.ll make_alllib.sh LIB/all.lib.tmpl \
-             singular-libs LIB/help.cnf LIB/.singularrc LIB/COPYING \
-	     links/slInit_Dynamic.cc
+EXTRA_DIST = grammar.y libparse.ll make_alllib.sh make_grammar make_table \
+             LIB/all.lib.tmpl singular-libs LIB/help.cnf LIB/.singularrc \
+	     LIB/COPYING links/slInit_Dynamic.cc gentable.cc
 
 singularalllibrarydir = ${datadir}/singular/LIB
 singularalllibrary = all.lib
@@ -243,25 +224,13 @@ test_LDADD = libSingular.la
 
 #########################################################
 # These files are built first
-BUILT_SOURCES = feOpt.inc feOptTS.inc feOptES.inc iparith.inc all.lib gftables MOD
+BUILT_SOURCES = all.lib gftables MOD
 CLEANFILES = $(BUILT_SOURCES) $(EXTRA_PROGRAMS)
 
 clean-local:
 	if [ "${abs_builddir}" != "${abs_srcdir}" ]; then \
 	  if [ -L ${abs_builddir}/LIB ]; then unlink ${abs_builddir}/LIB; fi \
 	fi
-
-feOpt.inc: feOptGen$(EXEEXT)
-	${builddir}/feOptGen$(EXEEXT)
-
-feOptES.inc: feOptES$(EXEEXT)
-	${builddir}/feOptES$(EXEEXT)
-
-feOptTS.inc: feOptTS$(EXEEXT)
-	${builddir}/feOptTS$(EXEEXT)
-
-iparith.inc: gentable1$(EXEEXT) table.h
-	${builddir}/gentable1$(EXEEXT)
 
 # # fake rule to fix parallel make http://www.gnu.org/s/hello/manual/automake/Multiple-Outputs.html
 

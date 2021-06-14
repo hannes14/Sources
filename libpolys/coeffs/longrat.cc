@@ -62,10 +62,6 @@ BOOLEAN  nlIsMOne(number a, const coeffs r);
 long     nlInt(number &n, const coeffs r);
 number   nlBigInt(number &n);
 
-#ifdef HAVE_RINGS
-number nlMapGMP(number from, const coeffs src, const coeffs dst);
-#endif
-
 BOOLEAN  nlGreaterZero(number za, const coeffs r);
 number   nlInvers(number a, const coeffs r);
 number   nlDiv(number a, number b, const coeffs r);
@@ -76,7 +72,6 @@ void     nlPower(number x, int exp, number *lu, const coeffs r);
 const char *   nlRead (const char *s, number *a, const coeffs r);
 void     nlWrite(number a, const coeffs r);
 
-void     nlCoeffWrite(const coeffs r, BOOLEAN details);
 number   nlFarey(number nN, number nP, const coeffs CF);
 
 #ifdef LDEBUG
@@ -166,6 +161,17 @@ number nlShort3_noinline(number x) // assume x->s==3
   return nlShort3(x);
 }
 
+static number nlInitMPZ(mpz_t m, const coeffs)
+{
+  number z = ALLOC_RNUMBER();
+  z->s = 3;
+  #ifdef LDEBUG
+  z->debug=123456;
+  #endif
+  mpz_init_set(z->z, m);
+  z=nlShort3(z);
+  return z;
+}
 
 #if (__GNU_MP_VERSION*10+__GNU_MP_VERSION_MINOR < 31)
 void mpz_mul_si (mpz_ptr r, mpz_srcptr s, long int si)
@@ -197,16 +203,9 @@ static number nlMapR(number from, const coeffs src, const coeffs dst);
 /*2
 * convert from a GMP integer
 */
-number nlMapGMP(number from, const coeffs /*src*/, const coeffs /*dst*/)
+static inline number nlMapGMP(number from, const coeffs /*src*/, const coeffs dst)
 {
-  number z=ALLOC_RNUMBER();
-#if defined(LDEBUG)
-  z->debug=123456;
-#endif
-  mpz_init_set(z->z,(mpz_ptr) from);
-  z->s = 3;
-  z=nlShort3(z);
-  return z;
+  return nlInitMPZ((mpz_ptr)from,dst);
 }
 
 number nlMapZ(number from, const coeffs src, const coeffs dst)
@@ -215,7 +214,7 @@ number nlMapZ(number from, const coeffs src, const coeffs dst)
   {
     return from;
   }
-  return nlMapGMP(from,src,dst);
+  return nlInitMPZ((mpz_ptr)from,dst);
 }
 
 /*2
@@ -429,6 +428,108 @@ static number nlMapLongR(number from, const coeffs src, const coeffs dst)
 
   gmp_float *ff=(gmp_float*)from;
   mpf_t *f=ff->_mpfp();
+  number res;
+  mpz_ptr dest,ndest;
+  int size, i,negative;
+  int e,al,bl;
+  mp_ptr qp,dd,nn;
+
+  size = (*f)[0]._mp_size;
+  if (size == 0)
+    return INT_TO_SR(0);
+  if(size<0)
+  {
+    negative = 1;
+    size = -size;
+  }
+  else
+    negative = 0;
+
+  qp = (*f)[0]._mp_d;
+  while(qp[0]==0)
+  {
+    qp++;
+    size--;
+  }
+
+  e=(*f)[0]._mp_exp-size;
+  res = ALLOC_RNUMBER();
+#if defined(LDEBUG)
+  res->debug=123456;
+#endif
+  dest = res->z;
+
+  void* (*allocfunc) (size_t);
+  mp_get_memory_functions (&allocfunc,NULL, NULL);
+  if (e<0)
+  {
+    al = dest->_mp_size = size;
+    if (al<2) al = 2;
+    dd = (mp_ptr)allocfunc(sizeof(mp_limb_t)*al);
+    for (i=0;i<size;i++) dd[i] = qp[i];
+    bl = 1-e;
+    nn = (mp_ptr)allocfunc(sizeof(mp_limb_t)*bl);
+    memset(nn,0,sizeof(mp_limb_t)*bl);
+    nn[bl-1] = 1;
+    ndest = res->n;
+    ndest->_mp_d = nn;
+    ndest->_mp_alloc = ndest->_mp_size = bl;
+    res->s = 0;
+  }
+  else
+  {
+    al = dest->_mp_size = size+e;
+    if (al<2) al = 2;
+    dd = (mp_ptr)allocfunc(sizeof(mp_limb_t)*al);
+    memset(dd,0,sizeof(mp_limb_t)*al);
+    for (i=0;i<size;i++) dd[i+e] = qp[i];
+    for (i=0;i<e;i++) dd[i] = 0;
+    res->s = 3;
+  }
+
+  dest->_mp_d = dd;
+  dest->_mp_alloc = al;
+  if (negative) mpz_neg(dest,dest);
+
+  if (res->s==0)
+    nlNormalize(res,dst);
+  else if (mpz_size1(res->z)<=MP_SMALL)
+  {
+    // res is new, res->ref is 1
+    res=nlShort3(res);
+  }
+  nlTest(res, dst);
+  return res;
+}
+
+
+static number nlMapC(number from, const coeffs src, const coeffs dst)
+{
+  assume( getCoeffType(src) == n_long_C );
+  if ( ! ((gmp_complex*)from)->imag().isZero() )
+    return INT_TO_SR(0);
+
+  if (dst->is_field==FALSE) /* ->ZZ */
+  {
+    char *s=floatToStr(((gmp_complex*)from)->real(),src->float_len);
+    mpz_t z;
+    mpz_init(z);
+    char *ss=nEatLong(s,z);
+    if (*ss=='\0')
+    {
+      omFree(s);
+      number n=nlInitMPZ(z,dst);
+      mpz_clear(z);
+      return n;
+    }
+    omFree(s);
+    mpz_clear(z);
+    WarnS("conversion problem in CC -> ZZ mapping");
+    return INT_TO_SR(0);
+  }
+      
+  mpf_t *f = ((gmp_complex*)from)->real()._mpfp();
+
   number res;
   mpz_ptr dest,ndest;
   int size, i,negative;
@@ -2363,6 +2464,10 @@ nMapFunc nlSetMap(const coeffs src, const coeffs dst)
   {
     return nlMapLongR; /* long R -> Q */
   }
+  if (nCoeff_is_long_C(src))
+  {
+    return nlMapC; /* C -> Q */
+  }
 #ifdef HAVE_RINGS
   if (src->rep==n_rep_gmp) // nCoeff_is_Z(src) || nCoeff_is_Ring_PtoM(src) || nCoeff_is_Zn(src))
   {
@@ -2680,18 +2785,6 @@ void nlMPZ(mpz_t m, number &n, const coeffs r)
 }
 
 
-static number nlInitMPZ(mpz_t m, const coeffs)
-{
-  number z = ALLOC_RNUMBER();
-  z->s = 3;
-  #ifdef LDEBUG
-  z->debug=123456;
-  #endif
-  mpz_init_set(z->z, m);
-  z=nlShort3(z);
-  return z;
-}
-
 number  nlXExtGcd (number a, number b, number *s, number *t, number *u, number *v, const coeffs r)
 {
   if (SR_HDL(a) & SR_HDL(b) & SR_INT)
@@ -2868,8 +2961,8 @@ number nlFarey(number nN, number nP, const coeffs r)
          #ifdef LDEBUG
          z->debug=123456;
          #endif
-         mpz_init_set(z->z,N);
-         mpz_init_set(z->n,B);
+         memcpy(z->z,N,sizeof(mpz_t));
+         memcpy(z->n,B,sizeof(mpz_t));
          z->s = 0;
          nlNormalize(z,r);
        }
@@ -2877,6 +2970,8 @@ number nlFarey(number nN, number nP, const coeffs r)
        {
          // return nN (the input) instead of "fail"
          z=nlCopy(nN,r);
+         mpz_clear(B);
+         mpz_clear(N);
        }
        break;
     }
@@ -2892,11 +2987,9 @@ number nlFarey(number nN, number nP, const coeffs r)
   }
   mpz_clear(tmp);
   mpz_clear(A);
-  mpz_clear(B);
   mpz_clear(C);
   mpz_clear(D);
   mpz_clear(E);
-  mpz_clear(N);
   mpz_clear(P);
   return z;
 }
@@ -2950,13 +3043,11 @@ number nlExtGcd(number a, number b, number *s, number *t, const coeffs)
   return g;
 }
 
-void    nlCoeffWrite  (const coeffs r, BOOLEAN /*details*/)
-{
-  if (r->is_field)
-  PrintS("QQ");
-  else
-  PrintS("ZZ");
-}
+//void    nlCoeffWrite  (const coeffs r, BOOLEAN /*details*/)
+//{
+//  if (r->is_field)  PrintS("QQ");
+//  else  PrintS("ZZ");
+//}
 
 VAR int n_SwitchChinRem=0;
 number   nlChineseRemainderSym(number *x, number *q,int rl, BOOLEAN sym, CFArray &inv_cache,const coeffs CF)
@@ -3194,13 +3285,6 @@ char * nlCoeffName(const coeffs r)
   else                 return (char*)"ZZ";
 }
 
-static char* nlCoeffString(const coeffs r)
-{
-  //return omStrDup(nlCoeffName(r));
-  if (r->cfDiv==nlDiv) return omStrDup("QQ");
-  else                 return omStrDup("ZZ");
-}
-
 void nlWriteFd(number n, const ssiInfo* d, const coeffs)
 {
   if(SR_HDL(n) & SR_INT)
@@ -3353,7 +3437,7 @@ BOOLEAN nlInitChar(coeffs r, void*p)
 
   r->nCoeffIsEqual=nlCoeffIsEqual;
   //r->cfKillChar = ndKillChar; /* dummy */
-  r->cfCoeffString=nlCoeffString;
+  //r->cfCoeffString=nlCoeffString;
   r->cfCoeffName=nlCoeffName;
 
   r->cfInitMPZ = nlInitMPZ;
@@ -3415,7 +3499,7 @@ BOOLEAN nlInitChar(coeffs r, void*p)
   //r->cfName = ndName;
   r->cfInpMult=nlInpMult;
   r->cfInpAdd=nlInpAdd;
-  r->cfCoeffWrite=nlCoeffWrite;
+  //r->cfCoeffWrite=nlCoeffWrite;
 
   r->cfClearContent = nlClearContent;
   r->cfClearDenominators = nlClearDenominators;

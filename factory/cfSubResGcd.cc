@@ -49,6 +49,7 @@ subResGCD_p( const CanonicalForm & f, const CanonicalForm & g )
       pi1 = pi1 / Ci1;
     }
     C = gcd( Ci, Ci1 );
+    #ifdef HAVE_NTL // gcd_test_one, primitiveElement
     int d= 0;
     if ( !( pi.isUnivariate() && pi1.isUnivariate() ) )
     {
@@ -61,6 +62,7 @@ subResGCD_p( const CanonicalForm & f, const CanonicalForm & g )
         bpure = false;
     }
     else
+    #endif
     {
         bpure = isPurePoly(pi) && isPurePoly(pi1);
 #ifdef HAVE_FLINT
@@ -179,7 +181,6 @@ subResGCD_0( const CanonicalForm & f, const CanonicalForm & g )
     Ci = content( pi ); Ci1 = content( pi1 );
     pi1 = pi1 / Ci1; pi = pi / Ci;
     C = gcd( Ci, Ci1 );
-    int d= 0;
     if ( pi.isUnivariate() && pi1.isUnivariate() )
     {
 #ifdef HAVE_FLINT
@@ -195,8 +196,13 @@ subResGCD_0( const CanonicalForm & f, const CanonicalForm & g )
         return gcd_poly_univar0( pi, pi1, true ) * C;
 #endif
     }
+    #ifdef HAVE__NTL // gcd_test_one, primitievElement
     else if ( gcd_test_one( pi1, pi, true, d ) )
       return C;
+    #else
+    else if (gcd(pi1,pi)==1)
+      return C;
+    #endif
     Variable v = f.mvar();
     Hi = power( LC( pi1, v ), delta );
     if ( (delta+1) % 2 )

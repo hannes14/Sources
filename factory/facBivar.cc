@@ -15,6 +15,7 @@
 
 
 #include "cf_assert.h"
+#include "cf_util.h"
 #include "debug.h"
 #include "timing.h"
 
@@ -25,7 +26,6 @@
 #include "facMul.h"
 #include "cf_primes.h"
 
-#ifdef HAVE_NTL
 TIMING_DEFINE_PRINT(fac_uni_factorizer)
 TIMING_DEFINE_PRINT(fac_bi_hensel_lift)
 TIMING_DEFINE_PRINT(fac_bi_factor_recombination)
@@ -184,6 +184,7 @@ CanonicalForm evalPoint (const CanonicalForm& F, int& i)
   } while (1);
 }
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // henselLiftAndEarly
 CFList biFactorize (const CanonicalForm& F, const Variable& v)
 {
   if (F.inCoeffDomain())
@@ -525,11 +526,36 @@ CFList biFactorize (const CanonicalForm& F, const Variable& v)
     A /= Lc (Aeval);
     mipoHasDen= !bCommonDen(mipo).isOne();
     mipo *= bCommonDen (mipo);
+    #ifdef HAVE_FLINT
+    // init
+    fmpz_t FLINTf,FLINTD;
+    fmpz_init(FLINTf);
+    fmpz_init(FLINTD);
+    fmpz_poly_t FLINTmipo;
+    fmpz_poly_t FLINTLcf;
+    //conversion
+    convertFacCF2Fmpz_poly_t(FLINTmipo,mipo);
+    convertFacCF2Fmpz_poly_t(FLINTLcf,Lc (A*bCommonDen (A)));
+    // resultant, discriminant
+    fmpz_poly_resultant(FLINTf,FLINTmipo,FLINTLcf);
+    fmpz_poly_discriminant(FLINTD,FLINTmipo);
+    fmpz_mul(FLINTf,FLINTD,FLINTf);
+    // conversion
+    den= abs (convertFmpz2CF(FLINTf));
+    // clean up
+    fmpz_clear(FLINTf);
+    // FLINTD is used below
+    fmpz_poly_clear(FLINTLcf);
+    fmpz_poly_clear(FLINTmipo);
+    #elif defined(HAVE_NTL)
     ZZX NTLmipo= convertFacCF2NTLZZX (mipo);
     ZZX NTLLcf= convertFacCF2NTLZZX (Lc (A*bCommonDen (A)));
     ZZ NTLf= resultant (NTLmipo, NTLLcf);
     ZZ NTLD= discriminant (NTLmipo);
     den= abs (convertZZ2CF (NTLD*NTLf));
+    #else
+    factoryError("NTL/FLINT missing: biFactorize");
+    #endif
 
     // make factors elements of Z(a)[x] disable for modularDiophant
     CanonicalForm multiplier= 1;
@@ -543,7 +569,14 @@ CFList biFactorize (const CanonicalForm& F, const Variable& v)
 
     Off (SW_RATIONAL);
     int i= 0;
+    #ifdef HAVE_FLINT
+    CanonicalForm discMipo= convertFmpz2CF(FLINTD);
+    fmpz_clear(FLINTD);
+    #elif defined(HAVE_NTL)
     CanonicalForm discMipo= convertZZ2CF (NTLD);
+    #else
+    factoryError("NTL/FLINT missing: biFactorize");
+    #endif
     findGoodPrime (F*discMipo,i);
     findGoodPrime (Aeval*discMipo,i);
     findGoodPrime (A*discMipo,i);
@@ -579,7 +612,7 @@ CFList biFactorize (const CanonicalForm& F, const Variable& v)
         break;
     for (CFListIterator iter= uniFactors; iter.hasItem(); iter++)
       iter.getItem()= replacevar (iter.getItem(), vv, v);
-    prune (vv);
+    //prune (vv);
   }
 
   On (SW_RATIONAL);
@@ -606,5 +639,5 @@ CFList biFactorize (const CanonicalForm& F, const Variable& v)
 
   return factors;
 }
-
 #endif
+

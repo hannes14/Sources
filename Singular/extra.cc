@@ -43,12 +43,6 @@
 // #include "coeffs/ffields.h"
 #include "coeffs/coeffs.h"
 #include "coeffs/mpr_complex.h"
-#include "coeffs/AE.h"
-// #include "coeffs/OPAE.h"
-#include "coeffs/AEp.h"
-// #include "coeffs/OPAEp.h"
-#include "coeffs/AEQ.h"
-// #include "coeffs/OPAEQ.h"
 
 
 #include "resources/feResource.h"
@@ -72,6 +66,7 @@
 #include "kernel/GBEngine/kstd1.h"
 #include "kernel/GBEngine/syz.h"
 #include "kernel/GBEngine/kutil.h"
+#include "kernel/GBEngine/kverify.h"
 
 #include "kernel/linear_algebra/linearAlgebra.h"
 
@@ -408,6 +403,31 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
 
       HilbertSeries_OrbitData(i, lV, ig, mgrad, autop, trunDegHs);
       return(FALSE);
+    }
+    else
+/* ====== verify ============================*/
+    if(strcmp(sys_cmd,"verifyGB")==0)
+    {
+      if (rIsNCRing(currRing))
+      {
+        WerrorS("system(\"verifyGB\",<ideal>,..) expects a commutative ring");
+        return TRUE;
+      }
+      if (h->Typ()!=IDEAL_CMD)
+      {
+        WerrorS("expected system(\"verifyGB\",<ideal>,..)");
+        return TRUE;
+      }
+      ideal F=(ideal)h->Data();
+      #ifdef HAVE_VSPACE
+      int cpus = (long) feOptValue(FE_OPT_CPUS);
+      if (cpus>1)
+        res->data=(char*)(long) kVerify2(F,currRing->qideal);
+      else
+      #endif
+        res->data=(char*)(long) kVerify1(F,currRing->qideal);
+      res->rtyp=INT_CMD;
+      return FALSE;
     }
     else
 /*===== rcolon ===============================================*/
@@ -995,7 +1015,7 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
     }
     else
   /*================= absBiFact ======================*/
-    #ifdef HAVE_NTL
+    #if defined(HAVE_FLINT) || defined(HAVE_NTL)
     if (strcmp(sys_cmd, "absFact") == 0)
     {
       const short t[]={1,POLY_CMD};
@@ -2245,10 +2265,6 @@ BOOLEAN jjSYSTEM(leftv res, leftv args)
 #  ifdef HAVE_NEWTON
 #    include "hc_newton.h"
 #  endif
-#  include "polys/mod_raw.h"
-#  include "polys/monomials/ring.h"
-#  include "kernel/GBEngine/shiftgb.h"
-#  include "kernel/GBEngine/kutil.h"
 
 static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
 {
@@ -2316,7 +2332,7 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
 
           /* == now the work starts == */
 
-          short * iv=iv2array(v, currRing);
+          int * iv=iv2array(v, currRing);
           poly r=0;
           poly hp=ppJetW(f,n,iv);
           int s=MATCOLS(m);
@@ -2826,79 +2842,8 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
        }
        else
   #endif
-
-
-  /*==================== DLL =================*/
-  #ifdef __CYGWIN__
-  #ifdef HAVE_DL
-  /* testing the DLL functionality under Win32 */
-        if (strcmp(sys_cmd, "DLL") == 0)
-        {
-          typedef void  (*Void_Func)();
-          typedef int  (*Int_Func)(int);
-          void *hh=dynl_open("WinDllTest.dll");
-          if ((h!=NULL) && (h->Typ()==INT_CMD))
-          {
-            int (*f)(int);
-            if (hh!=NULL)
-            {
-              int (*f)(int);
-              f=(Int_Func)dynl_sym(hh,"PlusDll");
-              int i=10;
-              if (f!=NULL) printf("%d\n",f(i));
-              else PrintS("cannot find PlusDll\n");
-            }
-          }
-          else
-          {
-            void (*f)();
-            f= (Void_Func)dynl_sym(hh,"TestDll");
-            if (f!=NULL) f();
-            else PrintS("cannot find TestDll\n");
-          }
-          return FALSE;
-        }
-        else
-  #endif
-  #endif
-  #ifdef HAVE_RING2TOM
-  /*==================== ring-GB ==================================*/
-      if (strcmp(sys_cmd, "findZeroPoly")==0)
-      {
-        ring r = currRing;
-        poly f = (poly) h->Data();
-        res->rtyp=POLY_CMD;
-        res->data=(poly) kFindZeroPoly(f, r, r);
-        return(FALSE);
-      }
-      else
-  /*==================== Creating zero polynomials =================*/
-  #ifdef HAVE_VANIDEAL
-      if (strcmp(sys_cmd, "createG0")==0)
-      {
-        /* long exp[50];
-        int N = 0;
-        while (h != NULL)
-        {
-          N += 1;
-          exp[N] = (long) h->Data();
-          // if (exp[i] % 2 != 0) exp[i] -= 1;
-          h = h->next;
-        }
-        for (int k = 1; N + k <= currRing->N; k++) exp[k] = 0;
-
-        poly t_p;
-        res->rtyp=POLY_CMD;
-        res->data= (poly) kCreateZeroPoly(exp, -1, &t_p, currRing, currRing);
-        return(FALSE); */
-
-        res->rtyp = IDEAL_CMD;
-        res->data = (ideal) createG0();
-        return(FALSE);
-      }
-      else
-  #endif
   /*==================== redNF_ring =================*/
+  #ifdef HAVE_RINGS
       if (strcmp(sys_cmd, "redNF_ring")==0)
       {
         ring r = currRing;
@@ -3246,15 +3191,16 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
       {
         if (h==NULL)
         {
-	#if 0
-	  Print("FLINT_P:%d (use Flints gcd for polynomials in char p)\n",isOn(SW_USE_FL_GCD_P));
-	  Print("FLINT_0:%d (use Flints gcd for polynomials in char 0)\n",isOn(SW_USE_FL_GCD_0));
-	#endif
+        #if 0
+          Print("FLINT_P:%d (use Flints gcd for polynomials in char p)\n",isOn(SW_USE_FL_GCD_P));
+          Print("FLINT_0:%d (use Flints gcd for polynomials in char 0)\n",isOn(SW_USE_FL_GCD_0));
+        #endif
           Print("EZGCD:%d (use EZGCD for gcd of polynomials in char 0)\n",isOn(SW_USE_EZGCD));
           Print("EZGCD_P:%d (use EZGCD_P for gcd of polynomials in char p)\n",isOn(SW_USE_EZGCD_P));
           Print("CRGCD:%d (use chinese Remainder for gcd of polynomials in char 0)\n",isOn(SW_USE_CHINREM_GCD));
-          Print("QGCD:%d (use QGCD for gcd of polynomials in alg. ext.)\n",isOn(SW_USE_QGCD));
+          #ifndef __CYGWIN__
           Print("homog:%d (use homog. test for factorization of polynomials)\n",singular_homog_flag);
+          #endif
           return FALSE;
         }
         else
@@ -3263,15 +3209,16 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
         {
           int d=(int)(long)h->next->Data();
           char *s=(char *)h->Data();
-	#if 0
+        #if 0
           if (strcmp(s,"FLINT_P")==0) { if (d) On(SW_USE_FL_GCD_P); else Off(SW_USE_FL_GCD_P); } else
           if (strcmp(s,"FLINT_0")==0) { if (d) On(SW_USE_FL_GCD_0); else Off(SW_USE_FL_GCD_0); } else
-	#endif  
+        #endif  
           if (strcmp(s,"EZGCD")==0) { if (d) On(SW_USE_EZGCD); else Off(SW_USE_EZGCD); } else
           if (strcmp(s,"EZGCD_P")==0) { if (d) On(SW_USE_EZGCD_P); else Off(SW_USE_EZGCD_P); } else
           if (strcmp(s,"CRGCD")==0) { if (d) On(SW_USE_CHINREM_GCD); else Off(SW_USE_CHINREM_GCD); } else
-          if (strcmp(s,"QGCD")==0) { if (d) On(SW_USE_QGCD); else Off(SW_USE_QGCD); } else
+          #ifndef __CYGWIN__
           if (strcmp(s,"homog")==0) { if (d) singular_homog_flag=1; else singular_homog_flag=0; } else
+          #endif
           return TRUE;
           return FALSE;
         }
@@ -3788,9 +3735,10 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
           // convert first arg. to fmpq_poly_t
           fmpq_poly_t fre, fim;
           convSingPFlintP(fre,(poly)h->Data(),currRing); h=h->next;
-      if (pol_with_complex_coeffs==1) { // convert second arg. to fmpq_poly_t
-          convSingPFlintP(fim,(poly)h->Data(),currRing); h=h->next;
-      }
+          if (pol_with_complex_coeffs==1)
+          { // convert second arg. to fmpq_poly_t
+            convSingPFlintP(fim,(poly)h->Data(),currRing); h=h->next;
+          }
           // convert box-center(re,im), box-size, epsilon
           fmpq_t center_re,center_im,boxsize,eps;
           convSingNFlintN(center_re,(number)h->Data(),currRing->cf); h=h->next;
@@ -3850,6 +3798,32 @@ static BOOLEAN jjEXTENDED_SYSTEM(leftv res, leftv h)
     }
     else
 #endif
+/* ====== maEvalAt ============================*/
+    if(strcmp(sys_cmd,"evaluate")==0)
+    {
+      extern number maEvalAt(const poly p,const number* pt, const ring r);
+      if (h->Typ()!=POLY_CMD)
+      {
+        WerrorS("expected system(\"evaluate\",<poly>,..)");
+        return TRUE;
+      }
+      poly p=(poly)h->Data();
+      number *pt=(number*)omAlloc(sizeof(number)*currRing->N);
+      for(int i=0;i<currRing->N;i++)
+      {
+        h=h->next;
+        if ((h==NULL)||(h->Typ()!=NUMBER_CMD))
+        {
+          WerrorS("system(\"evaluate\",<poly>,<number>..) - expect number");
+          return TRUE;
+        }
+        pt[i]=(number)h->Data();
+      }
+      res->data=maEvalAt(p,pt,currRing);
+      res->rtyp=NUMBER_CMD;
+      return FALSE;
+    }
+    else
 /*==================== Error =================*/
       Werror( "(extended) system(\"%s\",...) %s", sys_cmd, feNotImplemented );
   }

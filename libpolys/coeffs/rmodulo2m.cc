@@ -69,11 +69,6 @@ static char* nr2mCoeffName(const coeffs cf)
   return n2mCoeffName_buf;
 }
 
-static void    nr2mCoeffWrite  (const coeffs r, BOOLEAN /*details*/)
-{
-  PrintS(nr2mCoeffName(r));
-}
-
 static BOOLEAN nr2mCoeffIsEqual(const coeffs r, n_coeffType n, void * p)
 {
   if (n==n_Z2m)
@@ -83,11 +78,6 @@ static BOOLEAN nr2mCoeffIsEqual(const coeffs r, n_coeffType n, void * p)
     if (((mm+1)>>m)==1L) return TRUE;
   }
   return FALSE;
-}
-
-static char* nr2mCoeffString(const coeffs r)
-{
-  return omStrDup(nr2mCoeffName(r));
 }
 
 static coeffs nr2mQuot1(number c, const coeffs r)
@@ -421,7 +411,12 @@ static number nr2mDiv(number a, number b, const coeffs r)
         b = (number)((unsigned long)b / 2);
       }
     }
-    if ((unsigned long)b % 2 == 0)
+    if ((long)b==0L)
+    {
+      WerrorS(nDivBy0);
+      return (number)0L;
+    }
+    else if ((unsigned long)b % 2 == 0)
     {
       WerrorS("Division not possible, even by cancelling zero divisors.");
       WerrorS("Result is integer division without remainder.");
@@ -644,8 +639,7 @@ static number nr2mMapGMP(number from, const coeffs /*src*/, const coeffs dst)
 static number nr2mMapQ(number from, const coeffs src, const coeffs dst)
 {
   mpz_ptr gmp = (mpz_ptr)omAllocBin(gmp_nrz_bin);
-  mpz_init(gmp);
-  nlGMP(from, gmp, src); // FIXME? TODO? // extern void   nlGMP(number &i, number n, const coeffs r); // to be replaced with n_MPZ(erg, from, src); // ?
+  nlMPZ(gmp, from, src);
   number res=nr2mMapGMP((number)gmp,src,dst);
   mpz_clear(gmp); omFree((ADDRESS)gmp);
   return res;
@@ -663,11 +657,6 @@ static number nr2mMapZ(number from, const coeffs src, const coeffs dst)
 
 static nMapFunc nr2mSetMap(const coeffs src, const coeffs dst)
 {
-  if ((src->rep==n_rep_int) && nCoeff_is_Ring_2toM(src)
-     && (src->mod2mMask == dst->mod2mMask))
-  {
-    return ndCopyMap;
-  }
   if ((src->rep==n_rep_int) && nCoeff_is_Ring_2toM(src)
      && (src->mod2mMask < dst->mod2mMask))
   { /* i.e. map an integer mod 2^s into Z mod 2^t, where t < s */
@@ -788,7 +777,6 @@ BOOLEAN nr2mInitChar (coeffs r, void* p)
 
   //r->cfKillChar    = ndKillChar; /* dummy*/
   r->nCoeffIsEqual = nr2mCoeffIsEqual;
-  r->cfCoeffString = nr2mCoeffString;
 
   r->modBase = (mpz_ptr) omAllocBin (gmp_nrz_bin);
   mpz_init_set_si (r->modBase, 2L);
@@ -829,7 +817,6 @@ BOOLEAN nr2mInitChar (coeffs r, void* p)
   r->cfIsUnit      = nr2mIsUnit;
   r->cfGetUnit     = nr2mGetUnit;
   r->cfExtGcd      = nr2mExtGcd;
-  r->cfCoeffWrite  = nr2mCoeffWrite;
   r->cfCoeffName   = nr2mCoeffName;
   r->cfQuot1       = nr2mQuot1;
 #ifdef LDEBUG

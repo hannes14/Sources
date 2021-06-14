@@ -21,10 +21,8 @@
 #include "factory/factory.h"
 #include "coeffs/si_gmp.h"
 #include "coeffs/coeffs.h"
-#include "coeffs/OPAE.h"
-#include "coeffs/OPAEQ.h"
-#include "coeffs/OPAEp.h"
 #include "coeffs/flintcf_Q.h"
+#include "coeffs/flintcf_Qrat.h"
 #include "coeffs/flintcf_Zn.h"
 #include "coeffs/rmodulon.h"
 #include "polys/ext_fields/algext.h"
@@ -415,10 +413,6 @@ lists primeFactorisation(const number n, const int pBound)
   return L;
 }
 
-#ifdef HAVE_STATIC
-#undef HAVE_DYN_RL
-#endif
-
 //#ifdef HAVE_LIBPARSER
 //#  include "libparse.h"
 //#endif /* HAVE_LIBPARSER */
@@ -528,13 +522,14 @@ const struct soptionStruct optionStruct[]=
   {"sugarCrit",    Sy_bit(OPT_SUGARCRIT),      ~Sy_bit(OPT_SUGARCRIT)   },
   {"teach",        Sy_bit(OPT_DEBUG),          ~Sy_bit(OPT_DEBUG)  },
   {"notSyzMinim",  Sy_bit(OPT_NO_SYZ_MINIM),   ~Sy_bit(OPT_NO_SYZ_MINIM)  },
-  /* 9 return SB in syz, quotient, intersect */
+  /* 9 return SB in syz, quotient, intersect, modulo */
   {"returnSB",     Sy_bit(OPT_RETURN_SB),      ~Sy_bit(OPT_RETURN_SB)  },
   {"fastHC",       Sy_bit(OPT_FASTHC),         ~Sy_bit(OPT_FASTHC)  },
   /* 11-19 sort in L/T */
   {"staircaseBound",Sy_bit(OPT_STAIRCASEBOUND),~Sy_bit(OPT_STAIRCASEBOUND)  },
   {"multBound",    Sy_bit(OPT_MULTBOUND),      ~Sy_bit(OPT_MULTBOUND)  },
   {"degBound",     Sy_bit(OPT_DEGBOUND),       ~Sy_bit(OPT_DEGBOUND)  },
+  {"redTailSyz",   Sy_bit(OPT_REDTAIL_SYZ),    ~Sy_bit(OPT_REDTAIL_SYZ) },
   /* 25 no redTail(p)/redTail(s) */
   {"redTail",      Sy_bit(OPT_REDTAIL),        ~Sy_bit(OPT_REDTAIL)  },
   {"redThrough",   Sy_bit(OPT_REDTHROUGH),     ~Sy_bit(OPT_REDTHROUGH)  },
@@ -713,7 +708,6 @@ BOOLEAN setOption(leftv res, leftv v)
   } while (v!=NULL);
 
    // set global variable to show memory usage
-  extern int om_sing_opt_show_mem;
   if (BVERBOSE(V_SHOW_MEM)) om_sing_opt_show_mem = 1;
   else om_sing_opt_show_mem = 0;
 
@@ -784,13 +778,13 @@ const char *singular_date=__DATE__ " " __TIME__;
 char * versionString(/*const bool bShowDetails = false*/ )
 {
   StringSetS("");
-  StringAppend("Singular for %s version %s (%d, %d bit) %s #%s",
+  StringAppend("Singular for %s version %s (%d, %d bit) %s",
                S_UNAME, VERSION, // SINGULAR_VERSION,
                SINGULAR_VERSION, sizeof(void*)*8,
 #ifdef MAKE_DISTRIBUTION
-               VERSION_DATE, GIT_VERSION);
+               VERSION_DATE);
 #else
-               singular_date, GIT_VERSION);
+               singular_date);
 #endif
   StringAppendS("\nwith\n\t");
 
@@ -806,9 +800,10 @@ char * versionString(/*const bool bShowDetails = false*/ )
 #endif
 
 #ifdef HAVE_FLINT
-              StringAppend("FLINT(%s),",version);
+              StringAppend("FLINT(%s),",FLINT_VERSION);
 #endif
-              StringAppendS("factory(" FACTORYVERSION "),\n\t");
+//              StringAppendS("factory(" FACTORYVERSION "),");
+              StringAppendS("\n\t");
 #ifndef HAVE_OMALLOC
               StringAppendS("xalloc,");
 #else
@@ -841,6 +836,9 @@ char * versionString(/*const bool bShowDetails = false*/ )
 #ifdef HAVE_PLURAL
               StringAppendS("Plural,");
 #endif
+#ifdef HAVE_VSPACE
+              StringAppendS("vspace,");
+#endif
 #ifdef HAVE_DBM
               StringAppendS("DBM,\n\t");
 #else
@@ -849,7 +847,9 @@ char * versionString(/*const bool bShowDetails = false*/ )
 #ifdef HAVE_DYNAMIC_LOADING
               StringAppendS("dynamic modules,");
 #endif
-              if (p_procs_dynamic) StringAppendS("dynamic p_Procs,");
+#ifdef HAVE_DYNANIC_PPROCS
+              StringAppendS("dynamic p_Procs,");
+#endif
 #if YYDEBUG
               StringAppendS("YYDEBUG=1,");
 #endif
@@ -926,8 +926,8 @@ char * versionString(/*const bool bShowDetails = false*/ )
               "(ver: " __VERSION__ ")"
 #endif
               "\n",AC_CONFIGURE_ARGS, CC,CFLAGS " " PTHREAD_CFLAGS,
-	      CXX,CXXFLAGS " " PTHREAD_CFLAGS,  DEFS,CPPFLAGS,  LDFLAGS,
-	      LIBS " " PTHREAD_LIBS);
+              CXX,CXXFLAGS " " PTHREAD_CFLAGS,  DEFS,CPPFLAGS,  LDFLAGS,
+              LIBS " " PTHREAD_LIBS);
               feStringAppendResources(0);
               feStringAppendBrowsers(0);
               StringAppendS("\n");
@@ -1201,26 +1201,10 @@ extern "C"
   }
 }
 
-#ifdef SINGULAR_4_2
-STATIC_VAR n_coeffType n_pAE=n_unknown;
-static BOOLEAN ii_pAE_init(leftv res,leftv a)
-{
-  if (a->Typ()!=INT_CMD)
-  {
-    WerrorS("`int` expected");
-    return TRUE;
-  }
-  else
-  {
-    res->rtyp=CRING_CMD;
-    res->data=(void*)nInitChar(n_pAE,(void*)a->Data());
-    return FALSE;
-  }
-}
-#endif
 #ifdef HAVE_FLINT
 STATIC_VAR n_coeffType n_FlintZn=n_unknown;
 STATIC_VAR n_coeffType n_FlintQ=n_unknown;
+//STATIC_VAR n_coeffType n_FlintQrat=n_unknown;
 static BOOLEAN ii_FlintZn_init(leftv res,leftv a)
 {
   const short t[]={2,INT_CMD,STRING_CMD};
@@ -1247,6 +1231,61 @@ static BOOLEAN ii_FlintQ_init(leftv res,leftv a)
     return FALSE;
   }
   return TRUE;
+}
+#if __FLINT_RELEASE >= 20503
+static BOOLEAN ii_FlintQrat_init(leftv res,leftv a)
+{
+  if (a==NULL)
+  {
+    WerrorS("at least one name required");
+    return TRUE;
+  }
+  QaInfo par;
+  #ifdef QA_DEBUG
+  par.C=r->cf;
+  a=a->next;
+  #endif
+  par.N=a->listLength();
+  par.names=(char**)omAlloc(par.N*sizeof(char*));
+  int i=0;
+  while(a!=NULL)
+  {
+    par.names[i]=omStrDup(a->Name());
+    i++;
+    a=a->next;
+  }
+  res->rtyp=CRING_CMD;
+  res->data=(void*)nInitChar(n_FlintQrat,&par);
+  for(i=par.N-1;i>=0;i--)
+  {
+    omFree(par.names[i]);
+  }
+  omFreeSize(par.names,par.N*sizeof(char*));
+  return FALSE;
+}
+#endif
+extern "C" int flint_mod_init(SModulFunctions* psModulFunctions)
+{
+    package save=currPack;
+    currPack=basePack;
+    n_FlintQ=nRegister(n_unknown,flintQ_InitChar);
+    if (n_FlintQ!=n_unknown)
+    {
+      iiAddCproc("kernel","flintQp",FALSE,ii_FlintQ_init);
+      nRegisterCfByName(flintQInitCfByName,n_FlintQ);
+    }
+#if __FLINT_RELEASE >= 20503
+    iiAddCproc("kernel","flintQ",FALSE,ii_FlintQrat_init);
+    nRegisterCfByName(flintQInitCfByName,n_FlintQ);
+#endif
+    n_FlintZn=nRegister(n_unknown,flintZn_InitChar);
+    if (n_FlintZn!=n_unknown)
+    {
+      iiAddCproc("kernel","flintZn",FALSE,ii_FlintZn_init);
+      nRegisterCfByName(flintZnInitCfByName,n_FlintZn);
+    }
+    currPack=save;
+    return MAX_TOK;
 }
 #endif
 
@@ -1313,6 +1352,7 @@ static BOOLEAN iiCrossProd(leftv res, leftv args)
 /*2
 * initialize components of Singular
 */
+static void callWerrorS(const char *s) { WerrorS(s); }
 void siInit(char *name)
 {
 // memory initialization: -----------------------------------------------
@@ -1327,7 +1367,11 @@ void siInit(char *name)
     om_Opts.Keep = 0; /* OM_NDEBUG */
 #endif
     omInitInfo();
-
+// factory
+#ifndef HAVE_NTL
+  extern void initPT();
+  initPT();
+#endif
 // options ---------------------------------------------------------------
   si_opt_1=0;
 // interpreter tables etc.: -----------------------------------------------
@@ -1411,40 +1455,6 @@ void siInit(char *name)
     //IDDATA(h)=(char*)nInitChar(n_R,NULL);
     //h=enterid("CC",0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
     //IDDATA(h)=(char*)nInitChar(n_long_C,NULL);
-#ifdef SINGULAR_4_2
-    n_coeffType t;
-    t=nRegister(n_unknown,n_AEInitChar);
-    if (t!=n_unknown)
-    {
-      h=enterid("AE",0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
-      IDDATA(h)=(char*)nInitChar(t,NULL);
-    }
-    t=nRegister(n_unknown,n_QAEInitChar);
-    if (t!=n_unknown)
-    {
-      h=enterid("QAE",0/*level*/, CRING_CMD,&(basePack->idroot),FALSE /*init*/,FALSE /*search*/);
-      IDDATA(h)=(char*)nInitChar(t,NULL);
-    }
-    n_pAE=nRegister(n_unknown,n_pAEInitChar);
-    if (n_pAE!=n_unknown)
-    {
-      iiAddCproc("kernel","pAE",FALSE,ii_pAE_init);
-    }
-#endif
-    #ifdef HAVE_FLINT
-    n_FlintQ=nRegister(n_unknown,flintQ_InitChar);
-    if (n_FlintQ!=n_unknown)
-    {
-      iiAddCproc("kernel","flintQ",FALSE,ii_FlintQ_init);
-      nRegisterCfByName(flintQInitCfByName,n_FlintQ);
-    }
-    n_FlintZn=nRegister(n_unknown,flintZn_InitChar);
-    if (n_FlintZn!=n_unknown)
-    {
-      iiAddCproc("kernel","flintZn",FALSE,ii_FlintZn_init);
-      nRegisterCfByName(flintZnInitCfByName,n_FlintZn);
-    }
-    #endif
   }
 // setting routines for PLURAL QRINGS:
 // allowing to use libpolys without libSingular(kStd)
@@ -1462,8 +1472,12 @@ void siInit(char *name)
     BITSET save1,save2;
     SI_SAVE_OPT(save1,save2);
     si_opt_2 &= ~Sy_bit(V_LOAD_LIB);
-    iiLibCmd(omStrDup("standard.lib"), TRUE,TRUE,TRUE);
+    iiLibCmd("standard.lib", TRUE,TRUE,TRUE);
     SI_RESTORE_OPT(save1,save2);
   }
+  // interpreter error handling
+  #ifndef __CYGWIN__
+  factoryError=callWerrorS; // to honour later changes of variable WerrorS
+  #endif
   errorreported = 0;
 }

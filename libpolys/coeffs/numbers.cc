@@ -25,6 +25,7 @@
 #include "coeffs/ffields.h"
 #include "coeffs/shortfl.h"
 #include "coeffs/ntupel.h"
+#include "coeffs/flintcf_Qrat.h"
 
 #ifdef HAVE_RINGS
 #include "coeffs/rmodulo2m.h"
@@ -54,8 +55,11 @@ static void   ndDelete(number* d, const coeffs) { *d=NULL; }
 static number ndAnn(number, const coeffs) { return NULL;}
 static char* ndCoeffString(const coeffs r)
 {
-  char *s=(char *)omAlloc(11);snprintf(s,11,"Coeffs(%d)",r->type);
-  return s;
+  return omStrDup(r->cfCoeffName(r));
+}
+static void ndCoeffWrite(const coeffs r,BOOLEAN)
+{
+  PrintS(r->cfCoeffName(r));
 }
 static char* ndCoeffName(const coeffs r)
 {
@@ -114,7 +118,12 @@ static number ndInvers(number a, const coeffs r)
   return res;
 }
 
-static BOOLEAN ndIsUnit(number a, const coeffs r) { return !r->cfIsZero(a,r); }
+static BOOLEAN ndIsUnit_Ring(number a, const coeffs r)
+{ return r->cfIsOne(a,r)|| r->cfIsMOne(a,r); }
+static BOOLEAN ndIsUnit_Field(number a, const coeffs r)
+{ return !r->cfIsZero(a,r); }
+static number ndGetUnit_Ring(number a, const coeffs r)
+{ return r->cfInit(1,r); }
 #ifdef LDEBUG
 // static void   nDBDummy1(number* d,char *, int) { *d=NULL; }
 static BOOLEAN ndDBTest(number, const char *, const int, const coeffs){ return TRUE; }
@@ -122,12 +131,12 @@ static BOOLEAN ndDBTest(number, const char *, const int, const coeffs){ return T
 
 static number ndFarey(number,number,const coeffs r)
 {
-  Werror("farey not implemented for %s (c=%d)",r->cfCoeffString(r),getCoeffType(r));
+  Werror("farey not implemented for %s (c=%d)",r->cfCoeffName(r),getCoeffType(r));
   return NULL;
 }
 static number ndChineseRemainder(number *,number *,int,BOOLEAN,CFArray&,const coeffs r)
 {
-  Werror("ChineseRemainder not implemented for %s (c=%d)",r->cfCoeffString(r),getCoeffType(r));
+  Werror("ChineseRemainder not implemented for %s (c=%d)",r->cfCoeffName(r),getCoeffType(r));
   return r->cfInit(0,r);
 }
 
@@ -138,8 +147,7 @@ static int ndParDeg(number n, const coeffs r)
 
 static number ndParameter(const int, const coeffs r)
 {
-  Werror("ndParameter: n_Parameter is not implemented/relevant for (coeff_type = %d)",getCoeffType(r));
-  return NULL;
+  return r->cfInit(1,r);
 }
 
 BOOLEAN n_IsZeroDivisor( number a, const coeffs r)
@@ -156,7 +164,7 @@ BOOLEAN n_IsZeroDivisor( number a, const coeffs r)
   return ret;
 }
 
-static void   ndNormalize(number&, const coeffs) { }
+void   ndNormalize(number&, const coeffs) { }
 static number ndReturn0(number, const coeffs r)        { return r->cfInit(0,r); }
 number ndGcd(number, number, const coeffs r)    { return r->cfInit(1,r); }
 static number ndIntMod(number, number, const coeffs r) { return r->cfInit(0,r); }
@@ -340,6 +348,7 @@ VAR cfInitCharProc nInitCharTableDefault[]=
  NULL,         /* n_Znm */
  NULL,         /* n_Z2m */
  #endif
+ flintQrat_InitChar, /* n_FlintQrat */
  NULL         /* n_CF */
 };
 
@@ -369,7 +378,8 @@ coeffs nInitChar(n_coeffType t, void * parameter)
     n->cfImPart=ndReturn0;
     n->cfDelete= ndDelete;
     n->cfAnn = ndAnn;
-    n->cfCoeffString = ndCoeffString; // should alway be changed!
+    n->cfCoeffString = ndCoeffString;
+    n->cfCoeffWrite = ndCoeffWrite;
     n->cfCoeffName = ndCoeffName; // should alway be changed!
     n->cfInpMult=ndInpMult;
     n->cfInpAdd=ndInpAdd;
@@ -398,12 +408,12 @@ coeffs nInitChar(n_coeffType t, void * parameter)
     n->cfClearContent = ndClearContent;
     n->cfClearDenominators = ndClearDenominators;
 
-    n->cfIsUnit = ndIsUnit;
+    //n->cfIsUnit = ndIsUnit;
 #ifdef HAVE_RINGS
     n->cfDivComp = ndDivComp;
     n->cfDivBy = ndDivBy;
     n->cfExtGcd = ndExtGcd;
-    //n->cfGetUnit = (nMapFunc)NULL;
+    //n->cfGetUnit = ndGetUnit;
 #endif
 
 #ifdef LDEBUG
@@ -429,17 +439,24 @@ coeffs nInitChar(n_coeffType t, void * parameter)
     if (n->cfRePart==NULL) n->cfRePart=n->cfCopy;
     if (n->cfExactDiv==NULL) n->cfExactDiv=n->cfDiv;
     if (n->cfSubringGcd==NULL) n->cfSubringGcd=n->cfGcd;
-
-#ifdef HAVE_RINGS
-    if (n->cfGetUnit==NULL) n->cfGetUnit=n->cfCopy;
-#endif
+    if (n->cfIsUnit==NULL)
+    {
+      if (n->is_field) n->cfIsUnit=ndIsUnit_Field;
+      else             n->cfIsUnit=ndIsUnit_Ring;
+    }
+    #ifdef HAVE_RING
+    if (n->cfGetUnit==NULL)
+    {
+      if (n->is_field) n->cfGetUnit=n->cfCopy;
+      else             n->cfGetUnit=ndGetUnit_Ring;
+    }
+    #endif
 
     if(n->cfWriteShort==NULL)
       n->cfWriteShort = n->cfWriteLong;
 
     assume(n->nCoeffIsEqual!=NULL);
     assume(n->cfSetChar!=NULL);
-    assume(n->cfCoeffString!=ndCoeffString);
     assume(n->cfCoeffName!=ndCoeffName);
     assume(n->cfMult!=NULL);
     assume(n->cfSub!=NULL);
@@ -498,7 +515,6 @@ coeffs nInitChar(n_coeffType t, void * parameter)
     if(n->cfKillChar==NULL) Warn("cfKillChar is NULL for coeff %d",t);
     if(n->cfWriteLong==NULL) Warn("cfWrite is NULL for coeff %d",t);
     if(n->cfWriteShort==NULL) Warn("cfWriteShort is NULL for coeff %d",t);
-    if(n->cfCoeffString==ndCoeffString) Warn("cfCoeffString is undefined for coeff %d",t);
 #endif
   }
   else
@@ -641,7 +657,7 @@ char* nEati(char *s, int *i, int m)
       if ((m!=0) && (ii > (MAX_INT_VAL / 10))) ii = ii % m;
     }
     while (((*s) >= '0') && ((*s) <= '9'));
-    if ((m!=0) && (ii>=m)) ii=ii%m;
+    if ((m!=0) && (ii>=(unsigned)m)) ii=ii%m;
     *i=(int)ii;
   }
   else (*i) = 1;

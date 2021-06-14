@@ -37,7 +37,7 @@
 #include "FLINTconvert.h"
 #endif
 
-#ifdef HAVE_NTL
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
 TIMING_DEFINE_PRINT(fac_resultant_p)
 
 //TODO arrange by bound= deg (F,xlevel)*deg (G,i)+deg (G,xlevel)*deg (F, i)
@@ -254,7 +254,6 @@ CanonicalForm oneNorm (const CanonicalForm& F)
 static inline
 CanonicalForm uniResultant (const CanonicalForm& F, const CanonicalForm& G)
 {
-#ifdef HAVE_NTL
   ASSERT (getCharacteristic() > 0, "characteristic > 0 expected");
   if (F.inCoeffDomain() && G.inCoeffDomain())
     return 1;
@@ -273,7 +272,8 @@ CanonicalForm uniResultant (const CanonicalForm& F, const CanonicalForm& G)
     nmod_poly_clear (FLINTG);
     return CanonicalForm ((long) FLINTresult);
   }
-#else
+  return resultant (F, G, F.mvar());
+#elif defined(HAVE_NTL)
   if (!hasFirstAlgVar (F, alpha) && !hasFirstAlgVar (G,alpha))
   {
     if (fac_NTL_char != getCharacteristic())
@@ -288,7 +288,6 @@ CanonicalForm uniResultant (const CanonicalForm& F, const CanonicalForm& G)
 
     return CanonicalForm (to_long (rep (NTLResult)));
   }
-#endif
   //at this point F or G has an algebraic var.
   if (fac_NTL_char != getCharacteristic())
   {

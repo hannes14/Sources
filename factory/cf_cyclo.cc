@@ -21,10 +21,6 @@
 #include "cf_util.h"
 #include "cf_assert.h"
 
-#ifdef HAVE_NTL
-#include <NTL/ZZ.h>
-#endif
-
 int* integerFactorizer (const long integer, int& length, bool& fail)
 {
   ASSERT (integer != 0 && integer != 1 && integer != -1,
@@ -132,7 +128,6 @@ CanonicalForm cyclotomicPoly (int n, bool& fail)
   return leftShift (result, n/prod);
 }
 
-#ifdef HAVE_NTL
 bool isPrimitive (const Variable& alpha, bool& fail)
 {
   int p= getCharacteristic();
@@ -146,5 +141,3 @@ bool isPrimitive (const Variable& alpha, bool& fail)
   else
     return false;
 }
-
-#endif

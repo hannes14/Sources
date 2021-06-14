@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////
-version="version sing.lib 4.1.2.0 Feb_2019 "; // $Id$
+version="version sing.lib 4.2.0.2 May_2021 "; // $Id$
 category="Singularities";
 info="
 LIBRARY:  sing.lib      Invariants of Singularities
@@ -471,7 +471,7 @@ EXAMPLE: example qhspectrum; shows an example
    ideal k = std(jacob(f));
    if( vdim(k) == -1 )
    {
-       "// f is no isolated singuarity!";
+       "// f is no isolated singularity!";
        return();
     }
    k = kbase(k);
@@ -935,8 +935,8 @@ EXAMPLE: example codim; shows an example
  //  return(-1);
  // }
   //--------------------------- module ---------------------------------------
-   d1 = nrows(id1);
-   d2 = nrows(id2);
+   d1 = nrows(module(id1));
+   d2 = nrows(module(id2));
    dd = 0;
    if (d1 > d2)
    {

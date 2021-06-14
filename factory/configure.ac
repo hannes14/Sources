@@ -12,7 +12,7 @@ dnl #
 #
 # - initialisation.
 #
-AC_INIT([factory], [4.1.2])
+AC_INIT([factory], [4.2.1])
 AC_CONFIG_SRCDIR(canonicalform.cc)
 AC_CONFIG_MACRO_DIR([../m4])
 AC_CONFIG_AUX_DIR([../build-aux])
@@ -30,6 +30,7 @@ AX_PREFIX_CONFIG_H([config.h],[],[_config.h])
 #
 # - check for CC and CXX but be careful about CFLAGS.
 #
+AC_CHECK_SIZEOF(long,4)
 SING_RESET_FLAGS()
 SING_CHECK_SET_ARGS()
 
@@ -206,7 +207,8 @@ DX_INIT_DOXYGEN($PACKAGE_NAME, doxygen.cfg, $srcdir/docu)
 #
 AC_CHECK_LIB(m, atof, , [ AC_MSG_ERROR(libm.a not found) ])
 
-LB_CHECK_GMP(3.1.1,,AC_MSG_ERROR([Unable to find GMP on your machine: please use --with-gmp=PATH_TO_DIR_CONTAINING_LIB_AND_INCLUDE (see also ./configure --help if you do not understand what we are talking about)]))
+# Check whether --with-gmp was given.
+SING_CHECK_GMP
 
 #NTL 9.6.4 requires -lpthread/-pthread
 # This test for -lpthread etc has to come before AX_PTHREAD,
@@ -259,8 +261,7 @@ fi
 
 if test "x$enable_timing" != xno; then
   AC_CHECK_HEADERS(sys/param.h sys/times.h, ,
-    [ AC_MSG_ERROR(\`sys/times.h' or \`sys/param.h' not found.  Try
-                  \`configure --disable-timing') ])
+    [ AC_MSG_ERROR(sys/times.h or sys/param.h not found, try --disable-timing) ])
 fi
 
 # font-lock-trick: '
@@ -396,12 +397,10 @@ AC_SUBST(MAKEHEADERFLAGS)
 #AC_SUBST(installtargets)
 #AC_SUBST(uninstalltargets)
 
-factory_version="4.1.1"
 factory_configuration="'$ac_configure_args' in `pwd`"
-AC_SUBST(factory_version)
 
-AH_TEMPLATE([FACTORYVERSION], [factory version])
-AC_DEFINE_UNQUOTED([FACTORYVERSION], "$factory_version")
+AH_TEMPLATE([FACTORYVERSION], [VERSION])
+AC_DEFINE_UNQUOTED([FACTORYVERSION], "$VERSION")
 
 AH_TEMPLATE([FACTORYCONFIGURATION], [factory configuration])
 AC_DEFINE_UNQUOTED([FACTORYCONFIGURATION], "$factory_configuration")

@@ -25,15 +25,15 @@
 
 int convFlintISingI (fmpz_t f)
 {
-  int res;
-  res = fmpz_get_si(f);
-  return res;
+  //return fmpz_get_si(f);
+  return (int)*f;
 }
 
 void convSingIFlintI(fmpz_t f, int p)
 {
   fmpz_init(f);
-  fmpz_set_si(f,p);
+  *f=p;
+  //fmpz_set_si(f,p);
   return;
 }
 
@@ -45,12 +45,17 @@ void convFlintNSingN (mpz_t z, fmpz_t f)
 
 number convFlintNSingN (fmpz_t f)
 {
-  mpz_t z;
-  mpz_init(z);
-  fmpz_get_mpz(z,f);
   number n;
-  nlMPZ(z,n,NULL);
-  mpz_clear(z);
+  if(COEFF_IS_MPZ(*f))
+    nlMPZ(COEFF_TO_PTR(*f),n,NULL);
+  else
+  {
+    mpz_t z;
+    mpz_init(z);
+    fmpz_get_mpz(z,f);
+    nlMPZ(z,n,NULL);
+    mpz_clear(z);
+  }
   return n;
 }
 
@@ -83,6 +88,24 @@ number convFlintNSingN (fmpq_t f, const coeffs cf)
     mpz_clear(a);
     mpz_clear(b);
   }
+  n_Normalize(z,cf);
+  n_Test(z,cf);
+  return z;
+#else
+  WerrorS("not implemented");
+  return NULL;
+#endif
+}
+
+number convFlintNSingN (fmpz_t f, const coeffs cf)
+{
+#if __FLINT_RELEASE > 20502
+  number z;
+  mpz_t a;
+  mpz_init(a);
+  fmpz_get_mpz(a,f);
+  z=n_InitMPZ(a,cf);
+  mpz_clear(a);
   n_Normalize(z,cf);
   n_Test(z,cf);
   return z;

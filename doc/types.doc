@@ -68,7 +68,7 @@ For the general syntax of a declaration see @ref{General command syntax}.
 @section cring
 @cindex cring
 
-Variables of type cring represent the ring of coeffcients (see @ref{number})
+Variables of type cring represent the ring of coefficients (see @ref{number})
 
 @menu
 * cring declarations::
@@ -107,11 +107,17 @@ none
 @node cring expressions, cring operations, cring declarations, cring
 @subsection cring expressions
 @cindex cring expressions
+@cindex QQ
+@cindex ZZ
 
 A cring expression is:
 @enumerate
 @item
-an identifier of type cring
+an identifier of type cring:
+  @itemize
+  @item QQ - the rational numbers
+  @item ZZ - the integers
+  @end itemize
 @item
 a function returning cring
 @item
@@ -162,11 +168,16 @@ crooss product of several objects of type cring (see @ref{crossprod})
 @item Float
 several variants of Floating point (inexact) real and complex numbers
 (see @ref{Float}).
+@item flintQ
+multivariate rational functions over Q (via flint, requires >=2.5.3)
+(see @ref{flintQ}).
 @end table
 
 @c ref
 See
 @ref{crossprod};
+@ref{flintQ};
+@ref{Float}.
 @c ref
 
 @c ---------------------------------------
@@ -175,7 +186,7 @@ See
 @cindex bigint
 
 Variables of type bigint represent the arbitrary long integers.
-They can only be contructed from other types (int, number).
+They can only be constructed from other types (int, number).
 
 @menu
 * bigint declarations::
@@ -2017,7 +2028,7 @@ is data to read.
 @node Pipe links, DBM links, Ssi links, link
 @subsection Pipe links
 @cindex Pipe links
-Pipe links provide acces to stdin and stdout of any program.
+Pipe links provide access to stdin and stdout of any program.
 Pipe links are bidirectional.
 @strong{Syntax:} @code{"|: "} + string_for_system
 
@@ -2335,7 +2346,6 @@ Possible are furthermore
 @itemize @bullet
 @item
 @tex
-% This is quite a hack, but for now it works.
 $Z/p \rightarrow Q,
 \quad
 [i]_p \mapsto i \in [-p/2, \, p/2]
@@ -3329,7 +3339,9 @@ defines a package (Only relevant in very special situations).
 @smallexample
 @c example error
   package Test;
-  int Test::i;
+  int i=3; exportto(Test,i);
+  Test::i+2;
+  i;
   listvar();
   listvar(Test);
   package dummy = Test;
@@ -3752,7 +3764,7 @@ See
 @item Purpose:
 branch to the given procedure if the argument types matches the
 types given as strings (which may be empty - matching the empty argument list).
-The main procedure (@code{p} in the example) must be defined without an argemnt list, and @code{branchTo} statement must be the first statement within
+The main procedure (@code{p} in the example) must be defined without an argument list, and @code{branchTo} statement must be the first statement within
 the procedure body.
 @item Example:
 @smallexample
@@ -4600,7 +4612,7 @@ User defined types are (non-empty) lists with a fixed size
 whose element can be accessed by names (and not indices).
 These elements have a predefined type (which can also be a user defined type).
 If these elements depend on a ring they can only be accessed if
-their base ring ist the current base ring.
+their base ring is the current base ring.
 In contrast to usual lists the elements of a user defined type may
 belong to different rings.
 
@@ -4634,7 +4646,7 @@ which should be extended by the new type.
 @*The last argument (of type string) must be an comma separated list of
 a type followed by a name.
 If there are duplicate member names, the last one wins.
-@*(User defined) member names are restricted to alphanumeric charecters and must start with a letter.
+@*(User defined) member names are restricted to alphanumeric characters and must start with a letter.
 
 @item Operations:
 the only operations of user defined types are:
@@ -4740,14 +4752,14 @@ entry @code{r_}<element_name> for the corresponding ring.
 
 User defined types are normal data types (which do not belong to a ring,
 even if they have ring dependent parts), so they can be passed as argument
-to procedures, and recieved as result from procedures.
+to procedures, and received as result from procedures.
 
 In order to apply kernel commands to these types (like @code{string}, @code{+}),
 provide a usual procedure (say @code{proc p}..) for that task and
 install it via @code{system("install",} user_type @code{,} kernel_command @code{,p,} number_of_args @code{);}.
 The user_type and kernel_command have to be given as strings.
 For kernel_command having a variable number of arguments (internal @code{CMD_M})
-use 4 independ of the number of really supplied arguments.
+use 4 independent of the number of really supplied arguments.
 
 List of available kernel commands and the required number_of_args,
 some accept several variants and appear therefor at several places:
@@ -4822,8 +4834,8 @@ test, uressolve, write}
 By default, only objects of the same (user defined) type can be assigned,
 there is no automatic type conversion as for the kernel data types.
 
-But the operator @code{=} can be overidden in oder to write custom
-constructors (the custom contructor does not apply to assignments
+But the operator @code{=} can be overridden in oder to write custom
+constructors (the custom constructor does not apply to assignments
 of the same type):
 via @code{system("install",} user_type @code{,"="} @code{,p,1);}.
 The user_type has to be given as a string.

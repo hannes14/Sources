@@ -17,6 +17,12 @@
 #include "kernel/combinatorics/hutil.h"
 #include "kernel/combinatorics/hilb.h"
 #include "kernel/combinatorics/stairc.h"
+#include "reporter/reporter.h"
+
+#ifdef HAVE_SHIFTBBA
+#include <vector>
+#include "Singular/libsingular.h"
+#endif
 
 VAR int  hCo, hMu, hMu2;
 VAR omBin indlist_bin = omGetSpecBin(sizeof(indlist));
@@ -124,6 +130,74 @@ int  scDimInt(ideal S, ideal Q)
   if (hisModule)
     omFreeSize((ADDRESS)hrad, hNexist * sizeof(scmon));
   return (currRing->N) - hCo;
+}
+
+int  scDimIntRing(ideal vid, ideal Q)
+{
+#ifdef HAVE_RINGS
+  if (rField_is_Ring(currRing))
+  {
+    int i = idPosConstant(vid);
+    if ((i != -1) && (n_IsUnit(pGetCoeff(vid->m[i]),currRing->cf)))
+    { /* ideal v contains unit; dim = -1 */
+      return(-1);
+    }
+    ideal vv = id_Head(vid,currRing);
+    idSkipZeroes(vv);
+    i = idPosConstant(vid);
+    int d;
+    if(i == -1)
+    {
+      d = scDimInt(vv, Q);
+      if(rField_is_Z(currRing))
+        d++;
+    }
+    else
+    {
+      if(n_IsUnit(pGetCoeff(vv->m[i]),currRing->cf))
+        d = -1;
+      else
+        d = scDimInt(vv, Q);
+    }
+    //Anne's Idea for std(4,2x) = 0 bug
+    int dcurr = d;
+    for(unsigned ii=0;ii<(unsigned)IDELEMS(vv);ii++)
+    {
+      if(vv->m[ii] != NULL && !n_IsUnit(pGetCoeff(vv->m[ii]),currRing->cf))
+      {
+        ideal vc = idCopy(vv);
+        poly c = pInit();
+        pSetCoeff0(c,nCopy(pGetCoeff(vv->m[ii])));
+        idInsertPoly(vc,c);
+        idSkipZeroes(vc);
+        for(unsigned jj = 0;jj<(unsigned)IDELEMS(vc)-1;jj++)
+        {
+          if((vc->m[jj]!=NULL)
+          && (n_DivBy(pGetCoeff(vc->m[jj]),pGetCoeff(c),currRing->cf)))
+          {
+            pDelete(&vc->m[jj]);
+          }
+        }
+        idSkipZeroes(vc);
+        i = idPosConstant(vc);
+        if (i != -1) pDelete(&vc->m[i]);
+        dcurr = scDimInt(vc, Q);
+        // the following assumes the ground rings to be either zero- or one-dimensional
+        if((i==-1) && rField_is_Z(currRing))
+        {
+          // should also be activated for other euclidean domains as groundfield
+          dcurr++;
+        }
+        idDelete(&vc);
+      }
+      if(dcurr > d)
+          d = dcurr;
+    }
+    idDelete(&vv);
+    return d;
+  }
+#endif
+  return scDimInt(vid,Q);
 }
 
 // independent set
@@ -1008,7 +1082,7 @@ void scComputeHC(ideal S, ideal Q, int ak, poly &hEdge, ring tailRing)
 
   int  i;
   int  k = ak;
-  #if HAVE_RINGS
+  #ifdef HAVE_RINGS
   if (rField_is_Ring(currRing) && (currRing->OrdSgn == -1))
   {
     //consider just monic generators (over rings with zero-divisors)
@@ -1499,4 +1573,699 @@ ende:
   }
 }
  */
+#endif
+
+#ifdef HAVE_SHIFTBBA
+
+/*
+ * Computation of the Gel'fand-Kirillov Dimension
+ */
+
+#include "polys/shiftop.h"
+#include <vector>
+
+static std::vector<int> countCycles(const intvec* _G, int v, std::vector<int> path, std::vector<BOOLEAN> visited, std::vector<BOOLEAN> cyclic, std::vector<int> cache)
+{
+  intvec* G = ivCopy(_G); // modifications must be local
+
+  if (cache[v] != -2) return cache; // value is already cached
+
+  visited[v] = TRUE;
+  path.push_back(v);
+
+  int cycles = 0;
+  for (int w = 0; w < G->cols(); w++)
+  {
+    if (IMATELEM(*G, v + 1, w + 1)) // edge v -> w exists in G
+    {
+      if (!visited[w])
+      { // continue with w
+        cache = countCycles(G, w, path, visited, cyclic, cache);
+        if (cache[w] == -1)
+        {
+          cache[v] = -1;
+          return cache;
+        }
+        cycles = si_max(cycles, cache[w]);
+      }
+      else
+      { // found new cycle
+        int pathIndexOfW = -1;
+        for (int i = path.size() - 1; i >= 0; i--) {
+          if (cyclic[path[i]] == 1) { // found an already cyclic vertex
+            cache[v] = -1;
+            return cache;
+          }
+          cyclic[path[i]] = TRUE;
+
+          if (path[i] == w) { // end of the cycle
+            assume(IMATELEM(*G, v + 1, w + 1) != 0);
+            IMATELEM(*G, v + 1, w + 1) = 0; // remove edge v -> w
+            pathIndexOfW = i;
+            break;
+          } else {
+            assume(IMATELEM(*G, path[i - 1] + 1, path[i] + 1) != 0);
+            IMATELEM(*G, path[i - 1] + 1, path[i] + 1) = 0; // remove edge vi-1 -> vi
+          }
+        }
+        assume(pathIndexOfW != -1); // should never happen
+        for (int i = path.size() - 1; i >= pathIndexOfW; i--) {
+          cache = countCycles(G, path[i], path, visited, cyclic, cache);
+          if (cache[path[i]] == -1)
+          {
+            cache[v] = -1;
+            return cache;
+          }
+          cycles = si_max(cycles, cache[path[i]] + 1);
+        }
+      }
+    }
+  }
+  cache[v] = cycles;
+
+  delete G;
+  return cache;
+}
+
+// -1 is infinity
+static int graphGrowth(const intvec* G)
+{
+  // init
+  int n = G->cols();
+  std::vector<int> path;
+  std::vector<BOOLEAN> visited;
+  std::vector<BOOLEAN> cyclic;
+  std::vector<int> cache;
+  visited.resize(n, FALSE);
+  cyclic.resize(n, FALSE);
+  cache.resize(n, -2);
+
+  // get max number of cycles
+  int cycles = 0;
+  for (int v = 0; v < n; v++)
+  {
+    cache = countCycles(G, v, path, visited, cyclic, cache);
+    if (cache[v] == -1)
+      return -1;
+    cycles = si_max(cycles, cache[v]);
+  }
+  return cycles;
+}
+
+// ATTENTION:
+//  - `words` contains the words normal modulo M of length n
+//  - `numberOfNormalWords` contains the number of words normal modulo M of length 0 ... n
+static void _lp_computeNormalWords(ideal words, int& numberOfNormalWords, int length, ideal M, int minDeg, int& last)
+{
+  if (length <= 0){
+    poly one = pOne();
+    if (p_LPDivisibleBy(M, one, currRing)) // 1 \in M => no normal words at all
+    {
+      pDelete(&one);
+      last = -1;
+      numberOfNormalWords = 0;
+    }
+    else
+    {
+      words->m[0] = one;
+      last = 0;
+      numberOfNormalWords = 1;
+    }
+    return;
+  }
+
+  _lp_computeNormalWords(words, numberOfNormalWords, length - 1, M, minDeg, last);
+
+  int nVars = currRing->isLPring - currRing->LPncGenCount;
+  int numberOfNewNormalWords = 0;
+
+  for (int j = nVars - 1; j >= 0; j--)
+  {
+    for (int i = last; i >= 0; i--)
+    {
+      int index = (j * (last + 1)) + i;
+
+      if (words->m[i] != NULL)
+      {
+        if (j > 0) {
+          words->m[index] = pCopy(words->m[i]);
+        }
+
+        int varOffset = ((length - 1) * currRing->isLPring) + 1;
+        pSetExp(words->m[index], varOffset + j, 1);
+        pSetm(words->m[index]);
+        pTest(words->m[index]);
+
+        if (length >= minDeg && p_LPDivisibleBy(M, words->m[index], currRing))
+        {
+          pDelete(&words->m[index]);
+          words->m[index] = NULL;
+        }
+        else
+        {
+          numberOfNewNormalWords++;
+        }
+      }
+    }
+  }
+
+  last = nVars * last + nVars - 1;
+
+  numberOfNormalWords += numberOfNewNormalWords;
+}
+
+static ideal lp_computeNormalWords(int length, ideal M)
+{
+  long minDeg = IDELEMS(M) > 0 ? pTotaldegree(M->m[0]) : 0;
+  for (int i = 1; i < IDELEMS(M); i++)
+  {
+    minDeg = si_min(minDeg, pTotaldegree(M->m[i]));
+  }
+
+  int nVars = currRing->isLPring - currRing->LPncGenCount;
+
+  int maxElems = 1;
+  for (int i = 0; i < length; i++) // maxElems = nVars^n
+    maxElems *= nVars;
+  ideal words = idInit(maxElems);
+  int last, numberOfNormalWords;
+  _lp_computeNormalWords(words, numberOfNormalWords, length, M, minDeg, last);
+  idSkipZeroes(words);
+  return words;
+}
+
+static int lp_countNormalWords(int upToLength, ideal M)
+{
+  long minDeg = IDELEMS(M) > 0 ? pTotaldegree(M->m[0]) : 0;
+  for (int i = 1; i < IDELEMS(M); i++)
+  {
+    minDeg = si_min(minDeg, pTotaldegree(M->m[i]));
+  }
+
+  int nVars = currRing->isLPring - currRing->LPncGenCount;
+
+  int maxElems = 1;
+  for (int i = 0; i < upToLength; i++) // maxElems = nVars^n
+    maxElems *= nVars;
+  ideal words = idInit(maxElems);
+  int last, numberOfNormalWords;
+  _lp_computeNormalWords(words, numberOfNormalWords, upToLength, M, minDeg, last);
+  idDelete(&words);
+  return numberOfNormalWords;
+}
+
+// NULL if graph is undefined
+intvec* lp_ufnarovskiGraph(ideal G, ideal &standardWords)
+{
+  long l = 0;
+  for (int i = 0; i < IDELEMS(G); i++)
+    l = si_max(pTotaldegree(G->m[i]), l);
+  l--;
+  if (l <= 0)
+  {
+    WerrorS("Ufnarovski graph not implemented for l <= 0");
+    return NULL;
+  }
+  int lV = currRing->isLPring;
+
+  standardWords = lp_computeNormalWords(l, G);
+
+  int n = IDELEMS(standardWords);
+  intvec* UG = new intvec(n, n, 0);
+  for (int i = 0; i < n; i++)
+  {
+    for (int j = 0; j < n; j++)
+    {
+      poly v = standardWords->m[i];
+      poly w = standardWords->m[j];
+
+      // check whether v*x1 = x2*w (overlap)
+      bool overlap = true;
+      for (int k = 1; k <= (l - 1) * lV; k++)
+      {
+        if (pGetExp(v, k + lV) != pGetExp(w, k)) {
+          overlap = false;
+          break;
+        }
+      }
+
+      if (overlap)
+      {
+        // create the overlap
+        poly p = pMult(pCopy(v), p_LPVarAt(w, l, currRing));
+
+        // check whether the overlap is normal
+        bool normal = true;
+        for (int k = 0; k < IDELEMS(G); k++)
+        {
+          if (p_LPDivisibleBy(G->m[k], p, currRing))
+          {
+            normal = false;
+            break;
+          }
+        }
+
+        if (normal)
+        {
+          IMATELEM(*UG, i + 1, j + 1) = 1;
+        }
+      }
+    }
+  }
+  return UG;
+}
+
+// -1 is infinity, -2 is error
+int lp_gkDim(const ideal _G)
+{
+  id_Test(_G, currRing);
+
+  if (rField_is_Ring(currRing)) {
+      WerrorS("GK-Dim not implemented for rings");
+      return -2;
+  }
+
+  for (int i=IDELEMS(_G)-1;i>=0; i--)
+  {
+    if (_G->m[i] != NULL)
+    {
+      if (pGetComp(_G->m[i]) != 0)
+      {
+        WerrorS("GK-Dim not implemented for modules");
+        return -2;
+      }
+      if (pGetNCGen(_G->m[i]) != 0)
+      {
+        WerrorS("GK-Dim not implemented for bi-modules");
+        return -2;
+      }
+    }
+  }
+
+  ideal G = id_Head(_G, currRing); // G = LM(G) (and copy)
+  idSkipZeroes(G); // remove zeros
+  id_DelLmEquals(G, currRing); // remove duplicates
+
+  // check if G is the zero ideal
+  if (IDELEMS(G) == 1 && G->m[0] == NULL)
+  {
+    // NOTE: this is needed because if the ideal is <0>, then idSkipZeroes keeps this element, and IDELEMS is still 1!
+    int lV = currRing->isLPring;
+    int ncGenCount = currRing->LPncGenCount;
+    if (lV - ncGenCount == 0)
+    {
+      idDelete(&G);
+      return 0;
+    }
+    if (lV - ncGenCount == 1)
+    {
+      idDelete(&G);
+      return 1;
+    }
+    if (lV - ncGenCount >= 2)
+    {
+      idDelete(&G);
+      return -1;
+    }
+  }
+
+  // get the max deg
+  long maxDeg = 0;
+  for (int i = 0; i < IDELEMS(G); i++)
+  {
+    maxDeg = si_max(maxDeg, pTotaldegree(G->m[i]));
+
+    // also check whether G = <1>
+    if (pIsConstantComp(G->m[i]))
+    {
+      WerrorS("GK-Dim not defined for 0-ring");
+      idDelete(&G);
+      return -2;
+    }
+  }
+
+  // early termination if G \subset X
+  if (maxDeg <= 1)
+  {
+    int lV = currRing->isLPring;
+    int ncGenCount = currRing->LPncGenCount;
+    if (IDELEMS(G) == lV - ncGenCount) // V = {1} no edges
+    {
+      idDelete(&G);
+      return 0;
+    }
+    if (IDELEMS(G) == lV - ncGenCount - 1) // V = {1} with loop
+    {
+      idDelete(&G);
+      return 1;
+    }
+    if (IDELEMS(G) <= lV - ncGenCount - 2) // V = {1} with more than one loop
+    {
+      idDelete(&G);
+      return -1;
+    }
+  }
+
+  ideal standardWords;
+  intvec* UG = lp_ufnarovskiGraph(G, standardWords);
+  if (UG == NULL)
+  {
+    idDelete(&G);
+    return -2;
+  }
+  if (errorreported)
+  {
+    delete UG;
+    idDelete(&G);
+    return -2;
+  }
+  int gkDim = graphGrowth(UG);
+  delete UG;
+  idDelete(&G);
+  return gkDim;
+}
+
+// converts an intvec matrix to a vector<vector<int> >
+static std::vector<std::vector<int> > iv2vv(intvec* M)
+{
+  int rows = M->rows();
+  int cols = M->cols();
+
+  std::vector<std::vector<int> > mat(rows, std::vector<int>(cols));
+
+  for (int i = 0; i < rows; i++)
+  {
+    for (int j = 0; j < cols; j++)
+    {
+      mat[i][j] = IMATELEM(*M, i + 1, j + 1);
+    }
+  }
+
+  return mat;
+}
+
+static void vvPrint(const std::vector<std::vector<int> >& mat)
+{
+  for (int i = 0; i < mat.size(); i++)
+  {
+    for (int j = 0; j < mat[i].size(); j++)
+    {
+      Print("%d ", mat[i][j]);
+    }
+    PrintLn();
+  }
+}
+
+static void vvTest(const std::vector<std::vector<int> >& mat)
+{
+  if (mat.size() > 0)
+  {
+    int cols = mat[0].size();
+    for (int i = 1; i < mat.size(); i++)
+    {
+      if (cols != mat[i].size())
+        WerrorS("number of cols in matrix inconsistent");
+    }
+  }
+}
+
+static void vvDeleteRow(std::vector<std::vector<int> >& mat, int row)
+{
+  mat.erase(mat.begin() + row);
+}
+
+static void vvDeleteColumn(std::vector<std::vector<int> >& mat, int col)
+{
+  for (int i = 0; i < mat.size(); i++)
+  {
+    mat[i].erase(mat[i].begin() + col);
+  }
+}
+
+static BOOLEAN vvIsRowZero(const std::vector<std::vector<int> >& mat, int row)
+{
+  for (int i = 0; i < mat[row].size(); i++)
+  {
+    if (mat[row][i] != 0)
+      return FALSE;
+  }
+  return TRUE;
+}
+
+static BOOLEAN vvIsColumnZero(const std::vector<std::vector<int> >& mat, int col)
+{
+  for (int i = 0; i < mat.size(); i++)
+  {
+    if (mat[i][col] != 0)
+      return FALSE;
+  }
+  return TRUE;
+}
+
+static BOOLEAN vvIsZero(const std::vector<std::vector<int> >& mat)
+{
+  for (int i = 0; i < mat.size(); i++)
+  {
+    if (!vvIsRowZero(mat, i))
+      return FALSE;
+  }
+  return TRUE;
+}
+
+static std::vector<std::vector<int> > vvMult(const std::vector<std::vector<int> >& a, const std::vector<std::vector<int> >& b)
+{
+  int ra = a.size();
+  int rb = b.size();
+  int ca = a.size() > 0 ? a[0].size() : 0;
+  int cb = b.size() > 0 ? b[0].size() : 0;
+
+  if (ca != rb)
+  {
+    WerrorS("matrix dimensions do not match");
+    return std::vector<std::vector<int> >();
+  }
+
+  std::vector<std::vector<int> > res(ra, std::vector<int>(cb));
+  for (int i = 0; i < ra; i++)
+  {
+    for (int j = 0; j < cb; j++)
+    {
+      int sum = 0;
+      for (int k = 0; k < ca; k++)
+        sum += a[i][k] * b[k][j];
+      res[i][j] = sum;
+    }
+  }
+  return res;
+}
+
+static BOOLEAN isAcyclic(const intvec* G)
+{
+  // init
+  int n = G->cols();
+  std::vector<int> path;
+  std::vector<BOOLEAN> visited;
+  std::vector<BOOLEAN> cyclic;
+  std::vector<int> cache;
+  visited.resize(n, FALSE);
+  cyclic.resize(n, FALSE);
+  cache.resize(n, -2);
+
+  for (int v = 0; v < n; v++)
+  {
+    cache = countCycles(G, v, path, visited, cyclic, cache);
+    // check that there are 0 cycles from v
+    if (cache[v] != 0)
+      return FALSE;
+  }
+  return TRUE;
+}
+
+/*
+ * Computation of the K-Dimension
+ */
+
+// -1 is infinity, -2 is error
+int lp_kDim(const ideal _G)
+{
+  if (rField_is_Ring(currRing)) {
+      WerrorS("K-Dim not implemented for rings");
+      return -2;
+  }
+
+  for (int i=IDELEMS(_G)-1;i>=0; i--)
+  {
+    if (_G->m[i] != NULL)
+    {
+      if (pGetComp(_G->m[i]) != 0)
+      {
+        WerrorS("K-Dim not implemented for modules");
+        return -2;
+      }
+      if (pGetNCGen(_G->m[i]) != 0)
+      {
+        WerrorS("K-Dim not implemented for bi-modules");
+        return -2;
+      }
+    }
+  }
+
+  ideal G = id_Head(_G, currRing); // G = LM(G) (and copy)
+  if (TEST_OPT_PROT)
+    Print("%d original generators\n", IDELEMS(G));
+  idSkipZeroes(G); // remove zeros
+  id_DelLmEquals(G, currRing); // remove duplicates
+  if (TEST_OPT_PROT)
+    Print("%d non-zero unique generators\n", IDELEMS(G));
+
+  // check if G is the zero ideal
+  if (IDELEMS(G) == 1 && G->m[0] == NULL)
+  {
+    // NOTE: this is needed because if the ideal is <0>, then idSkipZeroes keeps this element, and IDELEMS is still 1!
+    int lV = currRing->isLPring;
+    int ncGenCount = currRing->LPncGenCount;
+    if (lV - ncGenCount == 0)
+    {
+      idDelete(&G);
+      return 1;
+    }
+    if (lV - ncGenCount == 1)
+    {
+      idDelete(&G);
+      return -1;
+    }
+    if (lV - ncGenCount >= 2)
+    {
+      idDelete(&G);
+      return -1;
+    }
+  }
+
+  // get the max deg
+  long maxDeg = 0;
+  for (int i = 0; i < IDELEMS(G); i++)
+  {
+    maxDeg = si_max(maxDeg, pTotaldegree(G->m[i]));
+
+    // also check whether G = <1>
+    if (pIsConstantComp(G->m[i]))
+    {
+      WerrorS("K-Dim not defined for 0-ring"); // TODO is it minus infinity ?
+      idDelete(&G);
+      return -2;
+    }
+  }
+  if (TEST_OPT_PROT)
+    Print("max deg: %ld\n", maxDeg);
+
+
+  // for normal words of length minDeg ... maxDeg-1
+  // brute-force the normal words
+  if (TEST_OPT_PROT)
+    PrintS("Computing normal words normally...\n");
+  long numberOfNormalWords = lp_countNormalWords(maxDeg - 1, G);
+
+  if (TEST_OPT_PROT)
+    Print("%ld normal words up to length %ld\n", numberOfNormalWords, maxDeg - 1);
+
+  // early termination if G \subset X
+  if (maxDeg <= 1)
+  {
+    int lV = currRing->isLPring;
+    int ncGenCount = currRing->LPncGenCount;
+    if (IDELEMS(G) == lV - ncGenCount) // V = {1} no edges
+    {
+      idDelete(&G);
+      return numberOfNormalWords;
+    }
+    if (IDELEMS(G) == lV - ncGenCount - 1) // V = {1} with loop
+    {
+      idDelete(&G);
+      return -1;
+    }
+    if (IDELEMS(G) <= lV - ncGenCount - 2) // V = {1} with more than one loop
+    {
+      idDelete(&G);
+      return -1;
+    }
+  }
+
+  if (TEST_OPT_PROT)
+    PrintS("Computing Ufnarovski graph...\n");
+
+  ideal standardWords;
+  intvec* UG = lp_ufnarovskiGraph(G, standardWords);
+  if (UG == NULL)
+  {
+    idDelete(&G);
+    return -2;
+  }
+  if (errorreported)
+  {
+    delete UG;
+    idDelete(&G);
+    return -2;
+  }
+
+  if (TEST_OPT_PROT)
+    Print("Ufnarovski graph is %dx%d.\n", UG->rows(), UG->cols());
+
+  if (TEST_OPT_PROT)
+    PrintS("Checking whether Ufnarovski graph is acyclic...\n");
+
+  if (!isAcyclic(UG))
+  {
+    // in this case we have infinitely many normal words
+    return -1;
+  }
+
+  std::vector<std::vector<int> > vvUG = iv2vv(UG);
+  for (int i = 0; i < vvUG.size(); i++)
+  {
+    if (vvIsRowZero(vvUG, i) && vvIsColumnZero(vvUG, i)) // i is isolated vertex
+    {
+      vvDeleteRow(vvUG, i);
+      vvDeleteColumn(vvUG, i);
+      i--;
+    }
+  }
+  if (TEST_OPT_PROT)
+    Print("Simplified Ufnarovski graph to %dx%d.\n", (int)vvUG.size(), (int)vvUG.size());
+
+  // for normal words of length >= maxDeg
+  // use Ufnarovski graph
+  if (TEST_OPT_PROT)
+    PrintS("Computing normal words via Ufnarovski graph...\n");
+  std::vector<std::vector<int> > UGpower = vvUG;
+  long nUGpower = 1;
+  while (!vvIsZero(UGpower))
+  {
+    if (TEST_OPT_PROT)
+      PrintS("Start count graph entries.\n");
+    for (int i = 0; i < UGpower.size(); i++)
+    {
+      for (int j = 0; j < UGpower[i].size(); j++)
+      {
+        numberOfNormalWords += UGpower[i][j];
+      }
+    }
+
+    if (TEST_OPT_PROT)
+    {
+      PrintS("Done count graph entries.\n");
+      Print("%ld normal words up to length %ld\n", numberOfNormalWords, maxDeg - 1 + nUGpower);
+    }
+
+    if (TEST_OPT_PROT)
+      PrintS("Start mat mult.\n");
+    UGpower = vvMult(UGpower, vvUG); // TODO: avoid creation of new intvec
+    if (TEST_OPT_PROT)
+      PrintS("Done mat mult.\n");
+    nUGpower++;
+  }
+
+  delete UG;
+  idDelete(&G);
+  return numberOfNormalWords;
+}
 #endif

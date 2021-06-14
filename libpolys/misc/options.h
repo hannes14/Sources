@@ -58,6 +58,7 @@ EXTERN_VAR BOOLEAN siCntrlc;
 #define V_UPTORADICAL 18
 #define V_FINDMONOM  19
 #define V_COEFSTRAT  20
+// set V_IDLIFT for liftstd(A,B) command (no syzygies wanted)
 #define V_IDLIFT     21
 #define V_LENGTH     22
 //#define V_REPORT_STD 23
@@ -66,7 +67,8 @@ EXTERN_VAR BOOLEAN siCntrlc;
 #define V_INTERSECT_ELIM 25
 #define V_INTERSECT_SYZ 26
 #define V_ASSIGN_NONE 27
-/* for tests: 28-30 */
+#define V_IDELIM      28
+/* for tests: 29-30 */
 #define V_DEG_STOP   31
 
 
@@ -82,7 +84,7 @@ EXTERN_VAR BOOLEAN siCntrlc;
 #define OPT_RETURN_SB      9
 #define OPT_FASTHC        10
 #define OPT_OLDSTD        20
-
+#define OPT_REDTAIL_SYZ   21
 #define OPT_STAIRCASEBOUND 22
 #define OPT_MULTBOUND     23
 #define OPT_DEGBOUND      24
@@ -112,6 +114,7 @@ EXTERN_VAR BOOLEAN siCntrlc;
 #define TEST_OPT_MULTBOUND         BTEST1(OPT_MULTBOUND)
 #define TEST_OPT_STAIRCASEBOUND    BTEST1(OPT_STAIRCASEBOUND)
 #define TEST_OPT_REDTAIL           BTEST1(OPT_REDTAIL)
+#define TEST_OPT_REDTAIL_SYZ       BTEST1(OPT_REDTAIL_SYZ)
 #define TEST_OPT_INFREDTAIL        BTEST1(OPT_INFREDTAIL)
 #define TEST_OPT_SB_1              BTEST1(OPT_SB_1)
 #define TEST_OPT_NOTREGULARITY     BTEST1(OPT_NOTREGULARITY)
@@ -124,6 +127,7 @@ EXTERN_VAR BOOLEAN siCntrlc;
 #define TEST_OPT_CONTENTSB         BVERBOSE(V_CONTENTSB)
 #define TEST_OPT_CANCELUNIT        BVERBOSE(V_CANCELUNIT)
 #define TEST_OPT_IDLIFT            BVERBOSE(V_IDLIFT)
+#define TEST_OPT_IDELIM            BVERBOSE(V_IDELIM)
 #define TEST_OPT_LENGTH            BVERBOSE(V_LENGTH)
 #define TEST_V_QRING               BVERBOSE(V_QRING)
 #define TEST_V_NSB                 BVERBOSE(V_NSB)

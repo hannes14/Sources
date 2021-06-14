@@ -95,13 +95,9 @@ CHANGELOG:
 17.12.12: updated docu, removed redundant procedure killTerms
 */
 
-
 LIB "bfun.lib";    // for pIntersect etc
 LIB "dmodapp.lib"; // for GBWeight, charVariety etc
 LIB "nctools.lib"; // for Weyl, isWeyl etc
-// TODO uncomment this once chern.lib is ready
-// LIB "chern.lib";   // for orderedPartition
-
 
 // testing for consistency of the library /////////////////////////////////////
 
@@ -938,7 +934,7 @@ example
 // TODO remove this proc once chern.lib is ready
 static proc orderedPartition(int n, list #)
 "
-USUAGE:  orderedPartition(n,a); n,a positive ints
+USAGE:   orderedPartition(n,a); n,a positive ints
          orderedPartition(n,w); n positive int, w positive intvec
 RETURN:  list of intvecs
 PURPOSE: Computes all partitions of n of length a, if the second

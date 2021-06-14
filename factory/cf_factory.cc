@@ -13,6 +13,7 @@
 #include "int_int.h"
 #include "int_rat.h"
 #include "int_poly.h"
+#include "int_pp.h"
 #include "imm.h"
 
 /// For optimizing if-branches
@@ -45,6 +46,48 @@ CFFactory::basic ( long value )
         return int2imm_p( ff_norm( value ) );
     case GaloisFieldDomain:
         return int2imm_gf( gf_int2gf( value ) );
+    #ifndef HAVE_NTL
+    case PrimePowerDomain:
+        return new InternalPrimePower( value );
+    #endif
+    default: {
+        ASSERT( 0, "illegal basic domain!" );
+        return 0;
+    }
+  }
+}
+
+InternalCF *
+CFFactory::basic ( int value )
+{
+  switch(currenttype)
+  {
+    case IntegerDomain:
+#if SIZEOF_LONG == 8
+            return int2imm( value );
+#else
+        if (LIKELY( value >= MINIMMEDIATE && value <= MAXIMMEDIATE ))
+            return int2imm( value );
+        else
+            return new InternalInteger( value );
+#endif
+    case RationalDomain:
+#if SIZEOF_LONG == 8
+            return int2imm( value );
+#else
+        if (LIKELY( value >= MINIMMEDIATE && value <= MAXIMMEDIATE ))
+            return int2imm( value );
+        else
+            return new InternalRational( value );
+#endif
+    case FiniteFieldDomain:
+        return int2imm_p( ff_norm( value ) );
+    case GaloisFieldDomain:
+        return int2imm_gf( gf_int2gf( value ) );
+    #ifndef HAVE_NTL
+    case PrimePowerDomain:
+        return new InternalPrimePower( value );
+    #endif
     default: {
         ASSERT( 0, "illegal basic domain!" );
         return 0;
@@ -259,7 +302,6 @@ CFFactory::poly ( const Variable & v, int exp )
 
 void getmpi ( InternalCF * value, mpz_t mpi)
 {
-    ASSERT( ! is_imm( value ) && (value->levelcoeff() == IntegerDomain ), "illegal operation" );
+    ASSERT( ! is_imm( value ) && (value->levelcoeff() == IntegerDomain || value->levelcoeff() == PrimePowerDomain), "illegal operation" );
     mpz_init_set (mpi, ((InternalInteger*)value)->thempi);
 }
-

@@ -27,13 +27,14 @@
 #include "cf_map.h"
 #include "cfNewtonPolygon.h"
 #include "fac_util.h"
+#include "cf_algorithm.h"
 
 TIMING_DEFINE_PRINT(fac_fq_bi_sqrf)
 TIMING_DEFINE_PRINT(fac_fq_bi_factor_sqrf)
 
 static const double log2exp= 1.442695041;
 
-#ifdef HAVE_NTL
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
 /// Factorization of a squarefree bivariate polynomials over an arbitrary finite
 /// field, information on the current field we work over is in @a info. @a info
 /// may also contain information about the initial field if initial and current
@@ -49,6 +50,7 @@ biFactorize (const CanonicalForm& F,       ///< [in] a sqrfree bivariate poly
              const ExtensionInfo& info     ///< [in] information about extension
             );
 
+#ifdef HAVE_NTL // biFactorize
 inline CFList
 biSqrfFactorizeHelper (const CanonicalForm& G, const ExtensionInfo& info)
 {
@@ -127,12 +129,14 @@ biSqrfFactorizeHelper (const CanonicalForm& G, const ExtensionInfo& info)
 
   return result;
 }
+#endif
 
 /// factorize a squarefree bivariate polynomial over \f$ F_{p} \f$.
 ///
 /// @return @a FpBiSqrfFactorize returns a list of monic factors, the first
 ///         element is the leading coefficient.
 /// @sa FqBiSqrfFactorize(), GFBiSqrfFactorize()
+#ifdef HAVE_NTL // biSqrfFactorizeHelper, biFactorize
 inline
 CFList FpBiSqrfFactorize (const CanonicalForm & G ///< [in] a bivariate poly
                          )
@@ -140,12 +144,14 @@ CFList FpBiSqrfFactorize (const CanonicalForm & G ///< [in] a bivariate poly
   ExtensionInfo info= ExtensionInfo (false);
   return biSqrfFactorizeHelper (G, info);
 }
+#endif
 
 /// factorize a squarefree bivariate polynomial over \f$ F_{p}(\alpha ) \f$.
 ///
 /// @return @a FqBiSqrfFactorize returns a list of monic factors, the first
 ///         element is the leading coefficient.
 /// @sa FpBiSqrfFactorize(), GFBiSqrfFactorize()
+#ifdef HAVE_NTL // biSqrfFactorizeHelper, biFactorize
 inline
 CFList FqBiSqrfFactorize (const CanonicalForm & G, ///< [in] a bivariate poly
                           const Variable& alpha    ///< [in] algebraic variable
@@ -154,12 +160,14 @@ CFList FqBiSqrfFactorize (const CanonicalForm & G, ///< [in] a bivariate poly
   ExtensionInfo info= ExtensionInfo (alpha, false);
   return biSqrfFactorizeHelper (G, info);
 }
+#endif
 
 /// factorize a squarefree bivariate polynomial over GF
 ///
 /// @return @a GFBiSqrfFactorize returns a list of monic factors, the first
 ///         element is the leading coefficient.
 /// @sa FpBiSqrfFactorize(), FqBiSqrfFactorize()
+#ifdef HAVE_NTL // biSqrfFactorizeHelper, biFactorize
 inline
 CFList GFBiSqrfFactorize (const CanonicalForm & G ///< [in] a bivariate poly
                          )
@@ -169,12 +177,14 @@ CFList GFBiSqrfFactorize (const CanonicalForm & G ///< [in] a bivariate poly
   ExtensionInfo info= ExtensionInfo (getGFDegree(), gf_name, false);
   return biSqrfFactorizeHelper (G, info);
 }
+#endif
 
 /// factorize a bivariate polynomial over \f$ F_{p} \f$
 ///
 /// @return @a FpBiFactorize returns a list of monic factors with
 ///         multiplicity, the first element is the leading coefficient.
 /// @sa FqBiFactorize(), GFBiFactorize()
+#ifdef HAVE_NTL // biFactorize
 inline
 CFFList
 FpBiFactorize (const CanonicalForm & G, ///< [in] a bivariate poly
@@ -294,12 +304,14 @@ FpBiFactorize (const CanonicalForm & G, ///< [in] a bivariate poly
 
   return result;
 }
+#endif
 
 /// factorize a bivariate polynomial over \f$ F_{p}(\alpha ) \f$
 ///
 /// @return @a FqBiFactorize returns a list of monic factors with
 ///         multiplicity, the first element is the leading coefficient.
 /// @sa FpBiFactorize(), FqBiFactorize()
+#ifdef HAVE_NTL // biFactorize
 inline
 CFFList
 FqBiFactorize (const CanonicalForm & G, ///< [in] a bivariate poly
@@ -421,12 +433,14 @@ FqBiFactorize (const CanonicalForm & G, ///< [in] a bivariate poly
 
   return result;
 }
+#endif
 
 /// factorize a bivariate polynomial over GF
 ///
 /// @return @a GFBiFactorize returns a list of monic factors with
 ///         multiplicity, the first element is the leading coefficient.
 /// @sa FpBiFactorize(), FqBiFactorize()
+#ifdef HAVE_NTL // biFactorize
 inline
 CFFList
 GFBiFactorize (const CanonicalForm & G, ///< [in] a bivariate poly
@@ -549,6 +563,7 @@ GFBiFactorize (const CanonicalForm & G, ///< [in] a bivariate poly
 
   return result;
 }
+#endif
 
 /// \f$ \prod_{f\in L} {f (0, x)} \ mod\ M \f$ via divide-and-conquer
 ///

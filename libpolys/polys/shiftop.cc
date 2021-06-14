@@ -8,11 +8,11 @@
 
 /* #define SHIFT_MULT_DEBUG */
 
-/* enable compat mode until the user interface is updated to support xy instead of x(1)*y(2)
- * NOTE: it already works, but all tests and the libraries need to be updated first
- * -> wait until the new interface is released
-*/
-#define SHIFT_MULT_COMPAT_MODE // ncHilb.lib still relies on it
+/*
+ * NEEDED BY
+ * - ncHilb.lib
+ */
+#define SHIFT_MULT_COMPAT_MODE 
 
 #ifdef SHIFT_MULT_DEBUG
 #include "../kernel/polys.h"
@@ -593,22 +593,38 @@ char* LPExpVString(int *expV, ring ri)
 }
 
 // splits a frame (e.g. x(1)*y(5)) m1 into m1 and m2 (e.g. m1=x(1) and m2=y(1))
-// according to p which is inside the frame
+// at is the number of the block to split at, starting at 1
 void k_SplitFrame(poly &m1, poly &m2, int at, const ring r)
 {
+  assume(at >= 1);
+  assume(at <= r->N/r->isLPring);
   int lV = r->isLPring;
+  int split = (lV * (at - 1));
 
-  number m1Coeff = pGetCoeff(m1);
-
-  int hole = lV * at;
-  m2 = p_GetExp_k_n(m1, 1, hole, r);
-  m1 = p_GetExp_k_n(m1, hole, r->N, r);
-
+  m2 = p_GetExp_k_n(m1, 1, split, r);
+  p_SetComp(m2, 0, r); // important, otherwise both m1 and m2 have a component set, this leads to problems later
+  p_Setm(m2, r); // p_mLPunshift also implicitly calls p_Setm(), but just for the case this changes in future.
   p_mLPunshift(m2, r);
-  p_SetCoeff(m1, m1Coeff, r);
+
+  m1 = p_Head(m1, r);
+  for(int i = split + 1; i <= r->N; i++)
+  {
+    p_SetExp(m1, i, 0, r);
+  }
+  p_Setm(m1, r);
 
   assume(p_FirstVblock(m1,r) <= 1);
   assume(p_FirstVblock(m2,r) <= 1);
+}
+
+BOOLEAN _p_mLPNCGenValid(poly p, const ring r)
+{
+  if (p == NULL) return TRUE;
+  int *e=(int *)omAlloc((r->N+1)*sizeof(int));
+  p_GetExpV(p,e,r);
+  int b = _p_mLPNCGenValid(e, r);
+  omFreeSize((ADDRESS) e, (r->N+1)*sizeof(int));
+  return b;
 }
 
 BOOLEAN _p_mLPNCGenValid(int *mExpV, const ring r)
@@ -632,6 +648,27 @@ BOOLEAN _p_mLPNCGenValid(int *mExpV, const ring r)
     }
   }
   return TRUE;
+}
+
+int p_GetNCGen(poly p, const ring r)
+{
+  if (p == NULL) return 0;
+  assume(_p_mLPNCGenValid(p, r));
+
+  int lV = r->isLPring;
+  int degbound = r->N/lV;
+  int ncGenCount = r->LPncGenCount;
+  for (int i = 1; i <= degbound; i++)
+  {
+    for (int j = i*lV; j > (i*lV - ncGenCount); j--)
+    {
+      if (p_GetExp(p, j, r))
+      {
+        return j - i*lV + ncGenCount;
+      }
+    }
+  }
+  return 0;
 }
 
 /* tests whether each polynomial of an ideal I lies in in V */
@@ -761,10 +798,12 @@ BOOLEAN _p_LPLmDivisibleByNoComp(poly a, poly b, const ring r)
   b = p_Head(b, r);
   p_mLPunshift(b, r);
 #endif
-  for (int i = (r->N / r->isLPring) - p_LastVblock(a, r); i >= 0; i--)
+  int aLastVblock = p_mLastVblock(a, r);
+  int bLastVblock = p_mLastVblock(b, r);
+  for (int i = 0; i <= bLastVblock - aLastVblock; i++)
   {
     bool divisible = true;
-    for (int j = r->N - (i * r->isLPring); j >= 0; j--)
+    for (int j = 1; j <= aLastVblock * r->isLPring; j++)
     {
       if (p_GetExp(a, j, r) > p_GetExp(b, j + (i * r->isLPring), r))
       {
@@ -781,6 +820,18 @@ BOOLEAN _p_LPLmDivisibleByNoComp(poly a, poly b, const ring r)
   return FALSE;
 }
 
+BOOLEAN p_LPDivisibleBy(ideal I, poly p, ring r)
+{
+  for(int i = 0; i < IDELEMS(I); i++)
+  {
+    if (p_LPDivisibleBy(I->m[i], p, r))
+    {
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
 poly p_LPVarAt(poly p, int pos, const ring r)
 {
   if (p == NULL || pos < 1 || pos > (r->N / r->isLPring)) return NULL;
@@ -792,6 +843,71 @@ poly p_LPVarAt(poly p, int pos, const ring r)
     }
   }
   return v;
+}
+
+
+/*
+* substitute the n-th variable by e in m
+* does not destroy m
+*/
+poly p_mLPSubst(poly m, int n, poly e, const ring r)
+{
+  assume(p_GetComp(e, r) == 0);
+  if (m == NULL) return NULL;
+
+  int lV = r->isLPring;
+  int degbound = r->N/lV;
+
+  poly result = p_One(r);
+  poly remaining = p_Head(m, r);
+  p_SetComp(result, p_GetComp(remaining, r), r);
+  p_SetComp(remaining, 0, r);
+  for (int i = 0; i < degbound; i++)
+  {
+    int var = n + lV*i;
+    if (p_GetExp(remaining, var, r)) {
+      if (e == NULL) {
+        p_Delete(&result, r);
+        result = NULL;
+        break;
+      }
+      int startOfBlock = 1 + lV*i;
+      int endOfBlock = lV*(i+1);
+
+      poly left = p_GetExp_k_n(remaining, startOfBlock, r->N, r);
+      p_SetCoeff(left, n_Copy(p_GetCoeff(remaining, r), r->cf), r);
+      p_mLPunshift(left, r);
+
+      poly right = p_GetExp_k_n(remaining, 1, endOfBlock, r);
+      p_Delete(&remaining, r);
+      remaining = right;
+
+      left = p_Mult_q(left, p_Copy(e, r), r);
+      result = p_Mult_q(result, left, r);
+    }
+  }
+  if (result == NULL) {
+    return NULL;
+  } else {
+    p_mLPunshift(remaining, r);
+    return p_Mult_q(result, remaining, r);
+  }
+}
+
+/*
+* also see p_Subst()
+* substitute the n-th variable by e in p
+* does not destroy p
+*/
+poly p_LPSubst(poly p, int n, poly e, const ring r)
+{
+  poly res = NULL;
+  while (p!=NULL)
+  {
+    res = p_Add_q(res, p_mLPSubst(p, n, e, r), r);
+    pIter(p);
+  }
+  return res;
 }
 
 /// substitute weights from orderings a,wp,Wp
@@ -816,15 +932,20 @@ static BOOLEAN freeAlgebra_weights(const ring old_ring, ring new_ring, int p, in
 ring freeAlgebra(ring r, int d, int ncGenCount)
 {
   if (ncGenCount) r = rCopy0(r);
+  char *varname=(char *)omAlloc(20);
   for (int i = 1; i <= ncGenCount; i++)
   {
-    char *varname=(char *)omAlloc(256);
     sprintf(varname, "ncgen(%d)", i);
     ring save = r;
     r = rPlusVar(r, varname, 0);
-    omFreeSize(varname, 256);
+    if (r==NULL)
+    {
+      omFreeSize(varname, 20);
+      return NULL; /* error in rPlusVar*/
+    }
     rDelete(save);
   }
+  omFreeSize(varname, 20);
   ring R=rCopy0(r);
   int p;
   if((r->order[0]==ringorder_C)
@@ -834,6 +955,7 @@ ring freeAlgebra(ring r, int d, int ncGenCount)
     p=0;
   // create R->N
   R->N=r->N*d;
+  R->wanted_maxExp=7; /* Tst/Manual/letterplace_liftstd.tst*/
   R->isLPring=r->N;
   R->LPncGenCount=ncGenCount;
   // create R->order

@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////
-version="version modular.lib 4.1.2.0 Feb_2019 "; // $Id$
+version="version modular.lib 4.2.0.0 Dec_2020 "; // $Id$
 category="General purpose";
 info="
 LIBRARY:   modular.lib  An abstraction layer for modular techniques
@@ -367,6 +367,10 @@ static proc farey_parallel(def farey_arg, bigint farey_N)
     if (arg_type == "bigint" || arg_type == "matrix")
     { return(farey(farey_arg, farey_N)); }
     // else: farey_arg is an ideal or a module
+    //if(hasQQCoefficient(basering))
+    //{
+    //  return(farey(farey_arg,farey_N));
+    //}
     exportto(Modular, farey_arg);
     exportto(Modular, farey_N);
     int size_arg = ncols(farey_arg);

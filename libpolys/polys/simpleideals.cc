@@ -127,7 +127,7 @@ void id_Delete (ideal * h, ring r)
 
   id_Test(*h, r);
 
-  const int elems = (*h)->nrows * (*h)->ncols;
+  const long elems = (long)(*h)->nrows * (long)(*h)->ncols;
 
   if ( elems > 0 )
   {
@@ -135,7 +135,7 @@ void id_Delete (ideal * h, ring r)
 
     if (r!=NULL)
     {
-      int j = elems;
+      long j = elems;
       do
       {
         j--;
@@ -434,7 +434,7 @@ void id_DBTest(ideal h1, int level, const char *f,const int l, const ring r, con
 
     assume( h1->rank >= 0 );
 
-    const int n = (h1->ncols * h1->nrows);
+    const long n = ((long)h1->ncols * (long)h1->nrows);
 
     assume( !( n > 0 && h1->m == NULL) );
 
@@ -444,7 +444,7 @@ void id_DBTest(ideal h1, int level, const char *f,const int l, const ring r, con
     long new_rk = 0; // inlining id_RankFreeModule(h1, r, tailRing);
 
     /* to be able to test matrices: */
-    for (int i=n - 1; i >= 0; i--)
+    for (long i=n - 1; i >= 0; i--)
     {
       _pp_Test(h1->m[i], r, tailRing, level);
       const long k = p_MaxComp(h1->m[i], r, tailRing);
@@ -921,7 +921,8 @@ int idGetNumberOfChoise(int t, int d, int begin, int end, int * choise)
 */
 int binom (int n,int r)
 {
-  int i,result;
+  int i;
+  int64 result;
 
   if (r==0) return 1;
   if (n-r<r) return binom(n,n-r);
@@ -929,14 +930,14 @@ int binom (int n,int r)
   for (i=2;i<=r;i++)
   {
     result *= n-r+i;
-    if (result<0)
-    {
-      WarnS("overflow in binomials");
-      return 0;
-    }
     result /= i;
   }
-  return result;
+  if (result>MAX_INT_VAL)
+  {
+    WarnS("overflow in binomials");
+    result=0;
+  }
+  return (int)result;
 }
 
 
@@ -944,6 +945,10 @@ int binom (int n,int r)
 ideal id_FreeModule (int i, const ring r)
 {
   assume(i >= 0);
+  if (r->isLPring)
+  {
+    PrintS("In order to address bimodules, the command freeAlgebra should be used.");
+  }
   ideal h = idInit(i, i);
 
   for (int j=0; j<i; j++)
@@ -1043,7 +1048,7 @@ static void lpmakemonoms(int vars, int deg, const ring r)
     for (int i = 0; i < size; i++)
     {
       idpowerpoint = (j-1)*size + i;
-      p_SetExp(idpower[idpowerpoint], ((deg - 1)*vars) + j, 1, r);
+      p_SetExp(idpower[idpowerpoint], ((deg - 1) * r->isLPring) + j, 1, r);
       p_Setm(idpower[idpowerpoint],r);
       p_Test(idpower[idpowerpoint],r);
     }
@@ -1062,7 +1067,11 @@ ideal id_MaxIdeal(int deg, const ring r)
     I->m[0]=p_One(r);
     return I;
   }
-  if (deg == 1)
+  if (deg == 1
+#ifdef HAVE_SHIFTBBA
+      && !r->isLPring
+#endif
+     )
   {
     return id_MaxIdeal(r);
   }
@@ -1071,7 +1080,7 @@ ideal id_MaxIdeal(int deg, const ring r)
 #ifdef HAVE_SHIFTBBA
   if (r->isLPring)
   {
-    vars = r->isLPring;
+    vars = r->isLPring - r->LPncGenCount;
     i = 1;
     // i = vars^deg
     for (int j = 0; j < deg; j++)
@@ -1531,7 +1540,7 @@ ideal id_Jet(const ideal i,int d, const ring R)
   r->ncols = i-> ncols;
   //r->rank = i-> rank;
 
-  for(int k=(i->nrows)*(i->ncols)-1;k>=0; k--)
+  for(long k=((long)(i->nrows))*((long)(i->ncols))-1;k>=0; k--)
     r->m[k]=pp_Jet(i->m[k],d,R);
 
   return r;
@@ -1546,13 +1555,13 @@ ideal id_JetW(const ideal i,int d, intvec * iv, const ring R)
   }
   else
   {
-    short *w=iv2array(iv,R);
+    int *w=iv2array(iv,R);
     int k;
     for(k=0; k<IDELEMS(i); k++)
     {
       r->m[k]=pp_JetW(i->m[k],d,w,R);
     }
-    omFreeSize((ADDRESS)w,(rVar(R)+1)*sizeof(short));
+    omFreeSize((ADDRESS)w,(rVar(R)+1)*sizeof(int));
   }
   return r;
 }

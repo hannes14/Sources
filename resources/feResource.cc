@@ -62,20 +62,25 @@ VAR feResourceConfig_s feResourceConfigs[] =
    "%D/factory;"
    "%r/share/factory;"
    "%b/LIB;"
+   "%b/../LIB;" // not installed, shared is in .libs/Singular
    "%b/../factory;"
+   "%b/../../factory;" // not installed, shared is in .libs/Singular
    // path for dynamic modules, should match ProcDir:
    "%b/MOD;"
+   "%b/../MOD;" // Singular in .libs/Singular
    "%r/lib/singular/MOD;"
    "%r/libexec/singular/MOD;"
    LIB_DIR "/singular/MOD;"
    LIBEXEC_DIR "/singular/MOD;"
-   "%b",
+   "%b;"
+   "%b/..", // Singular in .libs/Singular
    (char *)""},
   {"Singular",  'S',    feResBinary,"SINGULAR_EXECUTABLE",  "%d/Singular",          (char *)""},
   {"BinDir",    'b',    feResDir,   "SINGULAR_BIN_DIR",     "",                  (char *)""},
   // should be changed to %b/../lib/singular/pProcs/:
   {"ProcDir",   'P',    feResPath,  "SINGULAR_PROCS_DIR",
      "%b/MOD;"
+     "%b/../MOD;" // Singular in .libs/Singular
      "%r/lib/singular/MOD;"
      "%r/libexec/singular/MOD;"
      LIB_DIR "/singular/MOD;"   /*debian: -> /usr/lib/singular/MOD */
@@ -86,7 +91,7 @@ VAR feResourceConfig_s feResourceConfigs[] =
   {"InfoFile",  'i',    feResFile,  "SINGULAR_INFO_FILE",   "%D/info/singular.hlp", (char *)""},
   {"IdxFile",   'x',    feResFile,  "SINGULAR_IDX_FILE",    "%D/singular/singular.idx",  (char *)""},
   {"HtmlDir",   'h',    feResDir,   "SINGULAR_HTML_DIR",    "%D/singular/html",              (char *)""},
-  {"ManualUrl", 'u',    feResUrl,   "SINGULAR_URL",         "http://www.singular.uni-kl.de/Manual/",    (char *)""},
+  {"ManualUrl", 'u',    feResUrl,   "SINGULAR_URL",         "https://www.singular.uni-kl.de/Manual/",    (char *)""},
   {"ExDir",     'm',    feResDir,   "SINGULAR_EXAMPLES_DIR","%r/examples",          (char *)""},
   {"Path",      'p',    feResPath,  NULL,                   "%b;%P;$PATH",             (char *)""},
 

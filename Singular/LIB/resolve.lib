@@ -326,12 +326,29 @@ EXAMPLE: example blowUp2;  shows an example
 // (in the comments n=nvars(S) and m=ncols(C))
 //---------------------------------------------------------------------------
 //--- set up rings for the elimination
-  string r1="ring R=("+charstr(basering)+"),(x(1.."+string(nvars(S));
-  r1=r1+"),y(1.."+string(ncols(C))+")),dp;";
-  string r1t="ring Rt=("+charstr(basering)+"),(x(1.."+string(nvars(S));
-  r1t=r1t+"),y(1.."+string(ncols(C))+"),t),(dp,dp(1));";
-  execute(r1);       // ring for describing the transforms
-  execute(r1t);      // like r1, but with additional variable t
+  int ii;
+  list l5;
+  for (ii = 1; ii<= nvars(S); ii++)
+  {
+   l5[ii] = "x("+string(ii)+")";
+  }
+  for (ii = 1; ii<= ncols(C); ii++)
+  {
+   l5[nvars(S)+ii] = "y("+string(ii)+")";
+  }
+  ring R = create_ring(ringlist(basering)[1], l5, "dp", "no_minpoly");     // ring for describing the transforms
+  def C=fetch(S,C);
+  list l6;
+  for (ii = 1; ii<= nvars(S); ii++)
+  {
+   l6[ii] = "x("+string(ii)+")";
+  }
+  for (ii = 1; ii<= ncols(C); ii++)
+  {
+   l6[nvars(S)+ii] = "y("+string(ii)+")";
+  }
+  l6[size(l6)+1] = "t";
+  ring Rt = create_ring(ringlist(basering)[1], l6, "(dp("+string(ncols(C)+nvars(S))+"),dp(1))", "no_minpoly");
   def J=fetch(S,J);
   def C=fetch(S,C);
 //--- we need to eliminate t from J,y(1)-t*C[1],...y(m)-t*C[m]
@@ -518,7 +535,7 @@ proc blowUpBO(list BO, ideal C,int e)
 ASSUME:  R  = basering, a polynomial ring, W an ideal of R,
 @*       J  = ideal containing W,
 @*       C  = ideal containing J
-COMPUTE: the blowing up of BO[1] in C, the exeptional locus, the strict
+COMPUTE: the blowing up of BO[1] in C, the exceptional locus, the strict
          transform of BO[2]
 NOTE:    blowUpBO may be applied to basic objects in the sense of
 @*       [Bravo, Encinas, Villamayor] in the following referred to as BO and
@@ -563,13 +580,13 @@ EXAMPLE: example blowUpBO;  shows an example
    intvec v;
    int shortC=defined(shortcut);
    int invS=defined(invSat);
-   int eq,hy;
+   int eq,hy,ii;
    int extra,noDel,keepDiv;
    if(e==1){extra=1;}
 //---keeps all charts
    if(e==2){noDel=1;}
 //---this is only for curves and surfaces
-//---keeps all charts with relevant informations on the exceptional divisors
+//---keeps all charts with relevant information on the exceptional divisors
    if(e==3){keepDiv=1;}
    if( typeof(attrib(BO[2],"isEqui"))=="int" )
    {
@@ -665,7 +682,12 @@ EXAMPLE: example blowUpBO;  shows an example
 // Do the actual blow-up
 //---------------------------------------------------------------------------
 //--- control the names of the variables
-   execute("ring R=("+charstr(R0)+"),(x(1..n)),dp;");
+   list l2;
+   for (ii = 1; ii <= n; ii++)
+   {
+    l2[ii] = "x("+string(ii)+")";
+   }
+   ring R = create_ring(ringlist(R0)[1], l2, "dp", "no_minpoly");
    list BO=fetch(R1,BO);
    ideal C=fetch(R1,C);
    list Cmstd=mstd(C);
@@ -705,10 +727,21 @@ EXAMPLE: example blowUpBO;  shows an example
    Ex[size(Ex)+1]=var(1);
          //to have the list depending on R in case BO[4] is empty
 
-   execute("ring S=("+charstr(R)+"),("+varstr(R)+",y(0..s-1)),dp;");
+   list l3 = ringlist(R)[2];
+   for (ii = 0; ii <= s-1; ii++)
+   {
+    l3[size(l3)+1] = "y("+string(ii)+")";
+   }
+   ring S = create_ring(ringlist(R)[1], l3, "dp", "no_minpoly"); 
    list resu;
    list B;
-   execute("ring T=("+charstr(R)+"),("+varstr(R)+",y(0..s-1),t),dp;");
+   list l4 = ringlist(R)[2];
+   for (ii = 0; ii <= s-1; ii++)
+   {
+    l4[size(l4)+1] = "y("+string(ii)+")";
+   }
+   l4[size(l4)+1] = "t";
+   ring T = create_ring(ringlist(R)[1], l4, "dp", "no_minpoly");
    ideal C=imap(R,C);
    ideal W=imap(R,W);
    execute("map phi=S,"+varstr(R)+",t*C;")
@@ -829,7 +862,7 @@ EXAMPLE: example blowUpBO;  shows an example
      if(deg(JJ[1])==0)
      {
         delCharts[i+1]=1;
-//--- the i-th chart will be marked for deleting because all informations
+//--- the i-th chart will be marked for deleting because all information
 //--- are already contained in the union of the remaining charts
      }
      else
@@ -875,7 +908,7 @@ EXAMPLE: example blowUpBO;  shows an example
            }
            if(m)
            {
-//--- the i-th chart will be marked for deleting because all informations
+//--- the i-th chart will be marked for deleting because all information
 //--- are already contained in the union of the remaining charts
               delCharts[i+1]=1;
            }
@@ -926,7 +959,7 @@ EXAMPLE: example blowUpBO;  shows an example
            {
               if(m==1)
               {
-//--- the i-th chart will be marked for deleting because all informations
+//--- the i-th chart will be marked for deleting because all information
 //--- are already contained in the union of the remaining charts
                  delCharts[i+1]=1;
               }
@@ -937,7 +970,7 @@ EXAMPLE: example blowUpBO;  shows an example
                  if(normalCrossB(B[2],B[4],MAtmp))
                  {
 //--- in case of the option extra
-//--- the i-th chart will be marked for deleting because all informations
+//--- the i-th chart will be marked for deleting because all information
 //--- are already contained in the union of the remaining charts
 
                    delCharts[i+1]=1;
@@ -1359,8 +1392,12 @@ EXAMPLE: internal procedure - no example available
 // we leave it to the kernel by translating it into monomial
 // ideals in a new ring with variables t(i)
 //---------------------------------------------------------------------
-  string rstr="ring rcomb=0,(t(1.." + string(size(E)) + ")),dp;";
-  execute(rstr);
+  list l7;
+  for (int zz = 1; zz<= size(E); zz++)
+  {
+   l7[zz] = "t("+string(zz)+")";
+  }
+  ring rcomb = create_ring(0, l7, "dp");
   ideal potid,potid2;
   list monlist,comblist,merkmon;
   for(kk=1;kk<=count;kk++)
@@ -2141,7 +2178,7 @@ example
 /////////////////////////////////////////////////////////////////////////////
 static proc invGreater(intmat M1, intmat M2, intvec iv1, intvec iv2)
 {
-// Auxilliary procedure, BM-algorithm
+// Auxiliary procedure, BM-algorithm
    int i;
    for(i=1;i<=min(ncols(M1),ncols(M2));i++)
    {
@@ -2170,7 +2207,7 @@ static proc invGreater(intmat M1, intmat M2, intvec iv1, intvec iv2)
 /////////////////////////////////////////////////////////////////////////////
 proc CenterTail(list BM, ideal C)
 {
-//!!! Auxilliary procedure, BM-algorithm
+//!!! Auxiliary procedure, BM-algorithm
 //!!!!!!!!Rueckgabe im Zentrumsformat
   int i,j,bmin;
   int alpha=lcm(BM[3]);
@@ -3012,7 +3049,7 @@ static proc CoverCenter(list BO,int b, ideal Jb)
            if(BO[3]!=0)
            {
 //--- intersections with E do not meet conditions ==> reset
-              ERROR("reset in Coeff, please send the example to the autors");
+              ERROR("reset in Coeff, please send the example to the authors");
            }
          }
        }
@@ -3885,7 +3922,7 @@ COMPUTE: a resolution of J,
 @*       j3: value 0 or 4; turn off or on debugBlowUp
 @*       j4: value 0 or 8; turn off or on debugCoeff
 @*       j5: value 0 or 16:turn off or on debugging of Intersection with E^-
-@*       j6: value 0 or 32:turn off or on stop after pass throught the loop
+@*       j6: value 0 or 32:turn off or on stop after pass through the loop
 @*       i=j1+j2+j3+j4+j5+j6
 RETURN:  a list l of 2 lists of rings
          l[1][i] is a ring containing a basic object BO, the result of the

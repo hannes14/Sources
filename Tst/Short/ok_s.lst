@@ -2,8 +2,14 @@ arr
 abusalem
 branchTo
 bug_bucket
+bug_content
 bug_curvepar
+bug_division_2
 bug_ecart
+bug_heuristic
+bug_imap_alg
+bug_liftstd2
+bug_liftstd4
 bug_mem_Z
 bug_misc
 bug_minpoly
@@ -13,7 +19,12 @@ bug_mod
 bug_naGreater
 bug_newstruct
 bug_newstruct3
+bug_newstruct4
+bug_newstruct5
+bug_newstruct6
 bug_normalize
+bug_opposite
+bug_OrdSgn
 bug_printres
 bug_qring2
 bug_ring
@@ -23,6 +34,7 @@ bug_slimsyz
 bug_solve
 bug_ssi_algring
 bug_ssi_attr
+bug_subst
 bug_zp
 bug_tr237
 ; do not try bug_tr276 without 2.2 GB RAM free
@@ -88,6 +100,9 @@ bug_tr820
 bug_tr822
 bug_tr834
 bug_tr844
+bug_tr865
+bug_tr873
+bug_tr874
 bug_genus_etc
 conv_bi
 facstd
@@ -110,6 +125,8 @@ gcd5test
 gcd_univar_p_s
 gcd_univar_p_alpha_s
 homalg
+invar_lib
+liftstd_m
 modular_s
 modstd_s
 modules
@@ -146,5 +163,7 @@ combinat
 methods
 sets
 ssi_Z
+ssi_ringref
+pfd
 
 

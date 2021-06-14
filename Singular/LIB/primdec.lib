@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////
-version="version primdec.lib 4.1.2.0 Feb_2019 "; // $Id$
+version="version primdec.lib 4.2.0.0 Mar_2021 "; // $Id$
 category="Commutative Algebra";
 info="
 LIBRARY: primdec.lib   Primary Decomposition and Radical of Ideals
@@ -54,7 +54,7 @@ KEYWORDS: primary decomposition
 
 LIB "general.lib";
 LIB "elim.lib";
-LIB "poly.lib";
+LIB "polylib.lib";
 LIB "random.lib";
 LIB "inout.lib";
 LIB "matrix.lib";
@@ -475,7 +475,7 @@ proc primaryTest (ideal i, poly p)
         {
           "// WARNING: The characteristic is perhaps too small to use";
           "// the algorithm of Gianni/Trager/Zacharias.";
-          "// This may result in an infinte loop";
+          "// This may result in an infinite loop";
           "// loop in primaryTest, voice:",voice;"";
         }
         while(e mod char(basering)==0)
@@ -778,8 +778,7 @@ static proc splitCharp(list l)
         j=size(va);
         while(va[j]!=","){j--;}
         va=va[1..j-1];
-        gnir="ring RL=("+string(char(P))+","+string(var(n))+"),("+va+"),lp;";
-        execute(gnir);
+        ring RL = create_ring("("+string(char(P))+","+string(var(n))+")", "("+va+")", "lp");
         minpoly=leadcoef(imap(P,ni));
         ideal act;
         ideal t=imap(P,t);
@@ -1223,11 +1222,9 @@ proc extF(list l,list #)
   }
   if(size(peek)==0){return(peek1);}
 
-  string gnir="ring RH=("+string(p)+"^"+string(ex)+",@a),("+varstr(R)+"),lp;";
-  execute(gnir);
+  ring RH = create_ring("("+string(p^ex)+",@a)", "("+varstr(R)+")", "lp");
   string mp="minpoly="+string(minpoly)+";";
-  gnir="ring RL=("+string(p)+",@a),("+varstr(R)+"),lp;";
-  execute(gnir);
+  ring RL = create_ring("("+string(p)+",@a)", "("+varstr(R)+")", "lp");
   execute(mp);
   list L=imap(R,peek);
   list pr, keep;
@@ -1244,8 +1241,7 @@ proc extF(list l,list #)
   }
   mp="poly pp="+string(minpoly)+";";
 
-  string gnir1="ring RS="+string(p)+",("+varstr(R)+",@a),lp;";
-  execute(gnir1);
+  ring RS = create_ring(p, "("+varstr(R)+",@a)", "lp");
   execute(mp);
   list L=imap(RL,keep);
 
@@ -2840,7 +2836,7 @@ static proc decompE(ideal I,list #)
 RETURN:  list = list of primary ideals and their associated primes
          (at even positions in the list)
          (resp. a list of the minimal associated primes)
-         if I is unit ideal, returns emtpy list
+         if I is unit ideal, returns empty list
 NOTE:    Algorithm of Gianni/Trager/Zacharias
 EXAMPLE: example decompE; shows an example
 "
@@ -3923,7 +3919,7 @@ proc sep(poly f,int i, list #)
          an integer k considering the polynomial f defined over Fp(t1,...,tm)
          as polynomial over Fp(t(1)^(p^-k),...,t(m)^(p^-k))
  RETURN: the separabel part of f as polynomial in Fp(t1,...,tm)
-        and an integer k to indicate that f should be considerd
+        and an integer k to indicate that f should be considered
         as polynomial over Fp(t(1)^(p^-k),...,t(m)^(p^-k))
  EXAMPLE: example sep; shows an example
 {
@@ -4035,12 +4031,15 @@ EXAMPLE: example zeroRad; shows an example"
       F[i]=powerCoeffs(F[i],k-l[i][2]);
    }
 
-   string cR="ring @R="+string(p)+",("+parstr(R)+","+varstr(R)+"),dp;";
-   execute(cR);
+   ring @R = create_ring(p, "("+parstr(R)+","+varstr(R)+")", "dp");
    ideal F=imap(R,F);
 
-   string nR="ring @S="+string(p)+",(@y(1..m),"+varstr(R)+","+parstr(R)+"),dp;";
-   execute(nR);
+   list l2;  
+   for (int zz = 1; zz <= m; zz++)
+   {
+    l2[size(l2)+1] = "@y("+string(zz)+")";
+   }
+   ring @S = create_ring(p, "("+string(l2)+","+varstr(R)+","+parstr(R)+")", "dp");
 
    ideal G=fetch(@R,F);    //G[i](t(1)^(p^-k),...,t(m)^(p^-k),x(i))=sep(F[i])
 
@@ -5272,7 +5271,7 @@ static proc extraction (ideal SI, ideal SP)
       //I=std(I,hv);            // the standard basis in (R[U])[A]
       I=std(I);            // the standard basis in (R[U])[A]
       A[size(A)]=")";
-      execute("ring Rloc=("+charstr(basering)+","+U+",("+A+",dp;");
+      ring Rloc = create_ring("("+charstr(basering)+","+U, "("+A, "dp");
       ideal I=imap(RAU,I);
       //"std in lokalisierung:"+newline,I;
       ideal h;
@@ -5356,7 +5355,7 @@ static proc minsat(ideal SI, poly p)
   quotM[1]=SI;
   quotM[2]=fac;
   quotM[3]=f0;
-  // we deal seperately with the first quotient;
+  // we deal separately with the first quotient;
   // factors, which do not contribute to this one,
   // are omitted
   iold=quotM[1];
@@ -5405,7 +5404,7 @@ static proc minsat_ppd(ideal SI, ideal fac)
   quotM[1]=SI;
   quotM[2]=fac;
   quotM[3]=f0;
-  // we deal seperately with the first quotient;
+  // we deal separately with the first quotient;
   // factors, which do not contribute to this one,
   // are omitted
   iold=quotM[1];
@@ -7098,7 +7097,7 @@ example
 ///////////////////////////////////////////////////////////////////////////////
 proc prepareAss(ideal i)
 "USAGE:   prepareAss(I); I ideal
-RETURN:  list, the radicals of the maximal dimensional components of I.
+RETURN:  list of radicals of the equidimensional components of I
 NOTE:    Uses algorithm of Eisenbud/Huneke/Vasconcelos.
 EXAMPLE: example prepareAss; shows an example
 "
@@ -7126,7 +7125,7 @@ EXAMPLE: example prepareAss; shows an example
   {
     list re=mres(i,0);
   }
-  for(e=cod;e<=nvars(basering);e++)
+  for(e=nvars(basering);e>=cod;e--)
   {
      ann=AnnExt_R(e,re);
 
@@ -7404,7 +7403,7 @@ static proc newDecompStep_i(int patchPrimaryDecomposition, ideal i, list #)
          newDecompStep_i(patchPrimaryDecomposition, I,2);        (for the minimal associated primes)
          newDecompStep_i(patchPrimaryDecomposition, I,3);        (for the absolute primary decomposition (not tested!))
          "oneIndep";        (for using only one max indep set)
-         "intersect";        (returns alse the intersection of the components founded)
+         "intersect";        (returns also the intersection of the components founded)
 
 RETURN:  list = list of primary ideals and their associated primes
          (at even positions in the list)

@@ -37,23 +37,14 @@ AC_HEADER_STDC
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
 
-LB_CHECK_GMP(4.0,,AC_MSG_ERROR([Unable to find GMP on your machine: please use --with-gmp=PATH_TO_DIR_CONTAINING_LIB_AND_INCLUDE (see also ./configure --help if you do not understand what we are talking about)]))
-
 SING_CHECK_GFANLIB
 
 AC_LANG_PUSH(C++)
 AX_CHECK_COMPILE_FLAG([-std=c++11], [CXX11_FLAG="-std=c++11"], [CXX11_FLAG="-std=c++0x"], [])
 AC_SUBST(CXX11_FLAG)
+AC_SUBST(GMP_LIBS)
+AC_SUBST(LIBS)
 AC_LANG_POP()
-
-#AC_MSG_RESULT($ac_cv_singuname)
-#if test "$ac_cv_singuname" = unknown; then
-#  AC_MSG_WARN(Unknown architecture: Check singuname.sh)
-#  ac_cv_singuname="unknown"
-#fi
-#AC_DEFINE_UNQUOTED(S_UNAME, "$ac_cv_singuname")
-#SINGUNAME=$ac_cv_singuname
-#AC_SUBST(SINGUNAME)
 
 AC_CONFIG_FILES([Makefile])
 ## AC_CONFIG_HEADERS([config.h])

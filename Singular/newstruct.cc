@@ -43,7 +43,10 @@ int newstruct_desc_size()
 {
   return sizeof(newstruct_desc_s);
 }
-
+static inline int NeedShadowRing(int t)
+{
+  return (RingDependend(t)|| (t==DEF_CMD) ||(t==LIST_CMD));
+}
 char * newstruct_String(blackbox *b, void *d)
 {
   if (d==NULL) return omStrDup("oo");
@@ -58,12 +61,12 @@ char * newstruct_String(blackbox *b, void *d)
     if (p!=NULL)
     {
       sleftv tmp;
-      memset(&tmp,0,sizeof(tmp));
+      tmp.Init();
       tmp.rtyp=ad->id;
       void * newstruct_Copy(blackbox*, void *); //forward declaration
       tmp.data=(void*)newstruct_Copy(b,d);
       idrec hh;
-      memset(&hh,0,sizeof(hh));
+      hh.Init();
       hh.id=Tok2Cmdname(p->t);
       hh.typ=PROC_CMD;
       hh.data.pinf=p->p;
@@ -86,8 +89,8 @@ char * newstruct_String(blackbox *b, void *d)
     {
       StringAppendS(a->name);
       StringAppendS("=");
-      if ((!RingDependend(a->typ))
-      || ((l->m[a->pos-1].data==(void *)currRing)
+      if (((!RingDependend(a->typ)&&!RingDependend(l->m[a->pos].rtyp)))
+      || ((rEqual((ring)l->m[a->pos-1].data,currRing))
          && (currRing!=NULL)))
       {
         if (l->m[a->pos].rtyp==LIST_CMD)
@@ -95,10 +98,10 @@ char * newstruct_String(blackbox *b, void *d)
           StringAppendS("<list>");
         }
         else if (l->m[a->pos].rtyp==STRING_CMD)
-	{
+        {
           StringAppendS((char*)l->m[a->pos].Data());
-	}
-	else
+        }
+        else
         {
           char *tmp2=omStrDup(l->m[a->pos].String());
           if ((strlen(tmp2)>80)||(strchr(tmp2,'\n')!=NULL))
@@ -181,12 +184,11 @@ BOOLEAN newstruct_Assign_user(int op, leftv l, leftv r)
   {
     BOOLEAN sl;
     idrec hh;
-    memset(&hh,0,sizeof(hh));
+    hh.Init();
     hh.id=Tok2Cmdname(p->t);
     hh.typ=PROC_CMD;
     hh.data.pinf=p->p;
     sleftv tmp;
-    memset(&tmp,0,sizeof(sleftv));
     tmp.Copy(r);
     sl = iiMake_proc(&hh, NULL, &tmp);
     if (!sl)
@@ -258,7 +260,7 @@ BOOLEAN newstruct_Op1(int op, leftv res, leftv arg)
   if (p!=NULL)
   {
     idrec hh;
-    memset(&hh,0,sizeof(hh));
+    hh.Init();
     hh.id=Tok2Cmdname(p->t);
     hh.typ=PROC_CMD;
     hh.data.pinf=p->p;
@@ -353,7 +355,7 @@ BOOLEAN newstruct_Op2(int op, leftv res, leftv a1, leftv a2)
           {
             nm=nt->member;
             while ((nm!=NULL)&&(strcmp(nm->name,a2->name+2)!=0)) nm=nm->next;
-            if ((nm!=NULL)&&(RingDependend(nm->typ)))
+            if ((nm!=NULL)&&(NeedShadowRing(nm->typ)))
               search_ring=TRUE;
             else
               nm=NULL;
@@ -365,16 +367,15 @@ BOOLEAN newstruct_Op2(int op, leftv res, leftv a1, leftv a2)
           }
           if (search_ring)
           {
-            ring r;
+            ring r=(ring)al->m[nm->pos-1].data;
             res->rtyp=RING_CMD;
-            res->data=al->m[nm->pos-1].data;
-            r=(ring)res->data;
             if (r==NULL)
             {
-              res->data=(void *)currRing; r=currRing;
-              if (r!=NULL) r->ref++;
-              else WerrorS("ring of this member is not set and no basering found");
+              r=currRing;
+              if (r==NULL)
+                WerrorS("ring of this member is not set and no basering found");
             }
+            if (r!=NULL) res->data=rIncRefCnt(r);
             a1->CleanUp();
             a2->CleanUp();
             return r==NULL;
@@ -382,62 +383,45 @@ BOOLEAN newstruct_Op2(int op, leftv res, leftv a1, leftv a2)
           else if (RingDependend(nm->typ)
           || (al->m[nm->pos].RingDependend()))
           {
-            if (al->m[nm->pos].data==NULL)
+            if ((al->m[nm->pos].data==NULL)||(al->m[nm->pos-1].data==NULL))
             {
               // NULL belongs to any ring
               ring r=(ring)al->m[nm->pos-1].data;
               if (r!=NULL)
               {
-                r->ref--;
+                rDecRefCnt(r);
                 al->m[nm->pos-1].data=NULL;
                 al->m[nm->pos-1].rtyp=DEF_CMD;
               }
             }
+            else if (al->m[nm->pos-1].data!=currRing)
+            {
+              // object is not from currRing, so mark it for "write-only":
+              al->m[nm->pos].flag|=Sy_bit(FLAG_OTHER_RING);
+              //Print("checking ring at pos %d for dat at pos %d\n",nm->pos-1,nm->pos);
+            }
             else
             {
-              //Print("checking ring at pos %d for dat at pos %d\n",nm->pos-1,nm->pos);
-              #if 0
-              if ((al->m[nm->pos-1].data!=(void *)currRing)
-              &&(al->m[nm->pos-1].data!=(void*)0L))
-              {
-                Werror("different ring %lx(data) - %lx(basering)",
-                  (long unsigned)(al->m[nm->pos-1].data),(long unsigned)currRing);
-                Werror("name of basering: %s",IDID(currRingHdl));
-                rWrite(currRing,TRUE);PrintLn();
-                idhdl hh=rFindHdl((ring)(al->m[nm->pos-1].data),NULL);
-                const char *nn="??";
-                if (hh!=NULL) nn=IDID(hh);
-                Werror("(possible) name of ring of data: %s",nn);
-                rWrite((ring)(al->m[nm->pos-1].data),TRUE);PrintLn();
+              // object is from currRing, so mark it for "read-write":
+              al->m[nm->pos].flag &= ~Sy_bit(FLAG_OTHER_RING);
 
-                return TRUE;
-              }
-              #endif
             }
-            if(al->m[nm->pos-1].data!=NULL)
-            {
-              ring old=(ring)al->m[nm->pos-1].data;
-              old->ref--;
-            }
-            // remember the ring, if not already set
-            al->m[nm->pos-1].data=(void *)currRing;
-            al->m[nm->pos-1].rtyp=RING_CMD;
-            if (currRing!=NULL)  currRing->ref++;
+            al->m[nm->pos].flag|=Sy_bit(FLAG_RING);
           }
           else if ((nm->typ==DEF_CMD)||(nm->typ==LIST_CMD))
           {
             if(al->m[nm->pos-1].data!=NULL)
             {
               ring old=(ring)al->m[nm->pos-1].data;
-              old->ref--;
+              rDecRefCnt(old);
             }
             al->m[nm->pos-1].data=(void*)currRing;
-            if (currRing!=NULL) currRing->ref++;
+            if (currRing!=NULL) rIncRefCnt(currRing);
           }
           Subexpr r=(Subexpr)omAlloc0Bin(sSubexpr_bin);
           r->start = nm->pos+1;
           memcpy(res,a1,sizeof(sleftv));
-          memset(a1,0,sizeof(sleftv));
+          a1->Init();
           if (res->e==NULL) res->e=r;
           else
           {
@@ -445,7 +429,7 @@ BOOLEAN newstruct_Op2(int op, leftv res, leftv a1, leftv a2)
             while (sh->next != NULL) sh=sh->next;
             sh->next=r;
           }
-          //a1->CleanUp();// see memset above
+          //a1->CleanUp();// see Init() above
           a2->CleanUp();
           return FALSE;
         }
@@ -468,12 +452,11 @@ BOOLEAN newstruct_Op2(int op, leftv res, leftv a1, leftv a2)
   if (p!=NULL)
   {
     sleftv tmp;
-    memset(&tmp,0,sizeof(sleftv));
     tmp.Copy(a1);
     tmp.next=(leftv)omAlloc0(sizeof(sleftv));
     tmp.next->Copy(a2);
     idrec hh;
-    memset(&hh,0,sizeof(hh));
+    hh.Init();
     hh.id=Tok2Cmdname(p->t);
     hh.typ=PROC_CMD;
     hh.data.pinf=p->p;
@@ -516,7 +499,7 @@ BOOLEAN newstruct_OpM(int op, leftv res, leftv args)
   if (p!=NULL)
   {
     idrec hh;
-    memset(&hh,0,sizeof(hh));
+    hh.Init();
     hh.id=Tok2Cmdname(p->t);
     hh.typ=PROC_CMD;
     hh.data.pinf=p->p;
@@ -551,11 +534,11 @@ void *newstruct_Init(blackbox *b)
   while (nm!=NULL)
   {
     l->m[nm->pos].rtyp=nm->typ;
-    if (RingDependend(nm->typ) ||(nm->typ==DEF_CMD)||(nm->typ==LIST_CMD))
+    if (NeedShadowRing(nm->typ))
     {
       l->m[nm->pos-1].rtyp=RING_CMD;
       l->m[nm->pos-1].data=currRing; //idrecDataInit may create ringdep obj.
-      if (currRing!=NULL) currRing->ref++;
+      if (currRing!=NULL) rIncRefCnt(currRing);
     }
     l->m[nm->pos].data=idrecDataInit(nm->typ);
     nm=nm->next;
@@ -612,7 +595,7 @@ BOOLEAN newstruct_serialize(blackbox *b, void *d, si_link f)
 {
   newstruct_desc dd=(newstruct_desc)b->data;
   sleftv l;
-  memset(&l,0,sizeof(l));
+  l.Init();
   l.rtyp=STRING_CMD;
   l.data=(void*)getBlackboxName(dd->id);
   f->m->Write(f, &l);
@@ -645,7 +628,7 @@ BOOLEAN newstruct_serialize(blackbox *b, void *d, si_link f)
     f->m->Write(f,&(ll->m[i]));
   }
   omFreeSize(rings,Ll+1);
-  if (ring_changed)
+  if (ring_changed && (save_ring!=NULL))
     f->m->SetRing(f,save_ring,FALSE);
   return FALSE;
 }
@@ -683,11 +666,11 @@ void newstruct_Print(blackbox *b,void *d)
   {
     BOOLEAN sl;
     sleftv tmp;
-    memset(&tmp,0,sizeof(tmp));
+    tmp.Init();
     tmp.rtyp=dd->id;
     tmp.data=(void*)newstruct_Copy(b,d);
     idrec hh;
-    memset(&hh,0,sizeof(hh));
+    hh.Init();
     hh.id=Tok2Cmdname(p->t);
     hh.typ=PROC_CMD;
     hh.data.pinf=p->p;
@@ -756,7 +739,7 @@ static newstruct_desc scanNewstructFromString(const char *s, newstruct_desc res)
       return NULL;
     }
     if (t==QRING_CMD) t=RING_CMD;
-    else if (RingDependend(t) || (t==DEF_CMD)||(t==LIST_CMD))
+    else if (NeedShadowRing(t))
       res->size++;    // one additional field for the ring (before the data)
     //Print("found type %s at real-pos %d",start,res->size);
     elem=(newstruct_member)omAlloc0(sizeof(*elem));
@@ -848,7 +831,7 @@ void newstructShow(newstruct_desc d)
   while (elem!=NULL)
   {
     Print(">>%s<< at pos %d, type %d (%s)\n",elem->name,elem->pos,elem->typ,Tok2Cmdname(elem->typ));
-    if (RingDependend(elem->typ)|| (elem->typ==DEF_CMD) ||(elem->typ==LIST_CMD))
+    if (NeedShadowRing(elem->typ))
       Print(">>r_%s<< at pos %d, shadow ring\n",elem->name,elem->pos-1);
     elem=elem->next;
   }

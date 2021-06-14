@@ -20,12 +20,14 @@
 #include "coeffs/rmodulon.h"
 #include "coeffs/longrat.h"
 
+#include "polys/monomials/p_polys.h"
 #include "polys/monomials/ring.h"
 #include "polys/monomials/maps.h"
 
 #include "polys/prCopy.h"
 #include "polys/matpol.h"
 
+#include "polys/shiftop.h"
 #include "polys/weight.h"
 #include "polys/clapsing.h"
 
@@ -68,6 +70,8 @@
 #include <ctype.h>
 
 #include "kernel/maps/gen_maps.h"
+
+#include "polys/clapsing.h"
 
 #ifdef SINGULAR_4_2
 #include "Singular/number2.h"
@@ -173,7 +177,7 @@ static void list1(const char* s, idhdl h,BOOLEAN c, BOOLEAN fullname)
                       }
                     }
                     break;
-    case MODUL_CMD: Print(", rk %d", (int)(IDIDEAL(h)->rank));
+    case MODUL_CMD: Print(", rk %d", (int)(IDIDEAL(h)->rank));// and continue
     case IDEAL_CMD: Print(", %u generator(s)",
                     IDELEMS(IDIDEAL(h))); break;
     case MAP_CMD:
@@ -203,7 +207,7 @@ static void list1(const char* s, idhdl h,BOOLEAN c, BOOLEAN fullname)
                    {
                      char *s;
                      l=strlen(IDSTRING(h));
-                     memset(buffer,0,22);
+                     memset(buffer,0,sizeof(buffer));
                      strncpy(buffer,IDSTRING(h),si_min(l,20));
                      if ((s=strchr(buffer,'\n'))!=NULL)
                      {
@@ -222,6 +226,7 @@ static void list1(const char* s, idhdl h,BOOLEAN c, BOOLEAN fullname)
     case RING_CMD:
                    if ((IDRING(h)==currRing) && (currRingHdl!=h))
                      PrintS("(*)"); /* this is an alias to currRing */
+                   //Print(" ref:%d",IDRING(h)->ref);
 #ifdef RDEBUG
                    if (traceit &TRACE_SHOW_RINGS)
                      Print(" <%lx>",(long)(IDRING(h)));
@@ -637,8 +642,73 @@ leftv iiMap(map theMap, const char * what)
       theMap->m=(polyset)omReallocSize((ADDRESS)theMap->m,
                                  IDELEMS(theMap)*sizeof(poly),
                                  (src_ring->N)*sizeof(poly));
+#ifdef HAVE_SHIFTBBA
+      if (rIsLPRing(src_ring))
+      {
+        // src_ring [x,y,z,...]
+        // curr_ring [a,b,c,...]
+        //
+        // map=[a,b,c,d] -> [a,b,c,...]
+        // map=[a,b] -> [a,b,0,...]
+
+        short src_lV = src_ring->isLPring;
+        short src_ncGenCount = src_ring->LPncGenCount;
+        short src_nVars = src_lV - src_ncGenCount;
+        int src_nblocks = src_ring->N / src_lV;
+
+        short dest_nVars = currRing->isLPring - currRing->LPncGenCount;
+        short dest_ncGenCount = currRing->LPncGenCount;
+
+        // add missing NULL generators
+        for(i=IDELEMS(theMap); i < src_lV - src_ncGenCount; i++)
+        {
+          theMap->m[i]=NULL;
+        }
+
+        // remove superfluous generators
+        for(i = src_nVars; i < IDELEMS(theMap); i++)
+        {
+          if (theMap->m[i] != NULL)
+          {
+            p_Delete(&(theMap->m[i]), currRing);
+            theMap->m[i] = NULL;
+          }
+        }
+
+        // add ncgen mappings
+        for(i = src_nVars; i < src_lV; i++)
+        {
+          short ncGenIndex = i - src_nVars;
+          if (ncGenIndex < dest_ncGenCount)
+          {
+            poly p = p_One(currRing);
+            p_SetExp(p, dest_nVars + ncGenIndex + 1, 1, currRing);
+            p_Setm(p, currRing);
+            theMap->m[i] = p;
+          }
+          else
+          {
+            theMap->m[i] = NULL;
+          }
+        }
+
+        // copy the first block to all other blocks
+        for(i = 1; i < src_nblocks; i++)
+        {
+          for(int j = 0; j < src_lV; j++)
+          {
+            theMap->m[(i * src_lV) + j] = p_Copy(theMap->m[j], currRing);
+          }
+        }
+      }
+      else
+      {
+#endif
       for(i=IDELEMS(theMap);i<src_ring->N;i++)
         theMap->m[i]=NULL;
+#ifdef HAVE_SHIFTBBA
+      }
+#endif
       IDELEMS(theMap)=src_ring->N;
     }
     if (what==NULL)
@@ -650,7 +720,7 @@ leftv iiMap(map theMap, const char * what)
       char *save_r=NULL;
       v=(leftv)omAlloc0Bin(sleftv_bin);
       sleftv tmpW;
-      memset(&tmpW,0,sizeof(sleftv));
+      tmpW.Init();
       tmpW.rtyp=IDTYP(w);
       if (tmpW.rtyp==MAP_CMD)
       {
@@ -712,7 +782,15 @@ leftv iiMap(map theMap, const char * what)
         }
       }
       if (overflow)
+#ifdef HAVE_SHIFTBBA
+        // in Letterplace rings the exponent is always 0 or 1! ignore this warning.
+        if (!rIsLPRing(currRing))
+        {
+#endif
         Warn("possible OVERFLOW in map, max exponent is %ld",currRing->bitmask/2);
+#ifdef HAVE_SHIFTBBA
+        }
+#endif
 #if 0
       if (((tmpW.rtyp==IDEAL_CMD)||(tmpW.rtyp==MODUL_CMD)) && idIs0(IDIDEAL(w)))
       {
@@ -889,7 +967,7 @@ BOOLEAN jjMINRES(leftv res, leftv v)
 BOOLEAN jjBETTI(leftv res, leftv u)
 {
   sleftv tmp;
-  memset(&tmp,0,sizeof(tmp));
+  tmp.Init();
   tmp.rtyp=INT_CMD;
   tmp.data=(void *)1;
   if ((u->Typ()==IDEAL_CMD)
@@ -909,7 +987,7 @@ BOOLEAN jjBETTI2_ID(leftv res, leftv u, leftv v)
   if (a!=NULL)
   l->m[0].attribute=*a;
   sleftv tmp2;
-  memset(&tmp2,0,sizeof(tmp2));
+  tmp2.Init();
   tmp2.rtyp=LIST_CMD;
   tmp2.data=(void *)l;
   BOOLEAN r=jjBETTI2(res,&tmp2,v);
@@ -996,7 +1074,7 @@ void iiDebug()
   s = (char *)omAlloc(BREAK_LINE_LENGTH+4);
   loop
   {
-    memset(s,0,80);
+    memset(s,0,BREAK_LINE_LENGTH+4);
     fe_fgets_stdin("",s,BREAK_LINE_LENGTH);
     if (s[BREAK_LINE_LENGTH-1]!='\0')
     {
@@ -1047,7 +1125,7 @@ lists scIndIndset(ideal S, BOOLEAN all, ideal Q)
   hMu = 0;
   hwork = (scfmon)omAlloc(hNexist * sizeof(scmon));
   hvar = (varset)omAlloc((rVar(currRing) + 1) * sizeof(int));
-  hpure = (scmon)omAlloc((1 + (rVar(currRing) * rVar(currRing))) * sizeof(long));
+  hpure = (scmon)omAlloc0((1 + (rVar(currRing) * rVar(currRing))) * sizeof(long));
   hrad = hexist;
   hNrad = hNexist;
   radmem = hCreate(rVar(currRing) - 1);
@@ -1058,7 +1136,6 @@ lists scIndIndset(ideal S, BOOLEAN all, ideal Q)
   if (hNvar)
   {
     hCo = hNvar;
-    memset(hpure, 0, (rVar(currRing) + 1) * sizeof(long));
     hPure(hrad, 0, &hNrad, hvar, hNvar, hpure, &hNpure);
     hLexR(hrad, hNrad, hvar, hNvar);
     hDimSolve(hpure, hNpure, hrad, hNrad, hvar, hNvar);
@@ -1125,9 +1202,10 @@ lists scIndIndset(ideal S, BOOLEAN all, ideal Q)
 int iiDeclCommand(leftv sy, leftv name, int lev,int t, idhdl* root,BOOLEAN isring, BOOLEAN init_b)
 {
   BOOLEAN res=FALSE;
+  BOOLEAN is_qring=FALSE;
   const char *id = name->name;
 
-  memset(sy,0,sizeof(sleftv));
+  sy->Init();
   if ((name->name==NULL)||(isdigit(name->name[0])))
   {
     WerrorS("object to declare is not a name");
@@ -1135,7 +1213,20 @@ int iiDeclCommand(leftv sy, leftv name, int lev,int t, idhdl* root,BOOLEAN isrin
   }
   else
   {
-    if (t==QRING_CMD) t=RING_CMD; // qring is always RING_CMD
+    if (root==NULL) return TRUE;
+    if (*root!=IDROOT)
+    {
+      if ((currRing==NULL) || (*root!=currRing->idroot))
+      {
+        Werror("can not define `%s` in other package",name->name);
+        return TRUE;
+      }
+    }
+    if (t==QRING_CMD)
+    {
+      t=RING_CMD; // qring is always RING_CMD
+      is_qring=TRUE;
+    }
 
     if (TEST_V_ALLWARN
     && (name->rtyp!=0)
@@ -1152,6 +1243,10 @@ int iiDeclCommand(leftv sy, leftv name, int lev,int t, idhdl* root,BOOLEAN isrin
     {
       sy->rtyp=IDHDL;
       currid=sy->name=IDID((idhdl)sy->data);
+      if (is_qring)
+      {
+        IDFLAG((idhdl)sy->data)=sy->flag=Sy_bit(FLAG_QRING_DEF);
+      }
       // name->name=NULL; /* used in enterid */
       //sy->e = NULL;
       if (name->next!=NULL)
@@ -1174,7 +1269,7 @@ BOOLEAN iiDefaultParameter(leftv p)
   if (at==NULL)
     return FALSE;
   sleftv tmp;
-  memset(&tmp,0,sizeof(sleftv));
+  tmp.Init();
   tmp.rtyp=at->atyp;
   tmp.data=at->CopyA();
   return iiAssign(p,&tmp);
@@ -1230,7 +1325,8 @@ BOOLEAN iiBranchTo(leftv, leftv args)
   {
     // get the proc:
     iiCurrProc=(idhdl)h->data;
-    procinfo * pi=IDPROC(iiCurrProc);
+    idhdl currProc=iiCurrProc; /*iiCurrProc may be changed after yyparse*/
+    procinfo * pi=IDPROC(currProc);
     // already loaded ?
     if( pi->data.s.body==NULL )
     {
@@ -1251,6 +1347,7 @@ BOOLEAN iiBranchTo(leftv, leftv args)
     newBuffer( omStrDup(pi->data.s.body), BT_proc,
                pi, pi->data.s.body_lineno-(iiCurrArgs==NULL) );
     BOOLEAN err=yyparse();
+    iiCurrProc=NULL;
     si_opt_1=save1;
     si_opt_2=save2;
     // now save the return-expr.
@@ -1260,7 +1357,7 @@ BOOLEAN iiBranchTo(leftv, leftv args)
     // warning about args.:
     if (iiCurrArgs!=NULL)
     {
-      if (err==0) Warn("too many arguments for %s",IDID(iiCurrProc));
+      if (err==0) Warn("too many arguments for %s",IDID(currProc));
       iiCurrArgs->CleanUp();
       omFreeBin((ADDRESS)iiCurrArgs, sleftv_bin);
       iiCurrArgs=NULL;
@@ -1322,7 +1419,7 @@ static BOOLEAN iiInternalExport (leftv v, int toLev)
   //Print("iiInternalExport('%s',%d)%s\n", v->name, toLev,"");
   if (IDLEV(h)==0)
   {
-    if (BVERBOSE(V_REDEFINE)) Warn("`%s` is already global",IDID(h));
+    if ((myynest>0) && (BVERBOSE(V_REDEFINE))) Warn("`%s` is already global",IDID(h));
   }
   else
   {
@@ -1341,7 +1438,7 @@ static BOOLEAN iiInternalExport (leftv v, int toLev)
         if ((IDTYP(h)==RING_CMD)
         && (v->Data()==IDDATA(h)))
         {
-          IDRING(h)->ref++;
+          rIncRefCnt(IDRING(h));
           keepring=TRUE;
           IDLEV(h)=toLev;
           //WarnS("keepring");
@@ -1361,7 +1458,7 @@ static BOOLEAN iiInternalExport (leftv v, int toLev)
     }
     h=(idhdl)v->data;
     IDLEV(h)=toLev;
-    if (keepring) IDRING(h)->ref--;
+    if (keepring) rDecRefCnt(IDRING(h));
     iiNoKeepRing=FALSE;
     //Print("export %s\n",IDID(h));
   }
@@ -1561,7 +1658,6 @@ idhdl rDefault(const char *s)
   if (sLastPrinted.RingDependend())
   {
     sLastPrinted.CleanUp();
-    memset(&sLastPrinted,0,sizeof(sleftv));
   }
 
   ring r = IDRING(tmp) = (ring) omAlloc0Bin(sip_sring_bin);
@@ -1607,8 +1703,11 @@ idhdl rDefault(const char *s)
   return currRingHdl;
 }
 
+static idhdl rSimpleFindHdl(const ring r, const idhdl root, const idhdl n);
 idhdl rFindHdl(ring r, idhdl n)
 {
+  if  ((r==NULL)||(r->VarOffset==NULL))
+    return NULL;
   idhdl h=rSimpleFindHdl(r,IDROOT,n);
   if (h!=NULL)  return h;
   if (IDROOT!=basePack->idroot) h=rSimpleFindHdl(r,basePack->idroot,n);
@@ -1813,7 +1912,7 @@ void rDecomposeRing_41(leftv h,const coeffs C)
   lists LL=(lists)omAlloc0Bin(slists_bin);
   LL->Init(2);
   LL->m[0].rtyp=BIGINT_CMD;
-  LL->m[0].data=nlMapGMP((number) C->modBase, C, coeffs_BIGINT);
+  LL->m[0].data=n_InitMPZ( C->modBase, coeffs_BIGINT);
   LL->m[1].rtyp=INT_CMD;
   LL->m[1].data=(void *) C->modExponent;
   L->m[1].rtyp=LIST_CMD;
@@ -1842,7 +1941,7 @@ void rDecomposeRing(leftv h,const ring R)
   lists LL=(lists)omAlloc0Bin(slists_bin);
   LL->Init(2);
   LL->m[0].rtyp=BIGINT_CMD;
-  LL->m[0].data=nlMapGMP((number) R->cf->modBase, R->cf, R->cf); // TODO: what is this?? // extern number nlMapGMP(number from, const coeffs src, const coeffs dst); // FIXME: replace with n_InitMPZ(R->cf->modBase, coeffs_BIGINT); ?
+  LL->m[0].data=n_InitMPZ( R->cf->modBase, coeffs_BIGINT);
   LL->m[1].rtyp=INT_CMD;
   LL->m[1].data=(void *) R->cf->modExponent;
   L->m[1].rtyp=LIST_CMD;
@@ -2510,10 +2609,10 @@ static inline BOOLEAN rComposeOrder(const lists  L, const BOOLEAN check_comp, ri
     if (bitmask!=0) n--;
 
     // initialize fields of R
-    R->order=(rRingOrder_t *)omAlloc0(n*sizeof(rRingOrder_t));
-    R->block0=(int *)omAlloc0(n*sizeof(int));
-    R->block1=(int *)omAlloc0(n*sizeof(int));
-    R->wvhdl=(int**)omAlloc0(n*sizeof(int_ptr));
+    R->order=(rRingOrder_t *)omAlloc0((n+1)*sizeof(rRingOrder_t));
+    R->block0=(int *)omAlloc0((n+1)*sizeof(int));
+    R->block1=(int *)omAlloc0((n+1)*sizeof(int));
+    R->wvhdl=(int**)omAlloc0((n+1)*sizeof(int_ptr));
     // init order, so that rBlocks works correctly
     for (j_in_R= n-2; j_in_R>=0; j_in_R--)
       R->order[j_in_R] = ringorder_unspec;
@@ -2539,7 +2638,7 @@ static inline BOOLEAN rComposeOrder(const lists  L, const BOOLEAN check_comp, ri
         && (vv->m[1].Typ()!=INTMAT_CMD))
         {
           PrintS(lString(vv));
-          WerrorS("ordering name must be a (string,intvec)(1)");
+          Werror("ordering name must be a (string,intvec), not (string,%s)",Tok2Cmdname(vv->m[1].Typ()));
           return TRUE;
         }
         R->order[j_in_R]=rOrderName(omStrDup((char*)vv->m[0].Data())); // assume STRING
@@ -2606,7 +2705,7 @@ static inline BOOLEAN rComposeOrder(const lists  L, const BOOLEAN check_comp, ri
         {
            case ringorder_ws:
            case ringorder_Ws:
-              R->OrdSgn=-1;
+              R->OrdSgn=-1; // and continue
            case ringorder_aa:
            case ringorder_a:
            case ringorder_wp:
@@ -2762,7 +2861,7 @@ static inline BOOLEAN rComposeOrder(const lists  L, const BOOLEAN check_comp, ri
     WerrorS("ordering must be given as `list`");
     return TRUE;
   }
-  if (bitmask!=0) R->bitmask=bitmask*2;
+  if (bitmask!=0) { R->bitmask=bitmask; R->wanted_maxExp=bitmask; }
   return FALSE;
 }
 
@@ -2913,7 +3012,7 @@ ring rCompose(const lists  L, const BOOLEAN check_comp, const long bitmask,const
     R->CanShortOut=FALSE;
   }
   #endif
-  if (bitmask!=0x7fff) R->bitmask=bitmask*2;
+  if ((bitmask!=0)&&(R->wanted_maxExp==0)) R->wanted_maxExp=bitmask;
   rComplete(R);
 
   // ------------------------ Q-IDEAL ------------------------
@@ -3157,7 +3256,7 @@ BOOLEAN syBetti2(leftv res, leftv u, leftv w)
 BOOLEAN syBetti1(leftv res, leftv u)
 {
   sleftv tmp;
-  memset(&tmp,0,sizeof(tmp));
+  tmp.Init();
   tmp.rtyp=INT_CMD;
   tmp.data=(void *)1;
   return syBetti2(res,u,&tmp);
@@ -4536,9 +4635,9 @@ BOOLEAN    semicProc3   ( leftv res,leftv u,leftv v,leftv w )
 BOOLEAN    semicProc   ( leftv res,leftv u,leftv v )
 {
   sleftv tmp;
-  memset(&tmp,0,sizeof(tmp));
+  tmp.Init();
   tmp.rtyp=INT_CMD;
-  /* tmp.data = (void *)0;  -- done by memset */
+  /* tmp.data = (void *)0;  -- done by Init */
 
   return  semicProc3(res,u,v,&tmp);
 }
@@ -4662,11 +4761,32 @@ BOOLEAN nuMPResMat( leftv res, leftv arg1, leftv arg2 )
 
 BOOLEAN nuLagSolve( leftv res, leftv arg1, leftv arg2, leftv arg3 )
 {
-
   poly gls;
   gls= (poly)(arg1->Data());
   int howclean= (int)(long)arg3->Data();
 
+  if ( gls == NULL || pIsConstant( gls ) )
+  {
+    WerrorS("Input polynomial is constant!");
+    return TRUE;
+  }
+
+  if (rField_is_Zp(currRing))
+  {
+    int* r=Zp_roots(gls, currRing);
+    lists rlist;
+    rlist= (lists)omAlloc( sizeof(slists) );
+    rlist->Init( r[0] );
+    for(int i=r[0];i>0;i--)
+    {
+      rlist->m[i-1].data=n_Init(r[i],currRing);
+      rlist->m[i-1].rtyp=NUMBER_CMD;
+    }
+    omFree(r);
+    res->data=rlist;
+    res->rtyp= LIST_CMD;
+    return FALSE;
+  }
   if ( !(rField_is_R(currRing) ||
          rField_is_Q(currRing) ||
          rField_is_long_R(currRing) ||
@@ -4683,18 +4803,11 @@ BOOLEAN nuLagSolve( leftv res, leftv arg1, leftv arg2, leftv arg3 )
     setGMPFloatDigits( ii, ii );
   }
 
-  if ( gls == NULL || pIsConstant( gls ) )
-  {
-    WerrorS("Input polynomial is constant!");
-    return TRUE;
-  }
-
   int ldummy;
   int deg= currRing->pLDeg( gls, &ldummy, currRing );
   int i,vpos=0;
   poly piter;
   lists elist;
-  lists rlist;
 
   elist= (lists)omAlloc( sizeof(slists) );
   elist->Init( 0 );
@@ -4752,6 +4865,7 @@ BOOLEAN nuLagSolve( leftv res, leftv arg1, leftv arg2, leftv arg3 )
   char *dummy;
   int j;
 
+  lists rlist;
   rlist= (lists)omAlloc( sizeof(slists) );
   rlist->Init( elem );
 
@@ -4783,7 +4897,6 @@ BOOLEAN nuLagSolve( leftv res, leftv arg1, leftv arg2, leftv arg3 )
 
   delete roots;
 
-  res->rtyp= LIST_CMD;
   res->data= (void*)rlist;
 
   return FALSE;
@@ -5115,7 +5228,6 @@ void rSetHdl(idhdl h)
     if(sLastPrinted.RingDependend())
     {
       sLastPrinted.CleanUp();
-      //memset(&sLastPrinted,0,sizeof(sleftv)); // done by Cleanup,Init
     }
 
     if (rg!=currRing)/*&&(currRing!=NULL)*/
@@ -5288,7 +5400,7 @@ BOOLEAN rSleftvOrdering2Ordering(sleftv *ord, ring R)
       i++;
     else if ((*iv)[1]==ringorder_L)
     {
-      R->bitmask=(*iv)[2]*2+1;
+      R->wanted_maxExp=(*iv)[2]*2+1;
       n--;
     }
     else if (((*iv)[1]!=ringorder_a)
@@ -5349,7 +5461,7 @@ BOOLEAN rSleftvOrdering2Ordering(sleftv *ord, ring R)
       {
           case ringorder_ws:
           case ringorder_Ws:
-            typ=-1;
+            typ=-1; // and continue
           case ringorder_wp:
           case ringorder_Wp:
             R->wvhdl[n]=(int*)omAlloc((iv->length()-1)*sizeof(int));
@@ -5366,7 +5478,7 @@ BOOLEAN rSleftvOrdering2Ordering(sleftv *ord, ring R)
           case ringorder_ds:
           case ringorder_Ds:
           case ringorder_rs:
-            typ=-1;
+            typ=-1; // and continue
           case ringorder_lp:
           case ringorder_dp:
           case ringorder_Dp:
@@ -5799,7 +5911,7 @@ ring rInit(leftv pn, leftv rv, leftv ord)
       else if (pnn->next->Typ()==BIGINT_CMD)
       {
         number p=(number)pnn->next->CopyD();
-        nlGMP(p,modBase,coeffs_BIGINT); // TODO? // extern void   nlGMP(number &i, mpz_t n, const coeffs r); // FIXME: n_MPZ( modBase, p, coeffs_BIGINT); ?
+        n_MPZ(modBase,p,coeffs_BIGINT);
         n_Delete(&p,coeffs_BIGINT);
       }
     }
@@ -5864,6 +5976,7 @@ ring rInit(leftv pn, leftv rv, leftv ord)
   {
     TransExtInfo extParam;
     extParam.r = (ring)pn->Data();
+    extParam.r->ref++;
     cf = nInitChar(n_transExt, &extParam);
   }
   //else if ((pn->Typ()==QRING_CMD) && (P == 1)) // same for qrings - which should be fields!?
@@ -6182,7 +6295,7 @@ void rKill(ring r)
     rDelete(r);
     return;
   }
-  r->ref--;
+  rDecRefCnt(r);
 }
 
 void rKill(idhdl h)
@@ -6228,7 +6341,7 @@ void rKill(idhdl h)
   }
 }
 
-idhdl rSimpleFindHdl(ring r, idhdl root, idhdl n)
+static idhdl rSimpleFindHdl(const ring r, const idhdl root, const idhdl n)
 {
   idhdl h=root;
   while (h!=NULL)
@@ -6246,50 +6359,6 @@ idhdl rSimpleFindHdl(ring r, idhdl root, idhdl n)
 }
 
 extern BOOLEAN jjPROC(leftv res, leftv u, leftv v);
-ideal kGroebner(ideal F, ideal Q)
-{
-  //test|=Sy_bit(OPT_PROT);
-  idhdl save_ringhdl=currRingHdl;
-  ideal resid;
-  idhdl new_ring=NULL;
-  if ((currRingHdl==NULL) || (IDRING(currRingHdl)!=currRing))
-  {
-    currRingHdl=enterid(" GROEBNERring",0,RING_CMD,&IDROOT,FALSE);
-    new_ring=currRingHdl;
-    IDRING(currRingHdl)=currRing;
-  }
-  sleftv v; memset(&v,0,sizeof(v)); v.rtyp=IDEAL_CMD; v.data=(char *) F;
-  idhdl h=ggetid("groebner");
-  sleftv u; memset(&u,0,sizeof(u)); u.rtyp=IDHDL; u.data=(char *) h;
-            u.name=IDID(h);
-
-  sleftv res; memset(&res,0,sizeof(res));
-  if(jjPROC(&res,&u,&v))
-  {
-    resid=kStd(F,Q,testHomog,NULL);
-  }
-  else
-  {
-    //printf("typ:%d\n",res.rtyp);
-    resid=(ideal)(res.data);
-  }
-  // cleanup GROEBNERring, save_ringhdl, u,v,(res )
-  if (new_ring!=NULL)
-  {
-    idhdl h=IDROOT;
-    if (h==new_ring) IDROOT=h->next;
-    else
-    {
-      while ((h!=NULL) &&(h->next!=new_ring)) h=h->next;
-      if (h!=NULL) h->next=h->next->next;
-    }
-    if (h!=NULL) omFreeSize(h,sizeof(*h));
-  }
-  currRingHdl=save_ringhdl;
-  u.CleanUp();
-  v.CleanUp();
-  return resid;
-}
 
 static void jjINT_S_TO_ID(int n,int *e, leftv res)
 {
@@ -6362,7 +6431,7 @@ BOOLEAN iiApplyINTVEC(leftv res, leftv a, int op, leftv proc)
   BOOLEAN bo=FALSE;
   for(int i=0;i<aa->length(); i++)
   {
-    memset(&tmp_in,0,sizeof(tmp_in));
+    tmp_in.Init();
     tmp_in.rtyp=INT_CMD;
     tmp_in.data=(void*)(long)(*aa)[i];
     if (proc==NULL)
@@ -6404,7 +6473,7 @@ BOOLEAN iiApplyLIST(leftv res, leftv a, int op, leftv proc)
   BOOLEAN bo=FALSE;
   for(int i=0;i<=aa->nr; i++)
   {
-    memset(&tmp_in,0,sizeof(tmp_in));
+    tmp_in.Init();
     tmp_in.Copy(&(aa->m[i]));
     if (proc==NULL)
       bo=iiExprArith1(&tmp_out,&tmp_in,op);
@@ -6429,7 +6498,7 @@ BOOLEAN iiApplyLIST(leftv res, leftv a, int op, leftv proc)
 }
 BOOLEAN iiApply(leftv res, leftv a, int op, leftv proc)
 {
-  memset(res,0,sizeof(sleftv));
+  res->Init();
   res->rtyp=a->Typ();
   switch (res->rtyp /*a->Typ()*/)
   {
@@ -6497,7 +6566,7 @@ BOOLEAN iiARROW(leftv r, char* a, char *s)
     s[start_s]='\0';
     sprintf(ss,"parameter def %s;%s;return(%s);\n",a,s,s+start_s+1);
   }
-  memset(r,0,sizeof(*r));
+  r->Init();
   // now produce procinfo for PROC_CMD:
   r->data = (void *)omAlloc0Bin(procinfo_bin);
   ((procinfo *)(r->data))->language=LANG_NONE;
@@ -6517,11 +6586,13 @@ BOOLEAN iiAssignCR(leftv r, leftv arg)
   if (t==RING_CMD)
   {
     sleftv tmp;
-    memset(&tmp,0,sizeof(tmp));
+    tmp.Init();
     tmp.rtyp=IDHDL;
-    tmp.data=(char*)rDefault(ring_name);
-    if (tmp.data!=NULL)
+    idhdl h=rDefault(ring_name);
+    tmp.data=(char*)h;
+    if (h!=NULL)
     {
+      tmp.name=h->id;
       BOOLEAN b=iiAssign(&tmp,arg);
       if (b) return TRUE;
       rSetHdl(ggetid(ring_name));
@@ -6535,7 +6606,7 @@ BOOLEAN iiAssignCR(leftv r, leftv arg)
   {
     sleftv tmp;
     sleftv n;
-    memset(&n,0,sizeof(n));
+    n.Init();
     n.name=ring_name;
     if (iiDeclCommand(&tmp,&n,myynest,CRING_CMD,&IDROOT)) return TRUE;
     if (iiAssign(&tmp,arg)) return TRUE;
@@ -6593,4 +6664,35 @@ BOOLEAN iiCheckTypes(leftv args, const short *type_list, int report)
     }
   }
   return TRUE;
+}
+
+void iiSetReturn(const leftv source)
+{
+  if ((source->next==NULL)&&(source->e==NULL))
+  {
+    if ((source->rtyp!=IDHDL)&&(source->rtyp!=ALIAS_CMD))
+    {
+      memcpy(&iiRETURNEXPR,source,sizeof(sleftv));
+      source->Init();
+      return;
+    }
+    if (source->rtyp==IDHDL)
+    {
+      if ((IDLEV((idhdl)source->data)==myynest)
+      &&(IDTYP((idhdl)source->data)!=RING_CMD))
+      {
+        iiRETURNEXPR.Init();
+        iiRETURNEXPR.rtyp=IDTYP((idhdl)source->data);
+        iiRETURNEXPR.data=IDDATA((idhdl)source->data);
+        iiRETURNEXPR.flag=IDFLAG((idhdl)source->data);
+        iiRETURNEXPR.attribute=IDATTR((idhdl)source->data);
+        IDATTR((idhdl)source->data)=NULL;
+        IDDATA((idhdl)source->data)=NULL;
+        source->name=NULL;
+        source->attribute=NULL;
+        return;
+      }
+    }
+  }
+  iiRETURNEXPR.Copy(source);
 }

@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////////
-version="version methods.lib 4.1.2.0 Feb_2019 "; //$Id$
+version="version methods.lib 4.2.0.1 Jan_2021 "; //$Id$
 category="Miscellaneous";
 info="
 LIBRARY:  methods.lib    installing methods in Singular
@@ -9,7 +9,7 @@ AUTHORS:  J. Boehm, boehm @ mathematik.uni-kl.de
 OVERVIEW:
 
 Methods select the function to execute by the types of the input tuple.
-The central function is installMethod, which takes a hashtable assocating a tuple of
+The central function is installMethod, which takes a hashtable associating a tuple of
 input types to function names and creates a corresponding procedure.
 
 HashTables are lists with arbitrary index sets. They can be created by the
@@ -36,7 +36,7 @@ selectKey                      select a key in a HashTable, can also be used by 
 addHashTables                  add two HashTables, can also be used by +
 ";
 
-proc mod_init()
+static proc mod_init()
 {
   newstruct("HashTable","list keys, list values");
   system("install","HashTable","print",printHashTable,1);

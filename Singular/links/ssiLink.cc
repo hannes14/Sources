@@ -34,6 +34,7 @@
 #include "Singular/subexpr.h"
 #include "Singular/links/silink.h"
 #include "Singular/cntrlc.h"
+#include "Singular/feOpt.h"
 #include "Singular/lists.h"
 #include "Singular/blackbox.h"
 #include "Singular/links/ssiLink.h"
@@ -74,7 +75,13 @@ BOOLEAN ssiSetCurrRing(const ring r) /* returned: not accepted */
   //  Print("need to change the ring, currRing:%s, switch to: ssiRing%d\n",IDID(currRingHdl),nr);
   //  else
   //  Print("no ring, switch to ssiRing%d\n",nr);
-  if (!rEqual(r,currRing,1))
+  if (r==currRing)
+  {
+    rIncRefCnt(r);
+    currRingHdl=rFindHdl(r,currRingHdl);
+    return TRUE;
+  }
+  else if ((currRing==NULL) || (!rEqual(r,currRing,1)))
   {
     char name[20];
     int nr=0;
@@ -86,13 +93,16 @@ BOOLEAN ssiSetCurrRing(const ring r) /* returned: not accepted */
       if (h==NULL)
       {
         h=enterid(name,0,RING_CMD,&IDROOT,FALSE);
-        IDRING(h)=r;
-        r->ref++;
+        IDRING(h)=rIncRefCnt(r);
+        r->ref=2;/*ref==2: d->r and h */
         break;
       }
       else if ((IDTYP(h)==RING_CMD)
       && (rEqual(r,IDRING(h),1)))
+      {
+        rIncRefCnt(IDRING(h));
         break;
+      }
     }
     rSetHdl(h);
     return FALSE;
@@ -100,8 +110,39 @@ BOOLEAN ssiSetCurrRing(const ring r) /* returned: not accepted */
   else
   {
     rKill(r);
+    rIncRefCnt(currRing);
     return TRUE;
   }
+}
+void ssiCheckCurrRing(const ring r)
+{
+  if ((r!=currRing)
+  ||(currRingHdl==NULL)
+  ||(IDRING(currRingHdl)!=r))
+  {
+    char name[20];
+    int nr=0;
+    idhdl h=NULL;
+    loop
+    {
+      sprintf(name,"ssiRing%d",nr); nr++;
+      h=IDROOT->get(name, 0);
+      if (h==NULL)
+      {
+        h=enterid(name,0,RING_CMD,&IDROOT,FALSE);
+        IDRING(h)=rIncRefCnt(r);
+        r->ref=2;/*ref==2: d->r and h */
+        break;
+      }
+      else if ((IDTYP(h)==RING_CMD)
+      && (rEqual(r,IDRING(h),1)))
+      {
+        break;
+      }
+    }
+    rSetHdl(h);
+  }
+  assume((currRing==r) || rEqual(r,currRing));
 }
 // the implementation of the functions:
 void ssiWriteInt(const ssiInfo *d,const int i)
@@ -263,9 +304,10 @@ void ssiWriteRing(ssiInfo *d,const ring r)
   /* ch=-1: transext, coeff ring follows */
   /* ch=-2: algext, coeff ring and minpoly follows */
   /* ch=-3: cf name follows */
+  /* ch=-4: NULL */
   if ((r==NULL)||(r->cf==NULL))
   {
-    WerrorS("undefined ring");
+    fputs("-4 ",d->f_write);
     return;
   }
   if (r==currRing) // see recursive calls for transExt/algExt
@@ -275,7 +317,7 @@ void ssiWriteRing(ssiInfo *d,const ring r)
   }
   if (r!=NULL)
   {
-    /*d->*/r->ref++;
+    /*d->*/rIncRefCnt(r);
   }
   ssiWriteRing_R(d,r);
 }
@@ -452,19 +494,20 @@ number ssiReadBigInt(const ssiInfo *d)
   return n;
 }
 
-number ssiReadNumber(const ssiInfo *d)
+number ssiReadNumber(ssiInfo *d)
 {
-  if (currRing==NULL) ssiSetCurrRing(d->r);
   return ssiReadNumber_CF(d,d->r->cf);
 }
 
 ring ssiReadRing(const ssiInfo *d)
 {
 /* syntax is <ch> <N> <l1> <v1> ...<lN> <vN> <number of orderings> <ord1> <block0_1> <block1_1> .... <Q-ideal> */
-  int ch, N,i;
-  char **names;
+  int ch;
   ch=s_readint(d->f_read);
-  N=s_readint(d->f_read);
+  if (ch==-4)
+    return NULL;
+  int N=s_readint(d->f_read);
+  char **names;
   coeffs cf=NULL;
   if (ch==-3)
   {
@@ -480,7 +523,7 @@ ring ssiReadRing(const ssiInfo *d)
   if (N!=0)
   {
     names=(char**)omAlloc(N*sizeof(char*));
-    for(i=0;i<N;i++)
+    for(int i=0;i<N;i++)
     {
       names[i]=ssiReadString(d);
     }
@@ -492,7 +535,7 @@ ring ssiReadRing(const ssiInfo *d)
   int *block0=(int *)omAlloc0((num_ord+1)*sizeof(int));
   int *block1=(int *)omAlloc0((num_ord+1)*sizeof(int));
   int **wvhdl=(int**)omAlloc0((num_ord+1)*sizeof(int*));
-  for(i=0;i<num_ord;i++)
+  for(int i=0;i<num_ord;i++)
   {
     ord[i]=(rRingOrder_t)s_readint(d->f_read);
     block0[i]=s_readint(d->f_read);
@@ -559,7 +602,7 @@ ring ssiReadRing(const ssiInfo *d)
     else
     {
       Werror("ssi: read unknown coeffs type (%d)",ch);
-      for(i=0;i<N;i++)
+      for(int i=0;i<N;i++)
       {
         omFree(names[i]);
       }
@@ -569,20 +612,42 @@ ring ssiReadRing(const ssiInfo *d)
     ideal q=ssiReadIdeal_R(d,r);
     if (IDELEMS(q)==0) omFreeBin(q,sip_sideal_bin);
     else r->qideal=q;
-    for(i=0;i<N;i++)
+    for(int i=0;i<N;i++)
     {
       omFree(names[i]);
     }
     omFreeSize(names,N*sizeof(char*));
+    rIncRefCnt(r);
+    // check if such ring already exist as ssiRing*
+    char name[20];
+    int nr=0;
+    idhdl h=NULL;
+    loop
+    {
+      sprintf(name,"ssiRing%d",nr); nr++;
+      h=IDROOT->get(name, 0);
+      if (h==NULL)
+      {
+        break;
+      }
+      else if ((IDTYP(h)==RING_CMD)
+      && (r!=IDRING(h))
+      && (rEqual(r,IDRING(h),1)))
+      {
+	rDelete(r);
+        r=rIncRefCnt(IDRING(h));
+        break;
+      }
+    }
     return r;
   }
 }
 
-poly ssiReadPoly_R(const ssiInfo *D, const ring r)
+poly ssiReadPoly_R(const ssiInfo *d, const ring r)
 {
 // < # of terms> < term1> < .....
   int n,i,l;
-  n=ssiReadInt(D->f_read); // # of terms
+  n=ssiReadInt(d->f_read); // # of terms
   //Print("poly: terms:%d\n",n);
   poly p;
   poly ret=NULL;
@@ -591,14 +656,14 @@ poly ssiReadPoly_R(const ssiInfo *D, const ring r)
   {
 // coef,comp.exp1,..exp N
     p=p_Init(r,r->PolyBin);
-    pSetCoeff0(p,ssiReadNumber_CF(D,r->cf));
-    int d;
-    d=s_readint(D->f_read);
-    p_SetComp(p,d,r);
+    pSetCoeff0(p,ssiReadNumber_CF(d,r->cf));
+    int D;
+    D=s_readint(d->f_read);
+    p_SetComp(p,D,r);
     for(i=1;i<=rVar(r);i++)
     {
-      d=s_readint(D->f_read);
-      p_SetExp(p,i,d,r);
+      D=s_readint(d->f_read);
+      p_SetExp(p,i,D,r);
     }
     p_Setm(p,r);
     p_Test(p,r);
@@ -609,10 +674,9 @@ poly ssiReadPoly_R(const ssiInfo *D, const ring r)
  return ret;
 }
 
-poly ssiReadPoly(const ssiInfo *D)
+poly ssiReadPoly(ssiInfo *d)
 {
-  if (currRing==NULL) ssiSetCurrRing(D->r);
-  return ssiReadPoly_R(D,D->r);
+  return ssiReadPoly_R(d,d->r);
 }
 
 ideal ssiReadIdeal_R(const ssiInfo *d,const ring r)
@@ -629,13 +693,12 @@ ideal ssiReadIdeal_R(const ssiInfo *d,const ring r)
   return I;
 }
 
-ideal ssiReadIdeal(const ssiInfo *d)
+ideal ssiReadIdeal(ssiInfo *d)
 {
-  if (currRing==NULL) ssiSetCurrRing(d->r);
   return ssiReadIdeal_R(d,d->r);
 }
 
-matrix ssiReadMatrix(const ssiInfo *d)
+matrix ssiReadMatrix(ssiInfo *d)
 {
   int n,m;
   m=s_readint(d->f_read);
@@ -770,9 +833,17 @@ void ssiReadBlackbox(leftv res, si_link l)
   blackboxIsCmd(name,tok);
   if (tok>MAX_TOK)
   {
+    ring save_ring=currRing;
+    idhdl save_hdl=currRingHdl;
     blackbox *b=getBlackboxStuff(tok);
     res->rtyp=tok;
     b->blackbox_deserialize(&b,&(res->data),l);
+    if (save_ring!=currRing)
+    {
+      rChangeCurrRing(save_ring);
+      if (save_hdl!=NULL) rSetHdl(save_hdl);
+      else currRingHdl=NULL;
+    }
   }
   else
   {
@@ -900,6 +971,8 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
           sigemptyset(&sigint);
           sigaddset(&sigint, SIGINT);
           sigprocmask(SIG_BLOCK, &sigint, NULL);
+          /* set #cpu to 1 for the child:*/
+          feSetOptValue(FE_OPT_CPUS,1);
 
           link_list hh=(link_list)ssiToBeClosed->next;
           /* we know: l is the first entry in ssiToBeClosed-list */
@@ -987,6 +1060,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         {
           WerrorS("ERROR opening socket");
           l->data=NULL;
+          SI_LINK_CLOSE_P(l);
           omFree(d);
           return TRUE;
         }
@@ -1002,6 +1076,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
           {
             WerrorS("ERROR on binding (no free port available?)");
             l->data=NULL;
+            SI_LINK_CLOSE_P(l);
             omFree(d);
             return TRUE;
           }
@@ -1014,6 +1089,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         {
           WerrorS("ERROR on accept");
           l->data=NULL;
+          SI_LINK_CLOSE_P(l);
           omFree(d);
           return TRUE;
         }
@@ -1030,6 +1106,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
       {
         Werror("invalid mode >>%s<< for ssi",mode);
         l->data=NULL;
+        SI_LINK_CLOSE_P(l);
         omFree(d);
         return TRUE;
       }
@@ -1047,6 +1124,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         {
           WerrorS("ERROR opening socket");
           l->data=NULL;
+          SI_LINK_CLOSE_P(l);
           omFree(d);
           return TRUE;
         }
@@ -1062,6 +1140,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
           {
             WerrorS("ERROR on binding (no free port available?)");
             l->data=NULL;
+            SI_LINK_CLOSE_P(l);
             return TRUE;
           }
         }
@@ -1075,6 +1154,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         {
           WerrorS("ERROR: no host specified");
           l->data=NULL;
+          SI_LINK_CLOSE_P(l);
           omFree(d);
           omFree(path);
           omFree(cli_host);
@@ -1089,7 +1169,10 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         char* ssh_command = (char*)omAlloc(256);
         char* ser_host = (char*)omAlloc(64);
         gethostname(ser_host,64);
-        sprintf(ssh_command,"ssh %s %s -q --batch --link=ssi --MPhost=%s --MPport=%d &",cli_host,path,ser_host,portno);
+        if (strcmp(cli_host,"localhost")==0) /*avoid "ssh localhost" as key may change*/
+          sprintf(ssh_command,"%s -q --batch --link=ssi --MPhost=%s --MPport=%d &",path,ser_host,portno);
+        else
+          sprintf(ssh_command,"ssh %s %s -q --batch --link=ssi --MPhost=%s --MPport=%d &",cli_host,path,ser_host,portno);
         //Print("client on %s started:%s\n",cli_host,path);
         omFree(path);
         omFree(cli_host);
@@ -1103,6 +1186,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         {
           WerrorS("ERROR on accept");
           l->data=NULL;
+          SI_LINK_CLOSE_P(l);
           omFree(d);
           return TRUE;
         }
@@ -1134,9 +1218,19 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         if (portno!=0)
         {
           sockfd = socket(AF_INET, SOCK_STREAM, 0);
-          if (sockfd < 0) { WerrorS("ERROR opening socket"); return TRUE; }
+          if (sockfd < 0)
+          {
+            WerrorS("ERROR opening socket");
+            SI_LINK_CLOSE_P(l);
+            return TRUE;
+          }
           server = gethostbyname(host);
-          if (server == NULL) {  WerrorS("ERROR, no such host");  return TRUE; }
+          if (server == NULL)
+          {
+            WerrorS("ERROR, no such host");
+            SI_LINK_CLOSE_P(l);
+            return TRUE;
+          }
           memset((char *) &serv_addr, 0, sizeof(serv_addr));
           serv_addr.sin_family = AF_INET;
           memcpy((char *)&serv_addr.sin_addr.s_addr,
@@ -1144,7 +1238,11 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
                 server->h_length);
           serv_addr.sin_port = htons(portno);
           if (si_connect(sockfd,(sockaddr*)&serv_addr,sizeof(serv_addr)) < 0)
-          { Werror("ERROR connecting(errno=%d)",errno); return TRUE; }
+          {
+            Werror("ERROR connecting(errno=%d)",errno);
+            SI_LINK_CLOSE_P(l);
+            return TRUE;
+          }
           //PrintS("connected\n");mflush();
           d->f_read=s_open(sockfd);
           d->fd_read=sockfd;
@@ -1156,6 +1254,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         else
         {
           l->data=NULL;
+          SI_LINK_CLOSE_P(l);
           omFree(d);
           return TRUE;
         }
@@ -1198,6 +1297,7 @@ BOOLEAN ssiOpen(si_link l, short flag, leftv u)
         {
           omFree(d);
           l->data=NULL;
+          SI_LINK_CLOSE_P(l);
           return TRUE;
         }
       }
@@ -1337,6 +1437,8 @@ leftv ssiRead1(si_link l)
            res->data=(char *)ssiReadString(d);
            break;
     case 3:res->rtyp=NUMBER_CMD;
+           if (d->r==NULL) goto no_ring;
+           ssiCheckCurrRing(d->r);
            res->data=(char *)ssiReadNumber(d);
            break;
     case 4:res->rtyp=BIGINT_CMD;
@@ -1345,13 +1447,13 @@ leftv ssiRead1(si_link l)
     case 15:
     case 5:{
              d->r=ssiReadRing(d);
-             if (d->r==NULL) return NULL;
+             if (errorreported) return NULL;
              res->data=(char*)d->r;
-             d->r->ref++;
+             if (d->r!=NULL) rIncRefCnt(d->r);
              res->rtyp=RING_CMD;
              if (t==15) // setring
              {
-               if(ssiSetCurrRing(d->r)) { d->r=currRing; d->r->ref++; }
+               if(ssiSetCurrRing(d->r)) { d->r=currRing; }
                omFreeBin(res,sleftv_bin);
                return ssiRead1(l);
              }
@@ -1359,24 +1461,29 @@ leftv ssiRead1(si_link l)
            break;
     case 6:res->rtyp=POLY_CMD;
            if (d->r==NULL) goto no_ring;
+           ssiCheckCurrRing(d->r);
            res->data=(char*)ssiReadPoly(d);
            break;
     case 7:res->rtyp=IDEAL_CMD;
            if (d->r==NULL) goto no_ring;
+           ssiCheckCurrRing(d->r);
            res->data=(char*)ssiReadIdeal(d);
            break;
     case 8:res->rtyp=MATRIX_CMD;
            if (d->r==NULL) goto no_ring;
+           ssiCheckCurrRing(d->r);
            res->data=(char*)ssiReadMatrix(d);
            break;
     case 9:res->rtyp=VECTOR_CMD;
            if (d->r==NULL) goto no_ring;
+           ssiCheckCurrRing(d->r);
            res->data=(char*)ssiReadPoly(d);
            break;
     case 10:
     case 22:if (t==22) res->rtyp=SMATRIX_CMD;
            else        res->rtyp=MODUL_CMD;
            if (d->r==NULL) goto no_ring;
+           ssiCheckCurrRing(d->r);
            {
              int rk=s_readint(d->f_read);
              ideal M=ssiReadIdeal(d);
@@ -1927,7 +2034,7 @@ int ssiReservePort(int clients)
 {
   if (ssiReserved_P!=0)
   {
-    WerrorS("ERROR already a reverved port requested");
+    WerrorS("ERROR already a reserved port requested");
     return 0;
   }
   int portno;
@@ -1963,7 +2070,7 @@ si_link ssiCommandLink()
 {
   if (ssiReserved_P==0)
   {
-    WerrorS("ERROR no reverved port requested");
+    WerrorS("ERROR no reserved port requested");
     return NULL;
   }
   struct sockaddr_in cli_addr;

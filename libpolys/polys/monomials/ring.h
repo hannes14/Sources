@@ -284,7 +284,7 @@ struct ip_sring
 
   omBin    PolyBin; /* Bin from where monoms are allocated */
   intvec * pModW;   /* std: module weights */
-  poly      ppNoether; /*  variables, set by procedures from hecke/kstd1:
+  poly     ppNoether; /*  variables, set by procedures from hecke/kstd1:
                             the highest monomial below pHEdge */
   void * ext_ref;   /* libsing GAP object */
 // #ifdef HAVE_RINGS
@@ -346,8 +346,10 @@ struct ip_sring
      VarL_Offset[i] gets i-th long var in exp vector */
   int*      VarL_Offset;
 
-  /* mask for getting single exponents */
+  /* mask for getting single exponents, also maxExp */
   unsigned long bitmask;
+  /* wanted maxExp */
+  unsigned long wanted_maxExp;
   /* mask used for divisiblity tests */
   unsigned long divmask; // rComplete
 
@@ -409,7 +411,7 @@ static inline BOOLEAN rIsPluralRing(const ring r)
 static inline BOOLEAN rIsLPRing(const ring r)
 {
   assume(r != NULL);
-#if defined(HAVE_PLURAL) && defined(HAVE_SHIFTBBA)
+#ifdef HAVE_SHIFTBBA
   return (r->isLPring!=0);
 #else
   return FALSE;
@@ -418,11 +420,8 @@ static inline BOOLEAN rIsLPRing(const ring r)
 
 static inline BOOLEAN rIsNCRing(const ring r)
 {
-#ifdef HAVE_PLURAL
-  return rIsLPRing(r) || rIsPluralRing(r);
-#else
-  return FALSE;
-#endif
+  assume(r != NULL);
+  return rIsPluralRing(r) || rIsLPRing(r);
 }
 
 static inline BOOLEAN rIsRatGRing(const ring r)
@@ -841,4 +840,7 @@ ring rPlusVar(const ring r, char *v,int left);
 
 /// undo rPlusVar
 ring rMinusVar(const ring r, char *v);
+
+static inline ring rIncRefCnt(ring r) { r->ref++; return r; }
+static inline void rDecRefCnt(ring r) { r->ref--; }
 #endif

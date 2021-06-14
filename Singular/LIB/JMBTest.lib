@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////
-version="version JMBTest.lib 4.1.2.0 Feb_2019 "; // $Id$
+version="version JMBTest.lib 4.2.0.2 dec_2021 "; // $Id$
 category="Algebraic Geometry";
 // summary description of the library
 info="
@@ -47,16 +47,10 @@ LIB "monomialideal.lib";
 LIB "ring.lib";
 ////////////////////////////////////////////////////////////////////
 static proc mod_init()
-"USAGE:     mod_init();
-RETURN:   struct: jmp
-EXAMPLE:  example  mod_init; shows an example"
 {
 newstruct("jmp", "poly h, poly t");
 }
-example
-{ "EXAMPLE:"; echo = 2;
-  mod_init();
-}
+
 ////////////////////////////////////////////////////////////////////
 proc Terns(list G, int c)
 "USAGE:    Terns(G,c); G list, c int
@@ -100,7 +94,7 @@ proc VConst(list G, int c)
 RETURN:   list: V
 NOTES: this procedure computes the Vm polynomials following the
 algorithm in [CR],but it only keeps in memory the monomials by
-which the G's must be multplied and their positions.
+which the G's must be multiplied and their positions.
 EXAMPLE:  example VConst; shows an example"
 {
 jmp f=G[1][1];
@@ -936,7 +930,7 @@ EXAMPLE:  example TestJMark; shows an example"
       }
       G[i]=U;
     }
-    //I imported in H everithing I need
+    //I imported in H everything I need
     poly q;
     ideal I;
     for(j=1; j<=size(EK);j++)

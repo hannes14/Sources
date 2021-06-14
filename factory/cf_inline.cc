@@ -78,7 +78,6 @@
 
 #include "config.h"
 
-
 #include "cf_assert.h"
 
 // temporarily switch off `CF_USE_INLINE' and include
@@ -105,8 +104,10 @@
 // set the value of `CF_INLINE' for the following methods and
 // functions
 #if defined( CF_USE_INLINE ) && defined( INCL_CF_INLINE_CC )
+#ifndef __CYGWIN__
 #undef CF_INLINE
 #define CF_INLINE inline
+#endif
 #else
 #undef CF_INLINE
 #define CF_INLINE
@@ -124,7 +125,7 @@
 **/
 CF_INLINE
 CanonicalForm::CanonicalForm ()
-    : value( CFFactory::basic( 0L ) )
+    : value( CFFactory::basic( 0 ) )
 {
 }
 
@@ -140,9 +141,15 @@ CanonicalForm::CanonicalForm ()
  * p^n elements.
  *
 **/
+#if SIZEOF_LONG == 8
+CF_INLINE
+CanonicalForm::CanonicalForm ( const int i )
+    : value( CFFactory::basic( i ) )
+#else
 CF_INLINE
 CanonicalForm::CanonicalForm ( const int i )
     : value( CFFactory::basic( (long)i ) )
+#endif
 {
 }
 
@@ -492,7 +499,7 @@ operator - ( const CanonicalForm & cf )
  *
  * @sa CanonicalForm::operator +=()
 **/
-CF_INLINE CanonicalForm
+CF_INLINE CanonicalForm FACTORY_PUBLIC
 operator + ( const CanonicalForm & lhs, const CanonicalForm & rhs )
 {
     CanonicalForm result( lhs );
@@ -501,7 +508,7 @@ operator + ( const CanonicalForm & lhs, const CanonicalForm & rhs )
 }
 
 #ifndef INCL_CF_INLINE_CC
-CF_INLINE CanonicalForm
+CF_INLINE CanonicalForm FACTORY_PUBLIC
 operator - ( const CanonicalForm & lhs, const CanonicalForm & rhs )
 {
     CanonicalForm result( lhs );
@@ -513,7 +520,7 @@ operator - ( const CanonicalForm & lhs, const CanonicalForm & rhs )
 /**
  * @sa CanonicalForm::operator *=()
 **/
-CF_INLINE CanonicalForm
+CF_INLINE CanonicalForm FACTORY_PUBLIC
 operator * ( const CanonicalForm & lhs, const CanonicalForm & rhs )
 {
     CanonicalForm result( lhs );
@@ -525,7 +532,7 @@ operator * ( const CanonicalForm & lhs, const CanonicalForm & rhs )
 /**
  * @sa CanonicalForm::operator /=()
 **/
-CF_INLINE CanonicalForm
+CF_INLINE CanonicalForm FACTORY_PUBLIC
 operator / ( const CanonicalForm & lhs, const CanonicalForm & rhs )
 {
     CanonicalForm result( lhs );
@@ -536,7 +543,7 @@ operator / ( const CanonicalForm & lhs, const CanonicalForm & rhs )
 /**
  * @sa CanonicalForm::operator %=()
 **/
-CF_INLINE CanonicalForm
+CF_INLINE CanonicalForm FACTORY_PUBLIC
 operator % ( const CanonicalForm & lhs, const CanonicalForm & rhs )
 {
     CanonicalForm result( lhs );

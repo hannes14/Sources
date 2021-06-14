@@ -25,7 +25,7 @@
   #define ZERODIVISOR_MASK 0
 #endif
 
-inline int RingDependend(int t) { return (BEGIN_RING<t)&&(t<END_RING); }
+static inline int RingDependend(int t) { return (BEGIN_RING<t)&&(t<END_RING); }
 
 // to produce convert_table.texi for doc:
 VAR int produce_convert_table=0;
@@ -349,6 +349,8 @@ void ttGen1()
   fprintf(outfile,"// - otherwise search for the first possibility\n");
   fprintf(outfile,"//   with converted types of the arguments\n");
   fprintf(outfile,"// - otherwise report an error\n//\n");
+  fprintf(outfile,"// --------------------------------------------------\n");
+  fprintf(outfile,"// depends on Singular/table.h and kernel/mod2.h\n\n");
 
   int op;
   i=0;
@@ -583,16 +585,13 @@ void ttGen2b()
 
   fprintf(
     outfile,
-    "#ifdef MODULE_GENERATOR\n"
-    "#define omAlloc0(A) malloc(A)\n"
-    "#endif\n"
     "void iiInitCmdName()\n{\n"
     "  sArithBase.nCmdUsed      = 0;\n"
     "  sArithBase.nCmdAllocated = %d;\n"
-    "  sArithBase.sCmds = (cmdnames*)omAlloc0(sArithBase.nCmdAllocated*sizeof(cmdnames));\n"
+    "  sArithBase.sCmds = (cmdnames*)omAlloc0(%d/*sArithBase.nCmdAllocated*/ *sizeof(cmdnames));\n"
     "\n"
     "  // name-string                   alias  tokval toktype index\n",
-    cmd_size);
+    cmd_size,cmd_size);
   int m=0;
   int id_nr=0;
 
@@ -612,6 +611,7 @@ void ttGen2b()
         case CMD_3:            fprintf(outfile,"CMD_3"); break;
         case CMD_12:           fprintf(outfile,"CMD_12"); break;
         case CMD_123 :         fprintf(outfile,"CMD_123"); break;
+        case CMD_13 :          fprintf(outfile,"CMD_13"); break;
         case CMD_23:           fprintf(outfile,"CMD_23"); break;
         case CMD_M:            fprintf(outfile,"CMD_M"); break;
         case SYSVAR:           fprintf(outfile,"SYSVAR"); break;
@@ -976,7 +976,7 @@ void ttGen4()
 }
 /*-------------------------------------------------------------------*/
 
-int main(int argc, char**)
+int main(int argc, char** argv)
 {
   if (argc>1)
   {

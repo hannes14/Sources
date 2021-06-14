@@ -12,6 +12,7 @@
 #include "clapsing.h"
 
 #include "factory/factory.h"
+#include "factory/cf_roots.h"
 
 #include "coeffs/numbers.h"
 #include "coeffs/coeffs.h"
@@ -67,7 +68,7 @@ poly singclap_gcd_r ( poly f, poly g, const ring r )
       return Flint_GCD_MP(f,pLength(f),g,pLength(g),ctx,r);
     }
   }
-  else 
+  else
   if (rField_is_Q(r))
   {
     fmpq_mpoly_ctx_t ctx;
@@ -825,7 +826,7 @@ BOOLEAN count_Factors(ideal I, intvec *v,int j, poly &f, poly fac, const ring r)
   p_Test(f,r);
   p_Test(fac,r);
   int e=0;
-  if (!p_IsConstantPoly(fac,r))
+  if (!p_IsConstant(fac,r))
   {
 #ifdef FACTORIZE2_DEBUG
     printf("start count_Factors(%d), Fdeg=%d, factor deg=%d\n",j,p_Totaldegree(f,r),p_Totaldegree(fac,r));
@@ -993,84 +994,87 @@ ideal singclap_factorize ( poly f, intvec ** v , int with_exps, const ring r)
   number old_lead_coeff=n_Copy(pGetCoeff(f), r->cf);
 
   Variable a;
-  if (!rField_is_Zp(r) && !rField_is_Zp_a(r) && !rField_is_Z(r)
-  && !(rField_is_Zn(r) && (r->cf->convSingNFactoryN!=ndConvSingNFactoryN))) /* Q, Q(a) */
+  if (r->cf->convSingNFactoryN!=ndConvSingNFactoryN)
   {
-    //if (f!=NULL) // already tested at start of routine
+    if (rField_is_Q(r) || rField_is_Q_a(r) || rField_is_Z(r)) /* Q, Q(a), Z */
     {
-      number n0=n_Copy(pGetCoeff(f),r->cf);
-      if (with_exps==0)
-        N=n_Copy(n0,r->cf);
-      p_Cleardenom(f, r);
-      //after here f should not have a denominator!!
-      //PrintS("S:");p_Write(f,r);PrintLn();
-      NN=n_Div(n0,pGetCoeff(f),r->cf);
-      n_Delete(&n0,r->cf);
-      if (with_exps==0)
+      //if (f!=NULL) // already tested at start of routine
       {
-        n_Delete(&N,r->cf);
-        N=n_Copy(NN,r->cf);
+        number n0=n_Copy(pGetCoeff(f),r->cf);
+        if (with_exps==0)
+          N=n_Copy(n0,r->cf);
+        if (rField_is_Z(r)) p_Content(f, r);
+        else                p_Cleardenom(f, r);
+        //after here f should not have a denominator!! and no content
+        //PrintS("S:");p_Write(f,r);PrintLn();
+        NN=n_Div(n0,pGetCoeff(f),r->cf);
+        n_Delete(&n0,r->cf);
+        if (with_exps==0)
+        {
+          n_Delete(&N,r->cf);
+          N=n_Copy(NN,r->cf);
+        }
       }
     }
-  }
-  else if (rField_is_Zp_a(r))
-  {
-    //if (f!=NULL) // already tested at start of routine
-    if (singclap_factorize_retry==0)
+    else if (rField_is_Zp_a(r))
     {
-      number n0=n_Copy(pGetCoeff(f),r->cf);
-      if (with_exps==0)
-        N=n_Copy(n0,r->cf);
-      p_Norm(f,r);
-      p_Cleardenom(f, r);
-      NN=n_Div(n0,pGetCoeff(f),r->cf);
-      n_Delete(&n0,r->cf);
-      if (with_exps==0)
+      //if (f!=NULL) // already tested at start of routine
+      if (singclap_factorize_retry==0)
       {
-        n_Delete(&N,r->cf);
-        N=n_Copy(NN,r->cf);
+        number n0=n_Copy(pGetCoeff(f),r->cf);
+        if (with_exps==0)
+          N=n_Copy(n0,r->cf);
+        p_Norm(f,r);
+        p_Cleardenom(f, r);
+        NN=n_Div(n0,pGetCoeff(f),r->cf);
+        n_Delete(&n0,r->cf);
+        if (with_exps==0)
+        {
+          n_Delete(&N,r->cf);
+          N=n_Copy(NN,r->cf);
+        }
       }
     }
-  }
-  if ((rField_is_Q(r) || rField_is_Zp(r) || (rField_is_Z(r)))
-  || (rField_is_Zn(r)&&(r->cf->convSingNFactoryN!=ndConvSingNFactoryN)))
-  {
-    setCharacteristic( rChar(r) );
-    CanonicalForm F( convSingPFactoryP( f,r ) );
-    L = factorize( F );
-  }
-  // and over Q(a) / Fp(a)
-  else if ((r->cf->extRing!=NULL)
-  &&(r->cf->extRing->cf->convSingNFactoryN!=ndConvSingNFactoryN))
-  {
-    if (rField_is_Q_a (r)) setCharacteristic (0);
-    else                   setCharacteristic( rChar(r) );
-    if (r->cf->extRing->qideal!=NULL)
+    if (rField_is_Q(r) || rField_is_Zp(r) || rField_is_Z(r) || rField_is_Zn(r))
     {
-      CanonicalForm mipo=convSingPFactoryP(r->cf->extRing->qideal->m[0],
-                                           r->cf->extRing);
-      a=rootOf(mipo);
-      CanonicalForm F( convSingAPFactoryAP( f, a, r ) );
-      if (rField_is_Zp_a(r))
+      setCharacteristic( rChar(r) );
+      if (errorreported) goto notImpl; // char too large
+      CanonicalForm F( convSingPFactoryP( f,r ) );
+      L = factorize( F );
+    }
+    // and over Q(a) / Fp(a)
+    else if (r->cf->extRing!=NULL)
+    {
+      if (rField_is_Q_a (r)) setCharacteristic (0);
+      else                   setCharacteristic( rChar(r) );
+      if (errorreported) goto notImpl; // char too large
+      if (r->cf->extRing->qideal!=NULL) /*algebraic extension */
       {
+        CanonicalForm mipo=convSingPFactoryP(r->cf->extRing->qideal->m[0],
+                                             r->cf->extRing);
+        a=rootOf(mipo);
+        CanonicalForm F( convSingAPFactoryAP( f, a, r ) );
         L = factorize( F, a );
+        prune(a);
       }
-      else
+      else /* rational functions */
       {
-        //  over Q(a)
-        L= factorize (F, a);
+        CanonicalForm F( convSingTrPFactoryP( f,r ) );
+        L = factorize( F );
       }
-      prune(a);
     }
     else
     {
-      CanonicalForm F( convSingTrPFactoryP( f,r ) );
-      L = factorize( F );
+      goto notImpl;
     }
   }
   else
   {
     goto notImpl;
+  }
+  if (errorreported)
+  {
+    errorreported=FALSE;
   }
   {
     poly ff=p_Copy(f,r); // a copy for the retry stuff
@@ -1096,7 +1100,7 @@ ideal singclap_factorize ( poly f, intvec ** v , int with_exps, const ring r)
     {
       if (with_exps!=1) (**v)[j] = J.getItem().exp();
       if (rField_is_Zp(r) || rField_is_Q(r)||  rField_is_Z(r)
-      || (rField_is_Zn(r) && r->cf->convSingNFactoryN!=ndConvSingNFactoryN))           /* Q, Fp, Z */
+      || rField_is_Zn(r))           /* Q, Fp, Z */
       {
         //count_Factors(res,*v,f, j, convFactoryPSingP( J.getItem().factor() );
         res->m[j] = convFactoryPSingP( J.getItem().factor(),r );
@@ -1143,7 +1147,7 @@ ideal singclap_factorize ( poly f, intvec ** v , int with_exps, const ring r)
       if (r->cf->extRing->qideal!=NULL)
         prune (a);
 #ifndef SING_NDEBUG
-    if ((r->cf->extRing!=NULL) && (!p_IsConstantPoly(ff,r)))
+    if ((r->cf->extRing!=NULL) && (!p_IsConstant(ff,r)))
     {
       singclap_factorize_retry++;
       if (singclap_factorize_retry<3)
@@ -1274,7 +1278,18 @@ ideal singclap_factorize ( poly f, intvec ** v , int with_exps, const ring r)
 notImpl:
   prune(a);
   if (res==NULL)
+  {
     WerrorS( feNotImplemented );
+    if ((v!=NULL) && ((*v)!=NULL) &&(with_exps==2))
+    {
+       *v = new intvec( 1 );
+       (*v)[0]=1;
+    }
+    res=idInit(2,1);
+    res->m[0]=p_One(r);
+    res->m[1]=f;
+  }
+  else p_Delete(&f,r);
   if (NN!=NULL)
   {
     n_Delete(&NN,r->cf);
@@ -1283,8 +1298,6 @@ notImpl:
   {
     n_Delete(&N,r->cf);
   }
-  if (f!=NULL) p_Delete(&f,r);
-  //PrintS("......S\n");
   return res;
 }
 
@@ -1364,7 +1377,7 @@ ideal singclap_sqrfree ( poly f, intvec ** v , int with_exps, const ring r)
   if (!rField_is_Zp(r) && !rField_is_Zp_a(r)) /* Q, Q(a) */
   {
     //if (f!=NULL) // already tested at start of routine
-    number n0=n_Copy(pGetCoeff(f),r->cf);
+    number n0=n_Copy(old_lead_coeff,r->cf);
     if (with_exps==0 || with_exps==3)
       N=n_Copy(n0,r->cf);
     p_Cleardenom(f, r);
@@ -1383,7 +1396,7 @@ ideal singclap_sqrfree ( poly f, intvec ** v , int with_exps, const ring r)
     //if (f!=NULL) // already tested at start of routine
     if (singclap_factorize_retry==0)
     {
-      number n0=n_Copy(pGetCoeff(f),r->cf);
+      number n0=n_Copy(old_lead_coeff,r->cf);
       if (with_exps==0 || with_exps==3)
         N=n_Copy(n0,r->cf);
       p_Norm(f,r);
@@ -1766,7 +1779,7 @@ number singclap_det_bi( bigintmat * m, const coeffs cf)
   return res;
 }
 
-#ifdef HAVE_NTL
+#if defined(HAVE_NTL) || defined(AHVE_FLINT)
 matrix singntl_HNF(matrix  m, const ring s )
 {
   int r=m->rows();
@@ -1920,7 +1933,33 @@ intvec* singntl_LLL(intvec*  m)
   delete MM;
   return mm;
 }
+#else
+matrix singntl_HNF(matrix  m, const ring s )
+{
+  WerrorS("NTL/FLINT missing");
+  return NULL;
+}
 
+intvec* singntl_HNF(intvec*  m)
+{
+  WerrorS("NTL/FLINT missing");
+  return NULL;
+}
+
+matrix singntl_LLL(matrix  m, const ring s )
+{
+  WerrorS("NTL/FLINT missing");
+  return NULL;
+}
+
+intvec* singntl_LLL(intvec*  m)
+{
+  WerrorS("NTL/FLINT missing");
+  return NULL;
+}
+#endif
+
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
 ideal singclap_absFactorize ( poly f, ideal & mipos, intvec ** exps, int & numFactors, const ring r)
 {
   p_Test(f, r);
@@ -1998,35 +2037,16 @@ ideal singclap_absFactorize ( poly f, ideal & mipos, intvec ** exps, int & numFa
 }
 
 #else
-matrix singntl_HNF(matrix  m, const ring s )
-{
-  WerrorS("NTL missing");
-  return NULL;
-}
-
-intvec* singntl_HNF(intvec*  m)
-{
-  WerrorS("NTL missing");
-  return NULL;
-}
-
-matrix singntl_LLL(matrix  m, const ring s )
-{
-  WerrorS("NTL missing");
-  return NULL;
-}
-
-intvec* singntl_LLL(intvec*  m)
-{
-  WerrorS("NTL missing");
-  return NULL;
-}
-
 ideal singclap_absFactorize ( poly f, ideal & mipos, intvec ** exps, int & numFactors, const ring r)
 {
-  WerrorS("NTL missing");
+  WerrorS("NTL/FLINT missing: absFactorize");
   return NULL;
 }
 
 #endif /* HAVE_NTL */
 
+int * Zp_roots(poly p, const ring r)
+{
+  CanonicalForm pp=convSingPFactoryP(p,r);
+  return Zp_roots(pp);
+}

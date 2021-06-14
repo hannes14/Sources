@@ -133,15 +133,19 @@ EXAMPLE: example ModEqn; shows an example
     kill RME3;
     export(RME4);
 
-    // simplify the ideal and create a new ring with propably less variables
+    // simplify the ideal and create a new ring with probably less variables
 
     if(opt == 1 || opt == 3) {      // equations computed ?
       sList = SimplifyIdeal(id, 0, "Y");
       ideal newid = sList[1];
       dbprint(dbPrt, " number of equations = " + string(size(sList[1])));
       dbprint(dbPrt, " number of variables = " + string(size(sList[3])));
-      ringSTR = "ring RME5 = (" + charstr(basering) + "), (Y(1.." + string(size(sList[3])) + ")),dp;";
-      execute(ringSTR);
+      list l3;
+      for (int zz = 1; zz <= size(sList[3]); zz++)
+      {
+       l3[zz] = "Y("+string(zz)+")";
+      }
+      ring RME5 = create_ring(ringlist(basering)[1], l3, "dp", "no_minpoly");
       execute("minpoly = number(" + @mPoly + ");");
       ideal modid = imap(RME4, newid);
     }
@@ -334,21 +338,30 @@ EXAMPLE: example ArnoldAction; shows an example
   // setup new ring with s(..) and t(..) as parameters
 
   varSTR = string(maxideal(1));
-  ringSTR2 = "ring RAAS = ";
+  ringSTR2 = "";
   if(npars(basering) == 1) {
     parName = parstr(basering);
-    ringSTR2 = ringSTR2 + "(0, " + parstr(1) + "), ";
+    ringSTR2 = "(0, " + parstr(1) + ")";
   }
   else {
     parName = "a";
-    ringSTR2 = ringSTR2 + "0, ";
+    ringSTR2 = "0";
   }
   offset = 1 + nrStabVars;
   namesSTR = "s(1.." + string(nrStabVars) + "), t(1.." + string(size(B)) + ")";
-  ringSTR2 = ringSTR2 + "(" + namesSTR + "), lp;";
-  ringSTR1 = "ring RAAR = (0, " + parName + "," + namesSTR + "), (" + varSTR + "), ls;";  // lp ?
 
-  execute(ringSTR1);
+  list l4;
+  for (int zz = 1; zz <= nrStabVars; zz++)
+  {
+   l4[zz] = "s("+string(zz)+")";
+  }
+  list l5;
+  for (zz = 1; zz <= size(B); zz++)
+  {
+   l5[zz] = "t("+string(zz)+")";
+  }
+  l4 = l4 + l5;
+  ring RAAR = create_ring("(0, " + parName + "," + string(l4) + ")", "(" + varSTR + ")", "ls");   // lp ?
   export(RAAR);
   ideal upperBasis, stabaction, action, reduceIdeal;
   poly f, F, monos, h;
@@ -379,7 +392,7 @@ EXAMPLE: example ArnoldAction; shows an example
     pos = FirstEntryQHM(upperBasis, parts[1][i]);
     if (pos!=0) { action[pos] = parts[2][i]/parts[1][i];}
   }
-  execute(ringSTR2);
+  ring RAAS = create_ring(ringSTR2, l4, "lp");
   execute("minpoly = number(" + @mPoly + ");");
   ideal actionid = imap(RAAR, action);
   ideal stabid = imap(STR1, stabid);
@@ -435,7 +448,7 @@ proc StabEqn(poly f)
 PURPOSE: compute the equations of the isometry group of f.
 ASSUME:  f semiquasihomogeneous polynomial with an isolated singularity at 0
 RETURN:  list of two rings 'S1', 'S2'
-         - 'S1' contians the equations of the stabilizer (ideal 'stabid') @*
+         - 'S1' contains the equations of the stabilizer (ideal 'stabid') @*
          - 'S2' contains the action of the stabilizer (ideal 'actionid')
 EXAMPLE: example StabEqn; shows an example
 GLOBAL: varSubsList, contains the index j s.t. x(i) -> x(i)t(j) ...
@@ -499,6 +512,11 @@ GLOBAL: varSubsList, contains the index j s.t. t(i) -> t(i)t(j) ...
   // set the new basering needed for the substitutions
 
   varString = "s(1.." + string(nrVars) + ")";
+  list l6;
+  for (int zz = 1; zz <= nrVars; zz++)
+  {
+   l6[zz] = "s("+string(zz)+")";
+  }
   if(npars(basering) == 1)
   {
     parString = "(0, " + parstr(basering) + ")";
@@ -506,17 +524,16 @@ GLOBAL: varSubsList, contains the index j s.t. t(i) -> t(i)t(j) ...
   else { parString = "0"; }
 
   def RSTB = basering;
+  string varSTRR = ""+varstr(basering)+"";
   string @mPoly = string(minpoly);
-  ringSTR = "ring RSTR = " + parString + ", (" + varstr(basering) + ", " + varString + "), dp;";  // dp
-        ringSTR1 = "ring RSTT = " + parString + ", (" + varString + ", " + varstr(basering) + "), dp;";
 
   if(defined(RSTR)) { kill RSTR;}
         if(defined(RSTT)) { kill RSTT;}
-        execute(ringSTR1);      // this ring is only used for the result, where the variables
+        ring RSTT = create_ring(parString, "("+string(l6)+","+string(varSTRR)+")", "dp");      // this ring is only used for the result, where the variables
   export(RSTT);           // are s(1..m),t(1..n), as needed for Derksens algorithm (NullCone)
   execute("minpoly = number(" + @mPoly + ");");
 
-  execute(ringSTR);
+  ring RSTR = create_ring(parString, "("+string(varSTRR)+","+string(l6)+")", "dp");  // dp
   export(RSTR);
   execute("minpoly = number(" + @mPoly + ");");
   poly f, f1, g, h, vars, pp;      // f1 is the polynomial after subs,
@@ -544,7 +561,7 @@ GLOBAL: varSubsList, contains the index j s.t. t(i) -> t(i)t(j) ...
     }
     qhsubs[i] = g;
   }
-  dbprint(dbPrt, "  qhasihomogenous substituion =" + string(qhsubs));
+  dbprint(dbPrt, "  qhasihomogenous substitution =" + string(qhsubs));
   map F = RSTR, qhsubs;
   kill varSubsList;
 
@@ -594,7 +611,7 @@ GLOBAL: varSubsList, contains the index j s.t. t(i) -> t(i)t(j) ...
 
   actionid = phi(qhsubs);
 
-        // change to new ring, auxillary construction
+        // change to new ring, auxiliary construction
 
         setring(RSTT);
         ideal actionid, stabid;
@@ -609,8 +626,12 @@ GLOBAL: varSubsList, contains the index j s.t. t(i) -> t(i)t(j) ...
   dbprint(dbPrt, "  equations of stabilizer = " + string(stabid));
 
   varString = "s(1.." + string(sln) + ")";
-  ringSTR = "ring RSTS = " + parString + ", (" + varString + "), dp;";
-  execute(ringSTR);
+  list l7;
+  for (int zz = 1; zz <= sln; zz++)
+  {
+   l7[zz] = "s("+string(zz)+")";
+  }
+  ring RSTS = create_ring(parString, l7, "dp");
   execute("minpoly = number(" + @mPoly + ");");
   ideal stabid = std(imap(RSTR, stabid));
   export(stabid);
@@ -734,7 +755,7 @@ EXAMPLE: example ArnoldAction; shows an example
 
 static proc MonosAndTerms(poly f,def wt, int ub)
 "USAGE:   MonosAndTerms(f, w, ub); poly f, intvec w, int ub
-PURPOSE: returns a list of all monomials and terms occuring in f of
+PURPOSE: returns a list of all monomials and terms occurring in f of
          weighted degree < ub
 RETURN:  list
          _[1]  list of monomials
@@ -772,7 +793,7 @@ example
 
 static proc SelectMonos(def parts, intvec wt, int d)
 "USAGE:   SelectMonos(parts, w, d); list/ideal parts, intvec w, int d
-PURPOSE: returns a list of all monomials and terms occuring in f of
+PURPOSE: returns a list of all monomials and terms occurring in f of
          weighted degree = d
 RETURN:  list
          _[1]  list of monomials
@@ -845,7 +866,7 @@ GLOBAL:  computedPowers
     g = jet(g, ub - w1[i] * degVec[i] - 1, w1);
     h = jet(powerList[i], ub - minDeg - 1, w1);
     g = PolyProduct(g, h, reduceI, w1, ub);
-    if(g == 0) { Print(" g = 0 "); break;}
+    if(g == 0) { print(" g = 0 "); break;}
     minDeg = minDeg + w1[i] * degVec[i];
   }
   return(g);
@@ -929,7 +950,7 @@ GLOBAL:  'computedPowers'
       {
         // no computation necessary, f^e has already benn computed
         g = computedPowers[varIndex][2][e - 1];
-        //Print("No computation, from list : g = elem [", varIndex, ", 2, ", e - 1, "]");
+        //print("No computation, from list : g = elem [", varIndex, ", 2, ", e - 1, "]");
         lb = e + 1;
       }
       else {  // f^d computed, where d < e
@@ -1015,16 +1036,26 @@ GLOBAL:  'computedPowers'
   // set ideal mpoly = minpoly for reduction !
 
   @ringVars = "(" + varstr(basering) + ", " + parstr(1) + ",";  // precondition
+  int zz;
   if(nrs > 0)
   {
-    @ringVars = @ringVars + "s(1.." + string(nrs) + "), ";
+    list l8;
+    for (zz = 1; zz <= nrs; zz++)
+    {
+     l8[zz] = "s("+string(zz)+")";
+    }
+    @ringVars = @ringVars + ""+string(l8)+", ";
   }
-  @ringVars = @ringVars + "t(1.." + string(nrt) + "))";
-  ringSTR = "ring RASR = 0, " + @ringVars + ", dp;";    // new basering
+  list l9;
+  for (zz = 1; zz <= nrt; zz++)
+  {
+   l9[zz] = "t("+string(zz)+")";
+  }
+  @ringVars = @ringVars + ""+string(l9)+")";
 
   // built the "reduction" ring with the reduction ideal
 
-  execute(ringSTR);
+  ring RASR = create_ring(0, @ringVars, "dp");
   export(RASR);
   ideal reduceIdeal, substitution, newSubs;
   intvec w1, degVec;
@@ -1048,7 +1079,7 @@ GLOBAL:  'computedPowers'
     degOfSubs[i] = degList;
   }
 
-  // substitute in each monomial seperately
+  // substitute in each monomial separately
 
   g = 0;
   for(i = 1; i <= size(degVecList); i++)
@@ -1103,7 +1134,7 @@ GLOBAL:  'computedPowers'
 
 static proc StabVar(intvec wt)
 "USAGE:   StabVar(w); intvec w
-PURPOSE: compute the indicies for quasihomogeneous substitutions of each
+PURPOSE: compute the indices for quasihomogeneous substitutions of each
          variable.
 ASSUME:  f semiquasihomogeneous polynomial with an isolated singularity at 0
 RETURN:  list
@@ -1511,7 +1542,7 @@ proc Min(def data)
 "USAGE:   Min(data); intvec/list of integers
 PURPOSE: find the minimal integer contained in 'data'
 RETURN:  list
-ASSUME:  'data' contians only integers and is not empty
+ASSUME:  'data' contains only integers and is not empty
 "
 {
   int i;

@@ -67,7 +67,7 @@ static inline char *  iiGetLibName(const procinfov pi) { return pi->libname; }
 char *  iiGetLibProcBuffer( procinfov pi, int part=1 );
 char *  iiProcName(char *buf, char & ct, char* &e);
 char *  iiProcArgs(char *e,BOOLEAN withParenth);
-BOOLEAN iiLibCmd( char *newlib, BOOLEAN autoexport, BOOLEAN tellerror, BOOLEAN force );
+BOOLEAN iiLibCmd( const char *newlib, BOOLEAN autoexport, BOOLEAN tellerror, BOOLEAN force );
 /* sees wheter library lib has already been loaded
    if yes, writes filename of lib into where and returns TRUE,
    if  no, returns FALSE
@@ -170,6 +170,7 @@ extern const struct sValCmdM dArithM[];
 /* ================================================================== */
 /* Assigments : */
 BOOLEAN iiAssign(leftv left, leftv right, BOOLEAN toplevel=TRUE);
+coeffs jjSetMinpoly(coeffs cf, number a);
 
 typedef BOOLEAN (*proci)(leftv,leftv,Subexpr);
 struct sValAssign_sys
@@ -220,7 +221,6 @@ void rSetHdl(idhdl h);
 ring rInit(leftv pn, leftv rv, leftv ord);
 idhdl  rDefault(const char *s);
 
-idhdl rSimpleFindHdl(ring r, idhdl root, idhdl n=NULL);
 idhdl rFindHdl(ring r, idhdl n);
 void   rKill(idhdl h);
 void   rKill(ring r);
@@ -299,5 +299,7 @@ lists rDecompose(const ring r);
 lists rDecompose_list_cf(const ring r);
 BOOLEAN rDecompose_CF(leftv res,const coeffs C);
 ring rCompose(const lists  L, const BOOLEAN check_comp=TRUE, const long bitmask=0x7fff, const int isLetterplace=FALSE);
+
+void iiSetReturn(const leftv h);
 #endif
 

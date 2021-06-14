@@ -30,8 +30,7 @@
 #include <NTL/LLL.h>
 #endif
 
-#ifdef HAVE_NTL
-
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
 TIMING_DEFINE_PRINT(fac_Qa_factorize)
 TIMING_DEFINE_PRINT(fac_evalpoint)
 
@@ -113,12 +112,37 @@ choosePoint (const CanonicalForm& F, int tdegF, CFArray& eval, bool rec,
           f2Factors.removeFirst();
         if (f2Factors.length() == 1 && f2Factors.getFirst().exp() == 1)
         {
+          #ifdef HAVE_FLINT
+          // init
+          fmpz_t FLINTD1,FLINTD2;
+          fmpz_init(FLINTD1);
+          fmpz_init(FLINTD2);
+          fmpz_poly_t FLINTf1;
+          fmpz_poly_t FLINTf2;
+          // conversion
+          convertFacCF2Fmpz_poly_t(FLINTf1,f1);
+          convertFacCF2Fmpz_poly_t(FLINTf2,f2);
+          // discriminant
+          fmpz_poly_discriminant(FLINTD1,FLINTf1);
+          fmpz_poly_discriminant(FLINTD2,FLINTf2);
+          // conversion
+          CanonicalForm D1= convertFmpz2CF(FLINTD1);
+          CanonicalForm D2= convertFmpz2CF(FLINTD2);
+          // clean up
+          fmpz_poly_clear(FLINTf1);
+          fmpz_poly_clear(FLINTf2);
+          fmpz_clear(FLINTD1);
+          fmpz_clear(FLINTD2);
+          #elif defined(HAVE_NTL)
           ZZX NTLf1= convertFacCF2NTLZZX (f1);
           ZZX NTLf2= convertFacCF2NTLZZX (f2);
           ZZ NTLD1= discriminant (NTLf1);
           ZZ NTLD2= discriminant (NTLf2);
           CanonicalForm D1= convertZZ2CF (NTLD1);
           CanonicalForm D2= convertZZ2CF (NTLD2);
+          #else
+          factoryError("NTL/FLINT missing: choosePoint");
+          #endif
           if ((!f.isZero()) &&
               (abs(f)>cf_getSmallPrime (cf_getNumSmallPrimes()-1)))
           {
@@ -444,7 +468,7 @@ differentevalpoint:
     CanonicalForm otherFactor=
     convertFmpz_poly_t2FacCF ((fmpz_poly_t &)liftedFactors->p[1],x);
     modpk pk= modpk (p, k);
-#else
+#elif defined(HAVE_NTL)
     modpk pk= modpk (p, k);
     ZZX NTLFi=convertFacCF2NTLZZX (pk (Fi*pk.inverse (lc(Fi))));
     setCharacteristic (p);
@@ -477,6 +501,8 @@ differentevalpoint:
 
     CanonicalForm otherFactor=
                   convertNTLZZX2CF (liftedFactors[1], x);
+#else
+   factoryError("absBiFactorizeMain: NTL/FLINT missing");
 #endif
 
     Off (SW_SYMMETRIC_FF);
@@ -495,6 +521,19 @@ differentevalpoint:
       (*M) (j+1,j)= -liftedSmallestFactor;
     }
 
+    #ifdef HAVE_FLINT
+    fmpz_mat_t FLINTM;
+    convertFacCFMatrix2Fmpz_mat_t(FLINTM,*M);
+    fmpq_t delta,eta;
+    fmpq_init(delta); fmpq_set_si(delta,1,1);
+    fmpq_init(eta); fmpq_set_si(eta,3,4);
+    fmpz_mat_transpose(FLINTM,FLINTM);
+    fmpz_mat_lll_storjohann(FLINTM,delta,eta);
+    fmpz_mat_transpose(FLINTM,FLINTM);
+    delete M;
+    M=convertFmpz_mat_t2FacCFMatrix(FLINTM);
+    fmpz_mat_clear(FLINTM);
+    #elif defined(HAVE_NTL)
     mat_ZZ * NTLM= convertFacCFMatrix2NTLmat_ZZ (*M);
 
     ZZ det;
@@ -505,6 +544,9 @@ differentevalpoint:
     delete M;
     M= convertNTLmat_ZZ2FacCFMatrix (*NTLM);
     delete NTLM;
+    #else
+    factoryError("NTL/FLINT missing: absBiFactorizeMain");
+    #endif
 
     mipo= 0;
     for (int j= 1; j <= s; j++)
@@ -670,11 +712,35 @@ differentevalpoint:
     uniFactors.append (iter.getItem().factor());
 
   F /= Lc (F1);
+  #ifdef HAVE_FLINT
+  // init
+  fmpz_t FLINTf,FLINTD;
+  fmpz_init(FLINTf);
+  fmpz_init(FLINTD);
+  fmpz_poly_t FLINTmipo;
+  fmpz_poly_t FLINTLcf;
+  //conversion
+  convertFacCF2Fmpz_poly_t(FLINTmipo,mipo);
+  convertFacCF2Fmpz_poly_t(FLINTLcf,Lc (F*bCommonDen (F)));
+  // resultant, discriminant
+  fmpz_poly_resultant(FLINTf,FLINTmipo,FLINTLcf);
+  fmpz_poly_discriminant(FLINTD,FLINTmipo);
+  fmpz_mul(FLINTf,FLINTD,FLINTf);
+  den= abs (convertFmpz2CF(FLINTf));
+  // clean up
+  fmpz_clear(FLINTf);
+   // FLINTD is used below
+  fmpz_poly_clear(FLINTLcf);
+  fmpz_poly_clear(FLINTmipo);
+  #elif defined(HAVE_NTL)
   ZZX NTLmipo= convertFacCF2NTLZZX (mipo);
   ZZX NTLLcf= convertFacCF2NTLZZX (Lc (F*bCommonDen (F)));
   ZZ NTLf= resultant (NTLmipo, NTLLcf);
   ZZ NTLD= discriminant (NTLmipo);
   den= abs (convertZZ2CF (NTLD*NTLf));
+  #else
+  factoryError("NTL/FLINT missing: absBiFactorizeMain");
+  #endif
 
   // make factors elements of Z(a)[x] disable for modularDiophant
   CanonicalForm multiplier= 1;
@@ -688,7 +754,12 @@ differentevalpoint:
 
   Off (SW_RATIONAL);
   int ii= 0;
+  #ifdef HAVE_FLINT
+  CanonicalForm discMipo= convertFmpz2CF(FLINTD);
+  fmpz_clear(FLINTD);
+  #elif defined(HAVE_NTL)
   CanonicalForm discMipo= convertZZ2CF (NTLD);
+  #endif
   findGoodPrime (bufF*discMipo,ii);
   findGoodPrime (F1*discMipo,ii);
   findGoodPrime (F*discMipo,ii);
@@ -779,7 +850,4 @@ differentevalpoint:
 
   return result;
 }
-
 #endif
-
-

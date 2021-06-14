@@ -199,7 +199,7 @@ static BOOLEAN ntDBTest(number a, const char *f, const int l, const coeffs cf)
       poly gcd = singclap_gcd_r( num, den, ntRing );
       if(gcd!=NULL)
       {
-        if((gcd!=NULL) && !p_IsOne(gcd, ntRing) )
+        if( !p_IsOne(gcd, ntRing) )
         {
           Print("ERROR in %s:%d: 1 != GCD between num. & den. poly\n",f,l);
           PrintS("GCD: ");  p_Write(gcd, ntRing);
@@ -1624,6 +1624,13 @@ static void ntNormalize (number &a, const coeffs cf)
   ntTest(a); // !!!!
 }
 
+static number ntExactDiv(number a, number b, const coeffs cf)
+{
+  number r=ntDiv(a,b,cf);
+  ntNormalize(r,cf);
+  return r;
+}
+
 /* expects *param to be castable to TransExtInfo */
 static BOOLEAN ntCoeffIsEqual(const coeffs cf, n_coeffType n, void * param)
 {
@@ -2073,8 +2080,6 @@ nMapFunc ntSetMap(const coeffs src, const coeffs dst)
   /* dst is expected to be a rational function field */
   assume(getCoeffType(dst) == n_transExt);
 
-  if( src == dst ) return ndCopyMap;
-
   int h = 0; /* the height of the extension tower given by dst */
   coeffs bDst = nCoeff_bottom(dst, h); /* the bottom field in the tower dst */
   coeffs bSrc = nCoeff_bottom(src, h); /* the bottom field in the tower src */
@@ -2083,9 +2088,10 @@ nMapFunc ntSetMap(const coeffs src, const coeffs dst)
      some field Z/pZ: */
   if (h==0)
   {
-    if ((src->rep==n_rep_gap_rat) && nCoeff_is_Q(bDst))
+    if (((src->rep==n_rep_gap_rat) || (src->rep==n_rep_gap_gmp))
+    && (nCoeff_is_Q(dst->extRing->cf) || nCoeff_is_Z(dst->extRing->cf)))
       return ntMap00;                                 /// Q or Z   -->  Q(T)
-    if (src->rep==n_rep_gap_gmp)
+    if (src->rep==n_rep_gmp)
       return ntMapZ0;                                 /// Z   -->  K(T)
     if (nCoeff_is_Zp(src) && nCoeff_is_Q(bDst))
       return ntMapP0;                                 /// Z/p     -->  Q(T)
@@ -2151,7 +2157,8 @@ nMapFunc ntSetMap_T(const coeffs src, const coeffs dst)
 
 static void ntKillChar(coeffs cf)
 {
-  if ((--cf->extRing->ref) == 0)
+  rDecRefCnt(cf->extRing);
+  if (cf->extRing->ref < 0)
     rDelete(cf->extRing);
 }
 static number ntConvFactoryNSingN( const CanonicalForm n, const coeffs cf)
@@ -2509,6 +2516,31 @@ static number ntFarey(number p, number n, const coeffs cf)
   return ((number)result);
 }
 
+static number ntInitMPZ(mpz_t m, const coeffs r)
+{
+  fraction result = (fraction)omAlloc0Bin(fractionObjectBin);
+  number n=n_InitMPZ(m,r->extRing->cf);
+  NUM(result)=p_NSet(n,r->extRing);
+  return ((number)result);
+}
+
+static void ntMPZ(mpz_t m, number &n, const coeffs r)
+{
+  mpz_init(m);
+  if (n!=NULL)
+  {
+    fraction nn=(fraction)n;
+    if (DENIS1(nn))
+    {
+      if (p_IsConstant(NUM(nn),r->extRing))
+      {
+        n_MPZ(m,pGetCoeff(NUM(nn)),r->extRing->cf);
+	return;
+      }
+    }
+  }
+}
+
 BOOLEAN ntInitChar(coeffs cf, void * infoStruct)
 {
 
@@ -2526,7 +2558,7 @@ BOOLEAN ntInitChar(coeffs cf, void * infoStruct)
   ring R = e->r;
   assume(R != NULL);
 
-  R->ref ++; // increase the ref.counter for the ground poly. ring!
+  rIncRefCnt(R); // increase the ref.counter for the ground poly. ring!
 
   cf->extRing           = R;
   /* propagate characteristic up so that it becomes
@@ -2539,7 +2571,6 @@ BOOLEAN ntInitChar(coeffs cf, void * infoStruct)
 
   cf->factoryVarOffset = R->cf->factoryVarOffset + rVar(R);
 
-  cf->cfCoeffString = naCoeffString; // FIXME? TODO? // extern char* naCoeffString(const coeffs r);
   cf->cfCoeffName =  naCoeffName; // FIXME? TODO? // extern char* naCoeffString(const coeffs r);
 
   cf->cfGreaterZero  = ntGreaterZero;
@@ -2557,7 +2588,7 @@ BOOLEAN ntInitChar(coeffs cf, void * infoStruct)
   cf->cfSub          = ntSub;
   cf->cfMult         = ntMult;
   cf->cfDiv          = ntDiv;
-  cf->cfExactDiv     = ntDiv;
+  cf->cfExactDiv     = ntExactDiv;
   cf->cfPower        = ntPower;
   cf->cfCopy         = ntCopy;
   cf->cfWriteLong    = ntWriteLong;
@@ -2580,6 +2611,8 @@ BOOLEAN ntInitChar(coeffs cf, void * infoStruct)
   cf->nCoeffIsEqual  = ntCoeffIsEqual;
   cf->cfInvers       = ntInvers;
   cf->cfKillChar     = ntKillChar;
+  cf->cfInitMPZ      = ntInitMPZ;
+  cf->cfMPZ          = ntMPZ;
 
   if( rCanShortOut(ntRing) )
     cf->cfWriteShort = ntWriteShort;

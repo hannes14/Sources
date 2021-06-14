@@ -7,7 +7,7 @@ SOURCES = nforder.cpp nforder.h \
 
 MYINCLUDES =  -I${top_srcdir} -I${top_builddir} -I${srcdir} \
 -I${top_srcdir}/libpolys -I${top_builddir}/libpolys \
--I${top_srcdir}/factory/include -I${top_builddir}/factory/include \
+$(FACTORY_INCLUDES) \
 $(FACTORY_CFLAGS) $(NTL_CPPFLAGS) $(GMP_CPPFLAGS) $(GOOGLE_PERFTOOLS_CFLAGS)
 
 if SI_BUILTIN_ORDER
@@ -25,6 +25,7 @@ endif
 Order_la_SOURCES   = $(SOURCES)
 Order_la_CPPFLAGS  = ${MYINCLUDES} ${P_PROCS_CPPFLAGS_COMMON}
 Order_la_LDFLAGS   = ${AM_LDFLAGS} ${P_PROCS_MODULE_LDFLAGS} ${GOOGLE_PERFTOOL_LDFLAGS} $(SINGULAR_LDFLAGS)
+
 if SING_WIN
 if !SI_BUILTIN_ORDER
 Order_la_LIBADD    = ${top_builddir}/Singular/libSingular.la

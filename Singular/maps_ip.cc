@@ -124,7 +124,12 @@ BOOLEAN maApplyFetch(int what,map theMap,leftv res, leftv w, ring preimage_r,
       }
       break;
     case BUCKET_CMD:
-      if ((what==FETCH_CMD)&& (preimage_r->cf==currRing->cf))
+      if (
+          (what==FETCH_CMD) && (preimage_r->cf==currRing->cf)
+#ifdef HAVE_SHIFTBBA
+          && !rIsLPRing(currRing)
+#endif
+          )
         res->data=(void *)prCopyR(sBucketPeek((sBucket_pt)data), preimage_r, currRing);
       else
         if ( (what==IMAP_CMD) || /*(*/ (what==FETCH_CMD) /*)*/) /* && (nMap!=nCopy)*/
@@ -138,7 +143,12 @@ BOOLEAN maApplyFetch(int what,map theMap,leftv res, leftv w, ring preimage_r,
       break;
     case POLY_CMD:
     case VECTOR_CMD:
-      if ((what==FETCH_CMD)&& (preimage_r->cf==currRing->cf))
+      if (
+          (what==FETCH_CMD) && (preimage_r->cf==currRing->cf)
+#ifdef HAVE_SHIFTBBA
+          && !rIsLPRing(currRing)
+#endif
+          )
         res->data=(void *)prCopyR( (poly)data, preimage_r, currRing);
       else
         if ( (what==IMAP_CMD) || /*(*/ (what==FETCH_CMD) /*)*/) /* && (nMap!=nCopy)*/
@@ -168,7 +178,12 @@ BOOLEAN maApplyFetch(int what,map theMap,leftv res, leftv w, ring preimage_r,
         tmpR=((map)data)->preimage;
         ((matrix)data)->rank=((matrix)data)->rows();
       }
-      if ((what==FETCH_CMD)&& (preimage_r->cf == currRing->cf))
+      if (
+          (what==FETCH_CMD) && (preimage_r->cf == currRing->cf)
+#ifdef HAVE_SHIFTBBA
+          && !rIsLPRing(currRing)
+#endif
+         )
       {
         for (i=R*C-1;i>=0;i--)
         {
@@ -195,14 +210,6 @@ BOOLEAN maApplyFetch(int what,map theMap,leftv res, leftv w, ring preimage_r,
           pTest(m->m[i]);
         }
         idDelete((ideal *)&s);
-      }
-      if (nCoeff_is_algExt(currRing->cf))
-      {
-        for (i=R*C-1;i>=0;i--)
-        {
-          m->m[i]=p_MinPolyNormalize(m->m[i], currRing);
-          pTest(m->m[i]);
-        }
       }
       if(w->rtyp==MAP_CMD)
       {
@@ -403,6 +410,12 @@ poly pSubstPoly(poly p, int var, poly image)
     return pSubst(pCopy(p),var,image);
   }
 #endif
+#ifdef HAVE_SHIFTBBA
+  if (rIsLPRing(currRing))
+  {
+    return pSubst(pCopy(p),var,image);
+  }
+#endif
   return p_SubstPoly(p,var,image,currRing,currRing,ndCopyMap);
 }
 
@@ -415,6 +428,19 @@ ideal  idSubstPoly(ideal id, int n, poly e)
 
 #ifdef HAVE_PLURAL
   if (rIsPluralRing(currRing))
+  {
+    int k=MATROWS((matrix)id)*MATCOLS((matrix)id);
+    ideal res=(ideal)mpNew(MATROWS((matrix)id),MATCOLS((matrix)id));
+    res->rank = id->rank;
+    for(k--;k>=0;k--)
+    {
+      res->m[k]=pSubst(pCopy(id->m[k]),n,e);
+    }
+    return res;
+  }
+#endif
+#ifdef HAVE_SHIFTBBA
+  if (rIsLPRing(currRing))
   {
     int k=MATROWS((matrix)id)*MATCOLS((matrix)id);
     ideal res=(ideal)mpNew(MATROWS((matrix)id),MATCOLS((matrix)id));

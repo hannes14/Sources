@@ -33,7 +33,7 @@ PROCEDURES:
 LIB "general.lib";
 LIB "deform.lib";
 LIB "matrix.lib";
-LIB "poly.lib";
+LIB "polylib.lib";
 LIB "primdec.lib";
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -1929,7 +1929,7 @@ static proc Max(def data)
 "USAGE:   Max(data); intvec/list of integers
 PURPOSE: find the maximal integer contained in 'data'
 RETURN:  list
-ASSUME:  'data' contians only integers and is not empty
+ASSUME:  'data' contains only integers and is not empty
 "
 {
   int i;

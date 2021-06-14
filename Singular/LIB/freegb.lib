@@ -25,6 +25,7 @@ PROCEDURES:
 isFreeAlgebra(r);                check whether r is a letterplace ring (free algebra)
 lpDegBound(R);                   returns the degree bound of a letterplace ring
 lpVarBlockSize(R);               returns the size of the letterplace blocks
+lpNcgenCount(R);                 returns the number of ncgen variables
 lpDivision(f,I);                 two-sided division with remainder
 lpGBPres2Poly(L,I);              reconstructs a polynomial from the output of lpDivision
 isOrderingShiftInvariant(i);     tests shift-invariance of the monomial ordering
@@ -32,6 +33,8 @@ makeLetterplaceRing(d);          (deprecated, use freeAlgebra) creates a Letterp
 letplaceGBasis(I);               (deprecated, use twostd) two-sided Groebner basis of a letterplace ideal I
 lieBracket(a,b[, N]);            (deprecated, use bracket) iterated Lie bracket of two letterplace polynomials
 setLetterplaceAttributes(R,d,b); (for testing purposes) supplies ring R with the letterplace structure
+testLift(M,T);                   verify the output of lift
+testSyz(M,S);                    verify the output of syz
 
 SEE ALSO: fpadim_lib, fpaprops_lib, fpalgebras_lib, LETTERPLACE
 ";
@@ -396,7 +399,7 @@ example
 
 /*
 //// this was the part of example in the old good Letterplace
-  // now transfom letterplace polynomials into strings of words
+  // now transform letterplace polynomials into strings of words
   lp2lstr(J,r); // export an object called @code{@LN} to the ring r
   setring r;  // change to the ring r
   lst2str(@LN,1);
@@ -453,8 +456,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = freeAlgebra(r, 4); // R with letterplace structure
-  setring R;
+  ring R = freeAlgebra(r, 4);
   poly a = x*y; poly b = y;
   lieBracket(a,b);
   lieBracket(x,y,2);
@@ -486,8 +488,7 @@ example
 {
  "EXAMPLE:"; echo = 2;
  ring r = (0,a,b,g),(x,y),Dp;
- def R = freeAlgebra(r, 4); // constructs a Letterplace ring
- setring R; // downup algebra A
+ ring R = freeAlgebra(r, 4); // downup algebra A
  ideal J = x*x*y-a*x*y*x - b*y*x*x - g*x,
  x*y*y-a*y*x*y - b*y*y*x - g*y;
  list L = lpPrint(J,r);
@@ -977,7 +978,7 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y,z),dp;
-  def R = freeAlgebra(r, 7);
+  ring R = freeAlgebra(r, 7);
   lpVarBlockSize(R);
 }
 
@@ -999,8 +1000,25 @@ example
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y,z),dp;
   isFreeAlgebra(r);
-  def R = freeAlgebra(r, 7);
+  ring R = freeAlgebra(r, 7);
   isFreeAlgebra(R);
+}
+
+proc lpNcgenCount(def R)
+"USAGE:  lpNcgenCount(R); R a letterplace ring
+RETURN:  int
+PURPOSE: returns the number of ncgen variables in the letterplace ring.
+EXAMPLE: example ncgenCount; shows examples
+"
+{
+  return(attrib(R, "ncgenCount"));
+}
+example
+{
+  "EXAMPLE:"; echo = 2;
+  ring r = 0,(x,y,z),dp;
+  ring R = freeAlgebra(r, 7, 3);
+  lpNcgenCount(R); // should be 3
 }
 
 // united all previous makes, including mLR1 (homog) and mLR2 (nonhomog)
@@ -2383,7 +2401,7 @@ static proc lastBlock(poly p)
 "USAGE:  lastBlock(p); p letterplace poly
 RETURN: int
 ASSUME: basering has letterplace ring structure
-PURPOSE: get the number of the last block occuring in the poly
+PURPOSE: get the number of the last block occurring in the poly
 EXAMPLE: example lastBlock; shows examples
 "
 {
@@ -2670,7 +2688,7 @@ example
 //   }
 //   // decompose f,g into graded pieces with inForm: need dmodapp.lib
 //   int b = attrib(basering,"isLetterplaceRing");  // the length of the block
-//   intvec w; // inherit the graded on the oridinal ring
+//   intvec w; // inherit the graded on the ordinal ring
 //   int i;
 //   for(i=1; i<=b; i++)
 //   {
@@ -2802,7 +2820,7 @@ PURPOSE: computation of the normal form of p with respect to G
 ASSUME: p is a Letterplace polynomial, G is a set Letterplace polynomials,
 being a Letterplace Groebner basis (no check for this will be done)
 NOTE: Strategy: take the smallest monomial wrt ordering for reduction
--     For homogenous ideals the shift does not matter
+-     For homogeneous ideals the shift does not matter
 -     For non-homogenous ideals the first shift will be the smallest monomial
 EXAMPLE: example lpNF; shows examples
 "
@@ -2829,9 +2847,8 @@ example
 {
   "EXAMPLE:"; echo = 2;
 ring r = 0,(x,y,z),dp;
-int d =5; // degree
-def R = freeAlgebra(r, d);
-setring R;
+int d = 5; // degree
+ring R = freeAlgebra(r, d);
 ideal I = y*x*y - z*y*z, x*y*x - z*x*y, z*x*z - y*z*x, x*x*x + y*y*y + z*z*z + x*y*z;
 ideal J = letplaceGBasis(I); // compute a Letterplace Groebner basis
 poly p = y*x*y*z*y - y*z*z*y + z*y*z;
@@ -2847,7 +2864,7 @@ PURPOSE: compute a two-sided division with remainder of p wrt G; two-sided nonco
 ASSUME: G = {g1,...,gN} is a Groebner basis, the original ring of the Letterplace ring has the name 'r' and no variable is called 'tag_i' for i in 1...N
 RETURN: list L
 NOTE: - L[1] is NF(p,I)
-      - L[2] is the list of expressions [i,l_(ij),r_(ij)] with \sum_(i,j) l_(ij) g_i r_(ij) = p - NF(p,I)
+      - L[2] is the list of expressions [i,l_(ij),r_(ij)] with \sum_(i,j) l_(ij) g_i r_(ij) = p - NF(p,I) 
       - procedure lpGBPres2Poly, applied to L, reconstructs p
 EXAMPLE: example lpDivision; shows examples
 "
@@ -2919,14 +2936,15 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = freeAlgebra(r, 4); setring R;
+  ring R = freeAlgebra(r, 4); 
   ideal I = x*x + y*y - 1; // 2D sphere
-  ideal J = letplaceGBasis(I); // compute a Letterplace Groebner basis
+  ideal J = twostd(I); // compute a two-sided Groebner basis
   J; // it is finite and nice
   poly h = x*x*y-y*x*x+x*y;
-  lpDivision(h,J); // what means that the NF of h wrt J is x*y
-  h - lpNF(h,J); // and this poly has the folowing two-sided Groebner presentation:
+  list L = lpDivision(h,J); L; // what means that the NF of h wrt J is x*y
+  h - lpNF(h,J); // and this poly has the following two-sided Groebner presentation:
   -y*J[1] + J[1]*y;
+  lpGBPres2Poly(L,J); // reconstructs the above automatically
 }
 
 proc lpGBPres2Poly(list L, ideal I)
@@ -2948,16 +2966,15 @@ example
 {
   "EXAMPLE:"; echo = 2;
   ring r = 0,(x,y),dp;
-  def R = freeAlgebra(r, 4); setring R;
+  ring R = freeAlgebra(r, 4); 
   ideal I = x*x + y*y - 1; // 2D sphere
-  ideal J = letplaceGBasis(I); // compute a Letterplace Groebner basis
+  ideal J = twostd(I); // compute a two-sided Groebner basis
   J; // it is finite and nice
   poly h = x*x*y-y*x*x+x*y;
-  list L = lpDivision(h,J); // what means that the NF of h wrt J is x*y
+  list L = lpDivision(h,J); 
+  L[1]; // what means that the normal form (or the remainder) of h wrt J is x*y
   lpGBPres2Poly(L,J); // we see, that it is equal to h from above
 }
-
-
 
 
 //procedures to convert monomials into the DVec representation, all static
@@ -2965,7 +2982,7 @@ example
 
 
 static proc getExpVecs(ideal G)
-"USUAGE: getExpVecs(G);
+"USAGE: getExpVecs(G);
 RETURN: list of intvecs
 PURPOSE: convert G into a list of intvecs, corresponding to the exponent vector
  of the leading monomials of G
@@ -2976,7 +2993,7 @@ PURPOSE: convert G into a list of intvecs, corresponding to the exponent vector
 }
 
 static proc delSupZero(intvec I)
-"USUAGE:delSupZero(I);
+"USAGE:delSupZero(I);
 RETURN: intvec
 PURPOSE: Deletes superfluous zero blocks of an exponent vector
 ASSUME: Intvec is an exponent vector of a letterplace monomial contained in V'
@@ -3001,7 +3018,7 @@ ASSUME: Intvec is an exponent vector of a letterplace monomial contained in V'
 }
 
 static proc delSupZeroList(list L)
-"USUAGE:delSupZeroList(L); L a list, containing intvecs
+"USAGE:delSupZeroList(L); L a list, containing intvecs
 RETURN: list, containing intvecs
 PURPOSE: Deletes all superfluous zero blocks for a list of exponent vectors
 ASSUME: All intvecs are exponent vectors of letterplace monomials contained in V'
@@ -3013,10 +3030,10 @@ ASSUME: All intvecs are exponent vectors of letterplace monomials contained in V
 
 
 static proc makeDVec(intvec V)
-"USUAGE:makeDVec(V);
+"USAGE:makeDVec(V);
 RETURN: intvec
 PURPOSE: Converts an modified exponent vector into an Dvec
-NOTE: Superfluos zero blocks must have been deleted befor using this procedure
+NOTE: Superfluous zero blocks must have been deleted before using this procedure
 "
 {int i,j,k,r1,r2; intvec D;
  int n = lpVarBlockSize(basering);
@@ -3033,7 +3050,7 @@ NOTE: Superfluos zero blocks must have been deleted befor using this procedure
 }
 
 static proc makeDVecL(list L)
-"USUAGE:makeDVecL(L); L, a list containing intvecs
+"USAGE:makeDVecL(L); L, a list containing intvecs
 RETURN: list, containing intvecs
 ASSUME:
 "
@@ -3043,7 +3060,7 @@ ASSUME:
 }
 
 static proc makeDVecI(ideal G)
-"USUAGE:makeDVecI(G);
+"USAGE:makeDVecI(G);
 RETURN:list, containing intvecs
 PURPOSE:computing the DVec representation for lead(G)
 ASSUME:
@@ -3056,7 +3073,7 @@ ASSUME:
 //procedures, which are dealing with the DVec representation, all static
 
 static proc dShiftDiv(intvec V, intvec W)
-"USUAGE: dShiftDiv(V,W);
+"USAGE: dShiftDiv(V,W);
 RETURN: a list,containing integers, or -1, if no shift of W divides V
 PURPOSE: find all possible shifts s, such that s.W|V
 ASSUME: V,W are DVecs of monomials contained in V'
@@ -3080,7 +3097,7 @@ ASSUME: V,W are DVecs of monomials contained in V'
 
 //the first normal form procedure, if a user want not to presort the ideal, just make it not static
 static proc lpNormalForm1(poly p, ideal G, list L)
-"USUAGE:lpNormalForm1(p,G);
+"USAGE:lpNormalForm1(p,G);
 RETURN:poly
 PURPOSE:computation of the normalform of p w.r.t. G
 ASSUME: p is a Letterplace polynomial, G is a set of Letterplace polynomials
@@ -3107,7 +3124,7 @@ NOTE: Taking the first possible reduction
 
 // VL; called from lpNF
 static proc lpNormalForm2(poly pp, ideal G, list L)
-"USUAGE:lpNormalForm2(p,G);
+"USAGE:lpNormalForm2(p,G);
 RETURN:poly
 PURPOSE:computation of the normal form of p w.r.t. G
 ASSUME: p is a Letterplace polynomial, G is a set of Letterplace polynomials
@@ -3761,10 +3778,73 @@ example
   poly p = x*x*z;
   poly q = y*y*x*x;
   poly w = z*y*x*z;
-  // p,q,w are some polynomials we want to transform into their
+  // p, q, w are some polynomials we want to transform into their
   // intvec representation
   ideal G = p,q,w;
   lp2ivId(G); // returns the list of intmats for this ideal
+}
+
+proc testLift(ideal M, matrix T) 
+"USAGE: testLift(M,T); module M, matrix T
+RETURN: module
+PURPOSE: assembles the result of the lift procedure
+ASSUME: T is the lift matrix of a submodule of M
+NOTE: the inverse of the lift procedure
+EXAMPLE: example testLift; shows examples
+"
+{
+  ideal R;
+  if (ncols(M) != nrows(T)) { ERROR("cols(M) != rows(T)") }
+  for (int i=1; i <= nrows(T); i++) {
+    T = subst(T, ncgen(i), M[i]);
+  } kill i;
+  for (int i=1; i <= ncols(T); i++) {
+    R[i] = sum(T[i]);
+  } kill i;
+  return(R);
+}
+example
+{
+  "EXAMPLE:"; echo = 2;
+  ring r = 0,(x,y),(c,Dp);
+  ring R = freeAlgebra(r, 7, 2);
+  ideal I = std(x*y*x + 1);
+  print(matrix(I)); // finite two-sided Groebner basis
+  ideal SI = x*I[1]*y + y*x*I[2], I[1]*y*x + I[2]*y;
+  matrix T = lift(I, SI); // T is the lifting matrix of SI wrt I
+  print(T); //
+  print(matrix(SI)); // the original generators of SI as a matrix
+  print(matrix(testLift(I,T))); // and the result of testLift
+}
+
+proc testSyz(ideal M, module S)
+"USAGE: testSyz(M,S); module M, S
+RETURN: module
+PURPOSE: tests the result of the syz procedure
+ASSUME: S is the syzygy bimodule of M
+EXAMPLE: example testSyz; shows examples
+"
+{
+  ideal R;
+  if (ncols(M) != nrows(S)) { ERROR("cols(M) != rows(T)") }
+  for (int i=1; i <= nrows(S); i++) {
+    S = subst(S, ncgen(i), M[i]);
+  } kill i;
+  for (int i=1; i <= ncols(S); i++) {
+    R[i] = sum(S[i]);
+  } kill i;
+  return(R);
+}
+example
+{
+  "EXAMPLE:"; echo = 2;
+  ring r = 0,(x,y),(c,Dp);
+  ring R = freeAlgebra(r, 7, 2);
+  ideal I = twostd(x*y*x + 1);
+  print(matrix(I));
+  module S = syz(I);
+  print(S);
+  testSyz(I,S); // returns zero
 }
 
 static proc mod_init()

@@ -13,7 +13,11 @@
 #include <string.h>
 #include "omalloc/omConfig.h"
 #if defined(HAVE_MALLOC_USABLE_SIZE) || defined(HAVE_MALLOC_SIZE)
-#include <malloc.h>
+  #ifdef HAVE_MALLOC_H
+  #include <malloc.h>
+  #elif defined(HAVE_MALLOC_MALLOC_H)
+  #include <malloc/malloc.h>
+  #endif
 #endif
 #ifdef __cplusplus
 extern "C" {
@@ -280,7 +284,7 @@ enum omError_e
 #define omrealloc(A,NS)          omRealloc(A,NS)
 #define omreallocSize(A,OS,NS)   omRealloc(A,NS)
 #define omRealloc0Size(A,OS,NS)  omRealloc0(A,NS)
-#define omrealloc0Size(A,OS,NS)  omRealloc(A,NS)
+#define omrealloc0Size(A,OS,NS)  omRealloc0(A,NS)
 #define omMarkAsStaticAddr(A)
 #define omMemCpyW(A,B,S)         memcpy(A,B,(S)<<2)
 #define omMemcpyW(A,B,S)         memcpy(A,B,(S)<<2)

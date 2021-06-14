@@ -42,6 +42,10 @@
 #include "nc/sca.h"
 #endif
 
+#ifdef HAVE_SHIFTBBA
+#include "polys/shiftop.h"
+#endif
+
 #include "clapsing.h"
 
 /*
@@ -78,6 +82,7 @@ poly p_Farey(poly p, number N, const ring r)
 * xx[i]: SB mod q[i]
 * assume: char=0
 * assume: q[i]!=0
+* x: work space
 * destroys xx
 */
 poly p_ChineseRemainder(poly *xx, number *x,number *q, int rl, CFArray &inv_cache,const ring R)
@@ -677,7 +682,7 @@ long p_WTotaldegree(poly p, const ring r)
   return  j;
 }
 
-long p_DegW(poly p, const short *w, const ring R)
+long p_DegW(poly p, const int *w, const ring R)
 {
   p_Test(p, R);
   assume( w != NULL );
@@ -1564,9 +1569,9 @@ poly p_DivideM(poly a, poly b, const ring r)
 
   if(!p_IsConstant(b,r))
   {
-    if (rIsLPRing(r))
+    if (rIsNCRing(r))
     {
-      WerrorS("not implemented for letterplace rings");
+      WerrorS("p_DivideM not implemented for non-commuative rings");
       return NULL;
     }
     poly prev=NULL;
@@ -2282,8 +2287,22 @@ void p_Content(poly ph, const ring r)
   {
     p_SetCoeff(ph,n_Init(1,cf),r);
   }
-  if (cf->cfSubringGcd==ndGcd) /* trivial gcd*/ return;
-  number h=p_InitContent(ph,r); /* first guess of a gcd of all coeffs */
+  if ((cf->cfSubringGcd==ndGcd)
+  || (cf->cfGcd==ndGcd)) /* trivial gcd*/
+    return;
+  number h;
+  if ((rField_is_Q(r))
+  || (rField_is_Q_a(r))
+  || (rField_is_Zp_a)(r)
+  || (rField_is_Z(r))
+  )
+  {
+    h=p_InitContent(ph,r); /* first guess of a gcd of all coeffs */
+  }
+  else
+  {
+    h=n_Copy(pGetCoeff(ph),cf);
+  }
   poly p;
   if(n_IsOne(h,cf))
   {
@@ -2315,6 +2334,75 @@ content_finish:
   n_Delete(&h,r->cf);
   // and last: check leading sign:
   if(!n_GreaterZero(pGetCoeff(ph),r->cf)) ph = p_Neg(ph,r);
+}
+
+void p_Content_n(poly ph, number &c,const ring r)
+{
+  if (ph==NULL)
+  {
+    c=n_Init(1,r->cf);
+    return;
+  }
+  const coeffs cf=r->cf;
+  if (pNext(ph)==NULL)
+  {
+    c=pGetCoeff(ph);
+    p_SetCoeff0(ph,n_Init(1,cf),r);
+  }
+  if ((cf->cfSubringGcd==ndGcd)
+  || (cf->cfGcd==ndGcd)) /* trivial gcd*/
+  {
+    c=n_Init(1,r->cf);
+    return;
+  }
+  number h;
+  if ((rField_is_Q(r))
+  || (rField_is_Q_a(r))
+  || (rField_is_Zp_a)(r)
+  || (rField_is_Z(r))
+  )
+  {
+    h=p_InitContent(ph,r); /* first guess of a gcd of all coeffs */
+  }
+  else
+  {
+    h=n_Copy(pGetCoeff(ph),cf);
+  }
+  poly p;
+  if(n_IsOne(h,cf))
+  {
+    goto content_finish;
+  }
+  p=ph;
+  // take the SubringGcd of all coeffs
+  while (p!=NULL)
+  {
+    n_Normalize(pGetCoeff(p),cf);
+    number d=n_SubringGcd(h,pGetCoeff(p),cf);
+    n_Delete(&h,cf);
+    h = d;
+    if(n_IsOne(h,cf))
+    {
+      goto content_finish;
+    }
+    pIter(p);
+  }
+  // if found<>1, divide by it
+  p = ph;
+  while (p!=NULL)
+  {
+    number d = n_ExactDiv(pGetCoeff(p),h,cf);
+    p_SetCoeff(p,d,r);
+    pIter(p);
+  }
+content_finish:
+  c=h;
+  // and last: check leading sign:
+  if(!n_GreaterZero(pGetCoeff(ph),r->cf))
+  {
+    c = n_InpNeg(c,r->cf);
+    ph = p_Neg(ph,r);
+  }
 }
 
 #define CLEARENUMERATORS 1
@@ -2537,40 +2625,54 @@ void p_SimpleContent(poly ph, int smax, const ring r)
     p_SetCoeff(ph,n_Init(1,r->cf),r);
     return;
   }
-  if ((pNext(pNext(ph))==NULL)||(!rField_is_Q(r)))
+  if (pNext(pNext(ph))==NULL)
+  {
+    return;
+  }
+  if (!(rField_is_Q(r))
+  && (!rField_is_Q_a(r))
+  && (!rField_is_Zp_a(r))
+  && (!rField_is_Z(r))
+  )
   {
     return;
   }
   number d=p_InitContent(ph,r);
+  number h=d;
   if (n_Size(d,r->cf)<=smax)
   {
+    n_Delete(&h,r->cf);
     //if (TEST_OPT_PROT) PrintS("G");
     return;
   }
 
   poly p=ph;
-  number h=d;
   if (smax==1) smax=2;
   while (p!=NULL)
   {
-#if 0
-    d=n_Gcd(h,pGetCoeff(p),r->cf);
+#if 1
+    d=n_SubringGcd(h,pGetCoeff(p),r->cf);
     n_Delete(&h,r->cf);
     h = d;
 #else
-    STATISTIC(n_Gcd); nlInpGcd(h,pGetCoeff(p),r->cf);
+    n_InpGcd(h,pGetCoeff(p),r->cf);
 #endif
     if(n_Size(h,r->cf)<smax)
     {
       //if (TEST_OPT_PROT) PrintS("g");
+      n_Delete(&h,r->cf);
       return;
     }
     pIter(p);
   }
   p = ph;
   if (!n_GreaterZero(pGetCoeff(p),r->cf)) h=n_InpNeg(h,r->cf);
-  if(n_IsOne(h,r->cf)) return;
-  //if (TEST_OPT_PROT) PrintS("c");
+  if(n_IsOne(h,r->cf))
+  {
+    n_Delete(&h,r->cf);
+    return;
+  }
+  if (TEST_OPT_PROT) PrintS("c");
   while (p!=NULL)
   {
 #if 1
@@ -3098,12 +3200,13 @@ void p_ProjectiveUnique(poly ph, const ring r)
   if( ph == NULL )
     return;
 
-  assume( r != NULL ); assume( r->cf != NULL ); const coeffs C = r->cf;
+  assume( r != NULL ); assume( r->cf != NULL );
+  const coeffs C = r->cf;
 
   number h;
   poly p;
 
-  if (rField_is_Ring(r))
+  if (nCoeff_is_Ring(C))
   {
     p_ContentForGB(ph,r);
     if(!n_GreaterZero(pGetCoeff(ph),C)) ph = p_Neg(ph,r);
@@ -3111,7 +3214,7 @@ void p_ProjectiveUnique(poly ph, const ring r)
     return;
   }
 
-  if (rField_is_Zp(r) && TEST_OPT_INTSTRATEGY)
+  if (nCoeff_is_Zp(C) && TEST_OPT_INTSTRATEGY)
   {
     assume( n_GreaterZero(pGetCoeff(ph),C) );
     if(!n_GreaterZero(pGetCoeff(ph),C)) ph = p_Neg(ph,r);
@@ -3129,7 +3232,7 @@ void p_ProjectiveUnique(poly ph, const ring r)
 
   assume(pNext(p)!=NULL);
 
-  if(!rField_is_Q(r) && !nCoeff_is_transExt(C))
+  if(!nCoeff_is_Q(C) && !nCoeff_is_transExt(C))
   {
     h = p_GetCoeff(p, C);
     number hInv = n_Invers(h, C);
@@ -3738,7 +3841,9 @@ void p_Norm(poly p1, const ring r)
 */
 void p_Normalize(poly p,const ring r)
 {
-  if (rField_has_simple_inverse(r)) return; /* Z/p, GF(p,n), R, long R/C */
+  if ((rField_has_simple_inverse(r))  /* Z/p, GF(p,n), R, long R/C */
+  || (r->cf->cfNormalize==ndNormalize)) /* Nemo rings, ...*/
+    return;
   while (p!=NULL)
   {
     // no test befor n_Normalize: n_Normalize should fix problems
@@ -3880,6 +3985,16 @@ static poly p_Subst0(poly p, int n, const ring r)
 */
 poly p_Subst(poly p, int n, poly e, const ring r)
 {
+#ifdef HAVE_SHIFTBBA
+  // also don't even use p_Subst0 for Letterplace
+  if (rIsLPRing(r))
+  {
+    poly subst = p_LPSubst(p, n, e, r);
+    p_Delete(&p, r);
+    return subst;
+  }
+#endif
+
   if (e == NULL) return p_Subst0(p, n,r);
 
   if (p_IsConstant(e,r))
@@ -4313,7 +4428,7 @@ poly p_Jet(poly p, int m,const ring R)
   return r;
 }
 
-poly pp_JetW(poly p, int m, short *w, const ring R)
+poly pp_JetW(poly p, int m, int *w, const ring R)
 {
   poly r=NULL;
   poly t=NULL;
@@ -4340,7 +4455,7 @@ poly pp_JetW(poly p, int m, short *w, const ring R)
   return r;
 }
 
-poly p_JetW(poly p, int m, short *w, const ring R)
+poly p_JetW(poly p, int m, int *w, const ring R)
 {
   while((p!=NULL) && (totaldegreeWecart_IV(p,R,w)>m)) p_LmDelete(&p,R);
   if (p==NULL) return NULL;
@@ -4387,11 +4502,11 @@ static poly p_Invers(int n,poly u,intvec *w, const ring R)
   poly v=p_NSet(u0,R);
   if(n==0)
     return v;
-  short *ww=iv2array(w,R);
+  int *ww=iv2array(w,R);
   poly u1=p_JetW(p_Sub(p_One(R),__p_Mult_nn(u,u0,R),R),n,ww,R);
   if(u1==NULL)
   {
-    omFreeSize((ADDRESS)ww,(rVar(R)+1)*sizeof(short));
+    omFreeSize((ADDRESS)ww,(rVar(R)+1)*sizeof(int));
     return v;
   }
   poly v1=__p_Mult_nn(p_Copy(u1,R),u0,R);
@@ -4403,14 +4518,14 @@ static poly p_Invers(int n,poly u,intvec *w, const ring R)
   }
   p_Delete(&u1,R);
   p_Delete(&v1,R);
-  omFreeSize((ADDRESS)ww,(rVar(R)+1)*sizeof(short));
+  omFreeSize((ADDRESS)ww,(rVar(R)+1)*sizeof(int));
   return v;
 }
 
 
 poly p_Series(int n,poly p,poly u, intvec *w, const ring R)
 {
-  short *ww=iv2array(w,R);
+  int *ww=iv2array(w,R);
   if(p!=NULL)
   {
     if(u==NULL)
@@ -4418,7 +4533,7 @@ poly p_Series(int n,poly p,poly u, intvec *w, const ring R)
     else
       p=p_JetW(p_Mult_q(p,p_Invers(n-p_MinDeg(p,w,R),u,w,R),R),n,ww,R);
   }
-  omFreeSize((ADDRESS)ww,(rVar(R)+1)*sizeof(short));
+  omFreeSize((ADDRESS)ww,(rVar(R)+1)*sizeof(int));
   return p;
 }
 

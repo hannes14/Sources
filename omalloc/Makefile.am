@@ -39,18 +39,31 @@ libomalloc_la_CPPFLAGS  = ${AM_CPPFLAGS} -DOM_ALLOC_INTERNAL
 
 BUILT_SOURCES = omTables.inc omTables.h
 
-omTables.inc: omTables$(EXEEXT) omalloc.h
-	./omTables$(EXEEXT) > omTables.xx && mv omTables.xx  $@
+omTables.inc:
+	$(MAKE) $(AM_MAKEFLAGS) \
+	CC="${CC_FOR_BUILD}" \
+	CFLAGS="${CFLAGS_FOR_BUILD}" \
+	CPPFLAGS="-I${abs_top_srcdir}/.. -I${abs_top_builddir}/.. $(CPPFLAGS_FOR_BUILD) -DOM_GENERATE_INC" \
+	LDFLAGS="$(LDFLAGS_FOR_BUILD)" omTables
+	./omTables$(BUILD_EXEEXT) > omTables.xx && mv omTables.xx  omTables.inc
 
-omTables.h: omTables$(EXEEXT)
-	./omTables$(EXEEXT) 1 >omTables.yy && mv omTables.yy $@
+omTables.h:
+	$(MAKE) $(AM_MAKEFLAGS) \
+	CPPFLAGS="-I${abs_top_srcdir}/.. -I${abs_top_builddir}/.. $(CPPFLAGS_FOR_BUILD)" \
+	CC="${CC_FOR_BUILD}" \
+	CFLAGS="${CFLAGS_FOR_BUILD}" \
+	LDFLAGS="$(LDFLAGS_FOR_BUILD)" omTables1
+	./omTables1$(BUILD_EXEEXT) >omTables.yy && mv omTables.yy omTables.h
 
-noinst_PROGRAMS = omTables
+noinst_PROGRAMS = omTables omTables1
 omTables_SOURCES = omAllocPrivate.h omTables.c
+omTables1_SOURCES = omAllocPrivate.h omTables1.c
 nodist_omTables_SOURCES = omConfig.h
+nodist_omTables1_SOURCES = omConfig.h
 omTables_CPPFLAGS = ${AM_CPPFLAGS} -DOM_GENERATE_INC
+omTables1_CPPFLAGS = ${AM_CPPFLAGS} -DOM_GENERATE_INC
 
-CLEANFILES = $(BUILT_SOURCES)
+CLEANFILES = $(BUILT_SOURCES) omTables omTables1
 DISTCLEANFILES = omConfig.h
 ####################################################
 ## Test program

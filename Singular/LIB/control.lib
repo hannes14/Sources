@@ -32,7 +32,7 @@ PROCEDURES:
 ";
 
 LIB "homolog.lib";
-LIB "poly.lib";
+LIB "polylib.lib";
 LIB "primdec.lib";
 LIB "matrix.lib";
 
@@ -305,7 +305,7 @@ static proc Ext_Our(int i, module R, list #)
 //------------------------------------------------------------------------
 static proc is_zero_Our
 {
-  //just a copy of 'is_zero' from "poly.lib" patched with GKdim
+  //just a copy of 'is_zero' from "polylib.lib" patched with GKdim
   int d = dim_Our(std(#[1]));
   int a = ( d==-1 );
   if( size(#) >1 ) { list L=a,d; return(L); }
@@ -773,8 +773,7 @@ static proc victors_genericity(matrix M)
   NM = simplify(NM,4); // delete identical
   string newvars = parstr(basering);
   def save = basering;
-  string NewRing = "ring @NR =" +string(char(basering))+",("+newvars+"),Dp;";
-  execute(NewRing);
+  ring @NR = create_ring("string(char(basering))", "("+newvars+")", "Dp");
   // get params as variables
   // create a list of non-monomials
   ideal @L;
@@ -837,8 +836,7 @@ static proc evas_genericity(matrix M)
   Den = simplify(Den,2+4);
   string newvars = parstr(basering);
   def save = basering;
-  string NewRing = "ring @NR =(" +string(char(basering))+"),("+newvars+"),Dp;";
-  execute(NewRing);
+  ring @NR = create_ring("("+string(char(basering))+")", "("+newvars+")", "Dp");
   ideal F;
   ideal Den = imap(save,Den);
   Den = simplify(Den,2);
@@ -901,7 +899,7 @@ EXAMPLE:  example canonize; shows an example
     if (typeof(M[i])=="module")
     {
       M[i] = std(M[i]);
-      //      M[i] = prune(M[i]); // mimimal embedding: no need yet
+      //      M[i] = prune(M[i]); // minimal embedding: no need yet
       //      M[i] = std(M[i]);
     }
   }
@@ -1418,7 +1416,7 @@ example
 proc controlExample(string s)
 "USAGE:  controlExample(s);   s a string
 RETURN:  ring
-PURPOSE: set up an example from the mini database by initalizing a ring and a module in a ring
+PURPOSE: set up an example from the mini database by initializing a ring and a module in a ring
 NOTE: in order to see the list of available examples, execute @code{controlExample(\"show\");}
 @* To use an example, one has to do the following. Suppose one calls the ring, where the example will be activated, A. Then, by executing
 @*  @code{def A = controlExample(\"Antenna\");} and @code{setring A;},

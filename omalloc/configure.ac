@@ -26,6 +26,9 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 AM_SANITY_CHECK
 
+AX_PROG_CC_FOR_BUILD
+AC_SUBST(BUILD_EXEEXT)
+
 # Add pre'prefixed config
 AX_PREFIX_CONFIG_H([omConfig.h],[],[_config.h])
 
@@ -155,7 +158,7 @@ AC_HEADER_STDC
 AC_CHECK_HEADERS(limits.h,,
   AC_MSG_ERROR(Can not compile without limits.h))
 
-AC_CHECK_HEADERS(unistd.h sys/mman.h fcntl.h /usr/include/malloc.h)
+AC_CHECK_HEADERS(unistd.h sys/mman.h fcntl.h malloc.h malloc/malloc.h)
 
 AC_CHECK_FUNCS(popen mmap sbrk random malloc_usable_size malloc_size)
 
@@ -192,17 +195,7 @@ dnl figure out page size of the system
 dnl
 AC_MSG_CHECKING(size of system page)
 AC_CACHE_VAL(ac_cv_pagesize,
-AC_TRY_RUN([#include <stdio.h>
-#include <stdlib.h>
-#include "omGetPageSize.h"
-
-int main()
-{
-  FILE *f=fopen("conftestval", "w");
-  if (!f) exit(1);
-  fprintf(f, "%d\n", (int)omalloc_getpagesize);
-  exit(0);
-}], ac_cv_pagesize=`cat conftestval`, ac_cv_pagesize=0, ac_cv_pagesize=0))
+ac_cv_pagesize=`getconf PAGESIZE`)
 # can not really handle pagesizes which are greater -- there must be a
 # bug somewhere
 if test $ac_cv_pagesize -gt 8192; then

@@ -16,6 +16,7 @@
 #include "coeffs/numbers.h"
 #include "coeffs/longrat.h"
 #include "coeffs/ffields.h"
+#include "coeffs/modulop.h"
 
 #include <cmath>
 #include <errno.h>
@@ -719,15 +720,38 @@ static number nfMapGGrev(number c, const coeffs src, const coeffs)
     return (number)(long)src->m_nfCharQ; /* 0 */
 }
 
+static number nfMapMPZ(number c, const coeffs, const coeffs dst)
+{
+  mpz_t tmp;
+  mpz_init(tmp);
+  mpz_mod_ui(tmp,(mpz_ptr)c,dst->m_nfCharP);
+  long l=mpz_get_si(tmp);
+  return nfInit(l,dst);
+}
+
+static number nfInitMPZ(mpz_t m, const coeffs cf)
+{
+  mpz_t tmp;
+  mpz_init(tmp);
+  mpz_mod_ui(tmp,m,cf->m_nfCharP);
+  long l=mpz_get_si(tmp);
+  return nfInit(l,cf);
+}
+
+static number nfMapViaInt(number c, const coeffs src, const coeffs dst)
+{
+  long i=src->cfInt(c,src);
+  if (i==0) return (number)(long)dst->m_nfCharQ;
+  while (i <  0)    i += dst->m_nfCharP;
+  while (i >= dst->m_nfCharP) i -= dst->m_nfCharP;
+  return nfInit(i,dst);
+}
+
 /*2
 * set map function nMap ... -> GF(p,n)
 */
 static nMapFunc nfSetMap(const coeffs src, const coeffs dst)
 {
-  if (nCoeff_is_GF(src,src->m_nfCharQ))
-  {
-    return ndCopyMap;   /* GF(p,n) -> GF(p,n) */
-  }
   if (nCoeff_is_GF(src))
   {
     const coeffs r = dst;
@@ -766,10 +790,19 @@ static nMapFunc nfSetMap(const coeffs src, const coeffs dst)
     return nfMapP;    /* Z/p -> GF(p,n) */
   }
 
-  if (src->rep==n_rep_gap_rat) /*Q, Z */
+  if (src->rep==n_rep_gap_rat) /*Q, bigint */
   {
     return nlModP; // FIXME? TODO? // extern number nlModP(number q, const coeffs Q, const coeffs Zp); // Map q \in QQ \to Zp // FIXME!
   }
+  if (nCoeff_is_Z(src)) /* Z*/
+  {
+    return nfMapMPZ;
+  }
+  if (nCoeff_is_Zp(src) && (src->ch==dst->m_nfCharP)) /* Zp*/
+  {
+    return nfMapViaInt;
+  }
+
 
   return NULL;     /* default */
 }
@@ -784,20 +817,12 @@ static void nfKillChar(coeffs r)
   omFreeSize((ADDRESS)p, sizeof(char*));
 }
 
-static char* nfCoeffString(const coeffs r)
-{
-  const char *p=n_ParameterNames(r)[0];
-  char *s=(char*)omAlloc(11+1+strlen(p));
-  sprintf(s,"%d,%s",r->m_nfCharQ,p);
-  return s;
-}
-
 static char* nfCoeffName(const coeffs r)
 {
   STATIC_VAR char nfCoeffName_buf[32];
   const char *p=n_ParameterNames(r)[0];
   nfCoeffName_buf[31]='\0';
-  snprintf(nfCoeffName_buf,31,"ZZ/%d[%s]",r->m_nfCharQ,p);
+  snprintf(nfCoeffName_buf,31,"%d,%s",r->m_nfCharQ,p);
   return nfCoeffName_buf;
 }
 
@@ -832,13 +857,41 @@ static BOOLEAN nfCoeffIsEqual (const coeffs r, n_coeffType n, void * parameter)
 }
 BOOLEAN nfInitChar(coeffs r,  void * parameter)
 {
+  // the variables:
+  assume( getCoeffType(r) == n_GF );
+
+  GFInfo* p = (GFInfo *)(parameter);
+  assume (p->GFChar > 0);
+  assume (p->GFDegree > 0);
+  if ((IsPrime(p->GFChar)==p->GFChar)&&(p->GFDegree==1)) /* for oscar-system/Singular.jl/issues/177 */
+  {
+    return npInitChar(r,(void*)(long)p->GFChar);
+  }
+  if(p->GFChar > (2<<15))
+  {
+#ifndef SING_NDEBUG
+    WarnS("illegal characteristic");
+#endif
+    return TRUE;
+  }
+
+  const double check= log ((double) (p->GFChar));
+
+  #define sixteenlog2 11.09035489
+  if( (p->GFDegree * check) > sixteenlog2 )
+  {
+#ifndef SING_NDEBUG
+    Warn("Sorry: illegal size: %u ^ %u", p->GFChar, p->GFDegree );
+#endif
+    return TRUE;
+  }
+
   r->is_field=TRUE;
   r->is_domain=TRUE;
   r->rep=n_rep_gf;
   //r->cfInitChar=npInitChar;
   r->cfKillChar=nfKillChar;
   r->nCoeffIsEqual=nfCoeffIsEqual;
-  r->cfCoeffString=nfCoeffString;
   r->cfCoeffName=nfCoeffName;
 
   r->cfMult  = nfMult;
@@ -848,6 +901,7 @@ BOOLEAN nfInitChar(coeffs r,  void * parameter)
   //r->cfIntMod= ndIntMod;
   r->cfExactDiv= nfDiv;
   r->cfInit = nfInit;
+  r->cfInitMPZ = nfInitMPZ;
   //r->cfSize  = ndSize;
   r->cfInt  = nfInt;
   #ifdef HAVE_RINGS
@@ -889,12 +943,6 @@ BOOLEAN nfInitChar(coeffs r,  void * parameter)
   r->cfDBTest=nfDBTest;
 #endif
 
-  // the variables:
-  assume( getCoeffType(r) == n_GF );
-
-  GFInfo* p = (GFInfo *)(parameter);
-  assume (p->GFChar > 0);
-  assume (p->GFDegree > 0);
 
   const char * name = p->GFPar_name;
 
@@ -922,31 +970,13 @@ BOOLEAN nfInitChar(coeffs r,  void * parameter)
   r->has_simple_Alloc=TRUE;
   r->has_simple_Inverse=TRUE;
 
-  if(p->GFChar > (2<<15))
-  {
-#ifndef SING_NDEBUG
-    WarnS("illegal characteristic");
-#endif
-    return TRUE;
-  }
-
-  const double check= log ((double) (p->GFChar));
-
-  #define sixteenlog2 11.09035489
-  if( (p->GFDegree * check) > sixteenlog2 )
-  {
-#ifndef SING_NDEBUG
-    Warn("Sorry: illegal size: %u ^ %u", p->GFChar, p->GFDegree );
-#endif
-    return TRUE;
-  }
-
   int c = (int)pow ((double)p->GFChar, (double)p->GFDegree);
 
   nfReadTable(c, r);
 
   if( r->m_nfPlus1Table == NULL )
   {
+    Werror("reading table for field with %d elements failed",c);
     return TRUE;
   }
 

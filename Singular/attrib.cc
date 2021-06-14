@@ -55,12 +55,15 @@ attr sattr::Copy()
 
 static void attr_free(attr h, const ring r=currRing)
 {
+  if (h->name!=NULL)
+  {
+    omFree(h->name);
+    h->name=NULL;
+  }
   if (h->data!=NULL) /*avoid assume failure */
   {
     s_internalDelete(h->atyp,h->data,r);
     h->data=NULL;
-    omFree(h->name);
-    h->name=NULL;
   }
 }
 
@@ -258,6 +261,8 @@ BOOLEAN atATTRIB1(leftv res,leftv v)
       PrintS("attr:ring_cf, type int\n");
       #ifdef HAVE_SHIFTBBA
       PrintS("attr:isLetterplaceRing, type int\n");
+      if (rIsLPRing((ring)v->Data()))
+        PrintS("attr:ncgenCount, type int\n");
       #endif
 
       haveNoAttribute=FALSE;
@@ -300,7 +305,7 @@ BOOLEAN atATTRIB2(leftv res,leftv v,leftv b)
   &&(/*v->Typ()*/t==RING_CMD))
   {
     res->rtyp=INT_CMD;
-    res->data=(void *)(long)(((ring)v->Data())->bitmask/2);
+    res->data=(void *)(long)(((ring)v->Data())->bitmask);
   }
   else if ((strcmp(name,"ring_cf")==0)
   &&(/*v->Typ()*/t==RING_CMD))
@@ -329,6 +334,12 @@ BOOLEAN atATTRIB2(leftv res,leftv v,leftv b)
   {
     res->rtyp=INT_CMD;
     res->data=(void *)(long)(((ring)v->Data())->isLPring);
+  }
+  else if ((strcmp(name,"ncgenCount")==0)
+  &&(/*v->Typ()*/t==RING_CMD))
+  {
+    res->rtyp=INT_CMD;
+    res->data=(void *)(long)(((ring)v->Data())->LPncGenCount);
   }
 #endif
   else
@@ -432,6 +443,17 @@ BOOLEAN atATTRIB3(leftv /*res*/,leftv v,leftv b,leftv c)
     else
     {
       WerrorS("attribute `isLetterplaceRing` must be int");
+      return TRUE;
+    }
+  }
+  else if ((strcmp(name,"ncgenCount")==0)
+  &&(/*v->Typ()*/t==RING_CMD))
+  {
+    if (c->Typ()==INT_CMD)
+      ((ring)v->Data())->LPncGenCount=(int)(long)c->Data();
+    else
+    {
+      WerrorS("attribute `ncgenCount` must be int");
       return TRUE;
     }
   }

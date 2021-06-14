@@ -4,6 +4,11 @@
 /*
 * ABSTRACT - interupt handling
 */
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "kernel/mod2.h"
 
 #include "reporter/si_signals.h"
@@ -154,47 +159,7 @@ si_hdl_typ si_set_signal ( int sig, si_hdl_typ signal_handler)
 
 
 /*---------------------------------------------------------------------*/
-#if defined(__linux__) && defined(__i386)
-  #if !defined(HAVE_SIGCONTEXT) && !defined(HAVE_ASM_SIGCONTEXT_H)
-// we need the following structure sigcontext_struct.
-// if configure finds asm/singcontext.h we assume
-// that this file contains the structure and is included
-// via signal.h
-struct sigcontext_struct {
-        unsigned short gs, __gsh;
-        unsigned short fs, __fsh;
-        unsigned short es, __esh;
-        unsigned short ds, __dsh;
-        unsigned long edi;
-        unsigned long esi;
-        unsigned long ebp;
-        unsigned long esp;
-        unsigned long ebx;
-        unsigned long edx;
-        unsigned long ecx;
-        unsigned long eax;
-        unsigned long trapno;
-        unsigned long err;
-        unsigned long eip;
-        unsigned short cs, __csh;
-        unsigned long eflags;
-        unsigned long esp_at_signal;
-        unsigned short ss, __ssh;
-        unsigned long i387;
-        unsigned long oldmask;
-        unsigned long cr2;
-};
-#endif
-#define HAVE_SIGSTRUCT
-typedef struct sigcontext_struct sigcontext;
-#endif
-
-#if defined(__linux__) && defined(__amd64)
-#define HAVE_SIGSTRUCT
-#endif
-
-
-#if defined(HAVE_SIGSTRUCT)
+#if defined(__linux__) && (defined(__i386) || defined(__amd64))
 /*2---------------------------------------------------------------------*/
 /**
  * @brief signal handler for run time errors, linux/i386, x86_64 version
@@ -410,6 +375,17 @@ static void debug (int method)
     dReportError("Caught Signal 11");
     return;
   }
+  /* REMARK FOR NEWER LINUX SYSTEMS:
+Attaching to a process on Linux with GDB as a normal user may fail with "ptrace:Operation not permitted". By default Linux does not allow attaching to a process which wasn't launched by the debugger (see the Yama security documentation for more details). (https://www.kernel.org/doc/Documentation/security/Yama.txt)
+
+There are ways to workaround this:
+
+    Run the following command as super user: echo 0| sudo tee /proc/sys/kernel/yama/ptrace_scope
+
+    This will set the ptrace level to 0, after this just with user permissions you can attach to processes which are not launched by the debugger.
+
+    On distributions without Yama (such as Raspbian) you can use libcap2-bin to assign ptrace permissions to specific executables: sudo setcap cap_sys_ptrace=eip /usr/bin/gdb
+*/
   int pid;
   char buf[16];
   char * args[4] = { (char*)"gdb", (char*)"Singular", NULL, NULL };
@@ -565,8 +541,6 @@ void init_signals()
   ErrorCallback=HALT;
 #endif
 #endif
-// factory error handling: -----------------------------------------------
-  factoryError=WerrorS;
 
 // signal handler -------------------------------------------------------
   #ifdef SIGSEGV

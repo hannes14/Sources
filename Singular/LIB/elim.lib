@@ -19,7 +19,7 @@ PROCEDURES:
 
 LIB "inout.lib";
 LIB "general.lib";
-LIB "poly.lib";
+LIB "polylib.lib";
 LIB "ring.lib";
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -38,7 +38,7 @@ RETURN:  a ring, say B, containing the ideals C,J,W and the ideals
 @*         - bM (ideal of the blowup map from basering to B)
 @*       such that B/bR is isomorphic to the blowup ring BC.
 PURPOSE: compute the projective blowup of the basering in the center C, the
-         exceptional locus, the total and strict tranform of J,
+         exceptional locus, the total and strict transform of J,
          and the blowup map.
          The projective blowup is a presentation of the blowup ring
          BC = R[C] = R + t*C + t^2*C^2 + ... (also called Rees ring) of the
@@ -107,7 +107,7 @@ EXAMPLE: example blowup0; shows examples
    //---- change l[3]:
    l[3][s+1] = l[3][s];         // save the module ordering of the basering
    intvec w=1:k;
-   intvec v;                    // containing the weights for the varibale
+   intvec v;                    // containing the weights for the variable
    if( homog(C) )
    {
       for( i=k; i>=1; i--)
@@ -201,7 +201,7 @@ RETURN:  a list, say L, with R:=L[1] a ring and L[2] an intvec.
          (parameters are not touched).
 @*       The intvec L[2] is the intvec of variable weights (or the given w)
          with weights <= 0 replaced by 1.
-PURPOSE: Prepare a ring for eliminating vars from an ideal/moduel by
+PURPOSE: Prepare a ring for eliminating vars from an ideal/module by
          computing a standard basis in R with a fast monomial ordering.
          This procedure is used by the procedure elim.
 EXAMPLE: example elimRing; shows an example
@@ -295,7 +295,7 @@ EXAMPLE: example elimRing; shows an example
   //Assume that the first r of the n variables are to be eliminated.
   //Then, in case of an a-ordering (default), the new ring ordering will be
   //of the form (a(1..1,0..0),dp) with r 1's and n-r 0's or (a(w1,0..0),wp(@w))
-  //if there are varaible weights which are not 1.
+  //if there are variable weights which are not 1.
   //In the case of a b-ordering the ordering will be a block ordering with two
   //blocks of the form (dp(r),dp(n-r))  resp. (wp(w1),dp(w2))
 
@@ -580,13 +580,12 @@ EXAMPLE: example elim2; shows examples
 //---- get variables to be eliminated and create string for new ordering ------
    int ii; poly vars=1;
    for( ii=1; ii<=size(va); ii++ ) { vars=vars*var(va[ii]); }
-   if(  attrib(basering,"global")) { string ordering = "),dp;"; }
-   else { string ordering = "),ls;"; }
+   if(  attrib(basering,"global")) { string ordering = "dp"; }
+   else { string ordering = "ls"; }
    string mpoly=string(minpoly);
 //-------------- create new ring and map objects to new ring ------------------
    def br = basering;
-   string str = "ring @newr = ("+charstr(br)+"),("+varstr(br)+ordering;
-   execute(str);
+   ring @newr = create_ring(ringlist(br)[1], "("+varstr(br)+")", ordering, "no_minpoly");
    if (mpoly!="0") { execute("minpoly="+mpoly+";"); }
    def i = imap(br,id);
    poly vars = imap(br,vars);
@@ -644,11 +643,10 @@ EXAMPLE: example elim1; shows examples
    {
       if( vars/var(ii)==0 ) { poly p = 1+var(ii); break;}
    }
-   if( ord(p)==0 ) { string ordering = "),ls;"; }
-   if( ord(p)>0 ) { string ordering = "),dp;"; }
+   if( ord(p)==0 ) { string ordering = "ls"; }
+   if( ord(p)>0 ) { string ordering = "dp"; }
 //-------------- create new ring and map objects to new ring ------------------
-   string str = "ring @newr = ("+charstr(br)+"),("+varstr(br)+ordering;
-   execute(str);
+   ring @newr = create_ring(ringlist(br)[1], "("+varstr(br)+")", ordering, "no_minpoly");
    def id = fetch(br,id);
    poly vars = fetch(br,vars);
 //---------- now eliminate in new ring and map back to old ring ---------------
@@ -726,7 +724,8 @@ RETURN:  list of an ideal/module [1] and an integer [2]:
          [2] = saturation exponent (= min( k | id:j^k = id:j^(k+1) ))
 NOTE:    [1] is a standard basis in the basering
 DISPLAY: saturation exponent during computation if printlevel >=1
-KEYWORDS: Saturation
+KEYWORDS: saturation
+SEE ALSO: modSat
 EXAMPLE: example sat; shows an example
 "{
    int ii,kk;

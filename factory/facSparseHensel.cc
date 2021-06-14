@@ -28,7 +28,12 @@ LucksWangSparseHeuristic (const CanonicalForm& F, const CFList& factors,
 {
   int threshold= 450;
   CFArray termsF= getBiTerms (F, threshold);
-  if (termsF.size() > threshold)
+  int si=termsF.size();
+  int fl=factors.length();
+  //printf("size:%d, length=%d, char=%d\n",si,fl,getCharacteristic());
+  if ((si > threshold)
+  || (si <= fl)
+  )
     return 0;
   sort (termsF, level);
 

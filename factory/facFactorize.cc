@@ -44,7 +44,6 @@ TIMING_DEFINE_PRINT(fac_cleardenom)
 TIMING_DEFINE_PRINT(fac_content)
 TIMING_DEFINE_PRINT(fac_compress)
 
-#ifdef HAVE_NTL
 CFList evalPoints (const CanonicalForm& F, CFList& eval, Evaluation& E)
 {
   CFList result;
@@ -153,6 +152,8 @@ CFList evalPoints (const CanonicalForm& F, CFList& eval, Evaluation& E)
   return result;
 }
 
+
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // ratBiSqrfFactorize
 void
 factorizationWRTDifferentSecondVars (const CanonicalForm& A, CFList*& Aeval,
                                      int& minFactorsLength, bool& irred,
@@ -189,7 +190,10 @@ factorizationWRTDifferentSecondVars (const CanonicalForm& A, CFList*& Aeval,
     }
   }
 }
+#endif
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // precomputeLeadingCoeff,
+// henselLiftAndEarly, nonMonicHenselLift
 CFList
 multiFactorize (const CanonicalForm& F, const Variable& v)
 {
@@ -828,5 +832,4 @@ tryAgainWithoutHeu:
 
   return factors;
 }
-
 #endif

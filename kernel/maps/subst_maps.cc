@@ -7,7 +7,7 @@
 
 static poly p_SubstMon(poly p, int var, poly image, const ring preimage_r, const ring image_r, const nMapFunc nMap, matrix cache)
 {
-  assume(!rIsPluralRing(image_r));
+  assume(!rIsNCRing(image_r));
   poly q=p_NSet(nMap(pGetCoeff(p),preimage_r->cf,image_r->cf),image_r);
   int i;
   poly h=NULL;
@@ -40,7 +40,7 @@ poly p_SubstPoly (poly p, int var, poly image, const ring preimage_r, const ring
 {
   if (p==NULL) return NULL;
 
-  if (rIsPluralRing(image_r))
+  if (rIsNCRing(image_r))
   {
     if((image_r!=preimage_r)
     ||(preimage_r!=currRing))
@@ -50,6 +50,7 @@ poly p_SubstPoly (poly p, int var, poly image, const ring preimage_r, const ring
     }
     return pSubst(pCopy(p),var,image);
   }
+  matrix org_cache=cache;
   if (cache==NULL) cache=mpNew(preimage_r->N,maMaxDeg_P(p, preimage_r));
 
   poly result = NULL;
@@ -62,6 +63,8 @@ poly p_SubstPoly (poly p, int var, poly image, const ring preimage_r, const ring
   }
   int l_dummy;
   sBucketDestroyAdd(bucket, &result, &l_dummy);
+  /*if no cache was passed,it is a local cache: */
+  if (org_cache==NULL) id_Delete((ideal*)&cache,image_r);
   return result;
 }
 
@@ -75,5 +78,6 @@ ideal id_SubstPoly (ideal id, int var, poly image, const ring preimage_r, const 
   {
     res->m[k]=p_SubstPoly(id->m[k],var,image,preimage_r,image_r,nMap,cache);
   }
+  id_Delete((ideal*)&cache,image_r);
   return res;
 }

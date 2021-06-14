@@ -19,11 +19,16 @@
 #include "NTLconvert.h"
 #endif
 
+#ifdef HAVE_FLINT
+#include "FLINTconvert.h"
+#endif
+
 #include "cf_assert.h"
 #include "debug.h"
 
 #include "canonicalform.h"
 #include "cf_iter.h"
+#include "cf_util.h"
 
 
 /** void chineseRemainder ( const CanonicalForm & x1, const CanonicalForm & q1, const CanonicalForm & x2, const CanonicalForm & q2, CanonicalForm & xnew, CanonicalForm & qnew )
@@ -158,7 +163,7 @@ chineseRemainder ( const CFArray & x, const CFArray & q, CanonicalForm & xnew, C
     DEBDECLEVEL( cerr, "chineseRemainder( ... CFArray ... )" );
 }
 
-#ifndef HAVE_NTL
+#if !defined(HAVE_NTL) && !defined(HAVE_FLINT)
 CanonicalForm Farey_n (CanonicalForm N, const CanonicalForm P)
 //"USAGE:  Farey_n (N,P); P, N number;
 //RETURN:  a rational number a/b such that a/b=N mod P
@@ -202,17 +207,34 @@ CanonicalForm Farey ( const CanonicalForm & f, const CanonicalForm & q )
     CanonicalForm result = 0;
     CanonicalForm c;
     CFIterator i;
-#ifdef HAVE_NTL
+#ifdef HAVE_FLINT
+   fmpz_t FLINTq;
+   fmpz_init(FLINTq);
+   convertCF2initFmpz(FLINTq,q);
+   fmpz_t FLINTc;
+   fmpz_init(FLINTc);
+   fmpq_t FLINTres;
+   fmpq_init(FLINTres);
+#elif defined(HAVE_NTL)
     ZZ NTLq= convertFacCF2NTLZZ (q);
     ZZ bound;
     SqrRoot (bound, NTLq/2);
+#else
+   factoryError("NTL/FLINT missing:Farey");
 #endif
     for ( i = f; i.hasTerms(); i++ )
     {
         c = i.coeff();
         if ( c.inCoeffDomain())
         {
-#ifdef HAVE_NTL
+#ifdef HAVE_FLINT
+          if (c.inZ())
+          {
+             convertCF2initFmpz(FLINTc,c);
+             fmpq_reconstruct_fmpz(FLINTres,FLINTc,FLINTq);
+             result += power (x, i.exp())*(convertFmpq2CF(FLINTres));
+          }
+#elif defined(HAVE_NTL)
           if (c.inZ())
           {
             ZZ NTLc= convertFacCF2NTLZZ (c);
@@ -231,24 +253,27 @@ CanonicalForm Farey ( const CanonicalForm & f, const CanonicalForm & q )
               Off (SW_RATIONAL);
             }
           }
-          else
-            result += power( x, i.exp() ) * Farey(c,q);
 #else
           if (c.inZ())
-            result += power( x, i.exp() ) * Farey_n(c,q);
+            result += power (x, i.exp()) * Farey_n(c,q);
+#endif
           else
             result += power( x, i.exp() ) * Farey(c,q);
-#endif
         }
         else
           result += power( x, i.exp() ) * Farey(c,q);
     }
     if (is_rat) On(SW_RATIONAL);
+#ifdef HAVE_FLINT
+    fmpq_clear(FLINTres);
+    fmpz_clear(FLINTc);
+    fmpz_clear(FLINTq);
+#endif
     return result;
 }
 
 // returns x where (a * x) % b == 1, inv is a cache
-static inline CanonicalForm chin_mul_inv(CanonicalForm a, CanonicalForm b, int ind, CFArray &inv)
+static inline CanonicalForm chin_mul_inv(const CanonicalForm a, const CanonicalForm b, int ind, CFArray &inv)
 {
   if (inv[ind].isZero())
   {
@@ -262,7 +287,7 @@ static inline CanonicalForm chin_mul_inv(CanonicalForm a, CanonicalForm b, int i
 }
 
 void out_cf(const char *s1,const CanonicalForm &f,const char *s2);
-void chineseRemainderCached(CFArray &a, CFArray &n, CanonicalForm &xnew, CanonicalForm &prod, CFArray &inv)
+void chineseRemainderCached(const CFArray &a, const CFArray &n, CanonicalForm &xnew, CanonicalForm &prod, CFArray &inv)
 {
   CanonicalForm p, sum=0L; prod=1L;
   int i;
@@ -280,3 +305,9 @@ void chineseRemainderCached(CFArray &a, CFArray &n, CanonicalForm &xnew, Canonic
 }
 // http://rosettacode.org/wiki/Chinese_remainder_theorem#C
 
+void chineseRemainderCached ( const CanonicalForm & a, const CanonicalForm &q1, const CanonicalForm & b, const CanonicalForm & q2, CanonicalForm & xnew, CanonicalForm & qnew,CFArray &inv )
+{
+  CFArray A(2); A[0]=a; A[1]=b;
+  CFArray Q(2); Q[0]=q1; Q[1]=q2;
+  chineseRemainderCached(A,Q,xnew,qnew,inv);
+}

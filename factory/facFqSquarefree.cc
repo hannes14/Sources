@@ -105,7 +105,7 @@ pthRoot (const CanonicalForm & F, const fmpz_t& q, const Variable& alpha)
     fmpz_divexact_si (qp, qp, p);
 
     fq_nmod_pow (FLINTA, FLINTA, qp, fq_con);
-    A= convertFq_nmod_t2FacCF (FLINTA, alpha);
+    A= convertFq_nmod_t2FacCF (FLINTA, alpha, fq_con);
 
     fmpz_clear (qp);
     nmod_poly_clear (FLINTmipo);
@@ -257,6 +257,8 @@ squarefreeFactorization (const CanonicalForm & F, const Variable & alpha)
     power (q, p, k);
     buffer= pthRoot (A, q, alpha);
   }
+#else
+  factoryError("NTL/FLINT missing: squarefreeFactorization");
 #endif
 
   tmp1= squarefreeFactorization (buffer, alpha);

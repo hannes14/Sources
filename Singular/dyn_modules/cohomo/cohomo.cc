@@ -7,6 +7,13 @@
 
 #include "kernel/mod2.h"
 
+#if !defined(__CYGWIN__) || defined(STATIC_VERSION)
+// acces from a module to routines from the main program
+// does not work on windows (restrict of the dynamic linker),
+// a static version is required:
+// ./configure --with-builtinmodules=cohomo,...
+
+
 #include "omalloc/omalloc.h"
 #include "misc/mylimits.h"
 #include "libpolys/misc/intvec.h"
@@ -37,12 +44,6 @@
 #include <Singular/libsingular.h>
 #include <time.h>
 
-
-
-
-
-
-
 /***************************print(only for debugging)***********************************************/
 //print vector of integers.
 void listprint(std::vector<int> vec)
@@ -59,7 +60,6 @@ void listprint(std::vector<int> vec)
     PrintLn();
   }
 }
-
 
 //print vector of vectors of integers.
 void listsprint(std::vector<std::vector<int> > posMat)
@@ -91,9 +91,6 @@ void id_print(ideal h)
     PrintLn();
   }
 }
-
-
-
 
 //only for T^2,
 //print vector of polynomials.
@@ -1312,9 +1309,10 @@ std::vector<int> fvarsvalue(int vnum, std::vector<int> fvars)
     if(fset[i]==vnum)
     {
       fset.erase(fset.begin()+i);
-      return fset;
+      break;
     }
   }
+  return fset;
 }
 
 
@@ -4134,7 +4132,7 @@ std::vector<std::vector<int> > bsubsets_1(poly b)
   std::vector<std::vector<int> > bset;
   for(int i=0;i<bvs.size();i++)
   {
-    for(int j=0;j<bvs.size(), j!=i; j++)
+    for(int j=0;j!=i; j++)
     {
       vs.push_back(bvs[j]);
     }
@@ -5279,7 +5277,7 @@ void firstorderdef_setup(SModulFunctions* p)
   p->iiAddCproc("","findaset",FALSE,fa);
   p->iiAddCproc("","fgp",FALSE,fgp);
   p->iiAddCproc("","fgpl",FALSE,fgpl);
-  p->iiAddCproc("","idcomplements",FALSE,idcomplement);
+  p->iiAddCproc("","idcomplement",FALSE,idcomplement);
   p->iiAddCproc("","genst",FALSE,genstt);
   p->iiAddCproc("","sgp",FALSE,sgp);
   p->iiAddCproc("","sgpl",FALSE,sgpl);
@@ -5327,13 +5325,12 @@ void firstorderdef_setup(SModulFunctions* p)
 
 
 
-extern "C" int SI_MOD_INIT0(cohomo)(SModulFunctions* p)
+extern "C" int SI_MOD_INIT(cohomo)(SModulFunctions* p)
 {
   firstorderdef_setup(p);
   return MAX_TOK;
 }
-
-
+#endif
 #endif
 
 

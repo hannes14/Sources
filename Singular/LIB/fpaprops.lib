@@ -25,10 +25,11 @@ PROCEDURES:
   lpNoetherian(<GB>);     check whether A/<LM(GB)> is (left/right) Noetherian
   lpIsSemiPrime(<GB>);    check whether A/<LM(GB)> is semi-prime
   lpIsPrime(<GB>);        check whether A/<LM(GB)> is prime
+  lpGkDim(<GB>);          alias for dim(<GB>)
+  teach_lpGkDim(<GB>);    deprecated, kept for teaching purposes. use dim(<GB>) instead.
   lpGlDimBound(<GB>);     compute an upper bound for the global dimension of A/<GB>
   lpSubstitute();         substitute a variable with polynomials (ring homomorphism)
-  lpUfGraph(<GB>);        constructs the Ufnarovskij graph for <LM(GB)>
-  lpCalcSubstDegBound(); utility for lpSubstitute
+  lpCalcSubstDegBound();  utility for lpSubstitute
 ";
 
 LIB "fpadim.lib";
@@ -42,8 +43,8 @@ proc tstfpaprops()
     example lpIsSemiPrime;
     example lpIsPrime;
     example lpGlDimBound;
+    example lpGkDim;
     example lpSubstitute;
-    example lpUfGraph;
     example lpCalcSubstDegBound;
 };
 
@@ -82,26 +83,27 @@ the acc (ascending chain condition).
 
     // also if G is the whole ring
     if (leadmonom(G[i]) == 1) {
-      ERROR("noetherianity not defined for 0-ring")
+      ERROR("Noetherianity not defined for 0-ring")
     }
     kill d;
   } kill i;
   // if longest word has length 1 we handle it as a special case
   if (l == 1) {
     int n = lpVarBlockSize(basering); // variable count
+    int ncgenCount = lpNcgenCount(basering);
     int k = size(G);
-    if (k == n) { // only the field left
+    if (k == n - ncgenCount) { // only the field left
       return(3); // every field is noetherian
     }
-    if (k == n-1) { // V = {1} with loop
+    if (k == n - ncgenCount - 1) { // V = {1} with loop
       return(3);
     }
-    if (k <= n-2) { // V = {1} with more than one loop
+    if (k <= n ncgenCount - 2) { // V = {1} with more than one loop
       return(0);
     }
   }
 
-  intmat UG = lpUfGraph(G);
+  intmat UG = lpUfnarovskiGraph(G)[1];
 
   // check special case 2
   intmat zero[nrows(UG)][ncols(UG)];
@@ -114,7 +116,7 @@ the acc (ascending chain condition).
     return (3);
   }
 
-  // DFS from every vertex, if cycle is found, check every vertex for incomming/outcom
+  // DFS from every vertex, if cycle is found, check every vertex for incoming/outcom
   intvec visited;
   visited[ncols(UG)] = 0;
   int inFlag, outFlag, inOutFlag;
@@ -310,7 +312,7 @@ A/<G>.
     return(1);
   }
 
-  list VUG = lpUfGraph(G, 1);
+  list VUG = lpUfnarovskiGraph(G);
   intmat UG = VUG[1]; // the Ufnarovskij graph
   ideal V = VUG[2]; // the vertices of UG (standard words with length = l-1)
 
@@ -418,7 +420,7 @@ a negative answer applies only to A/<LM(G)> and not necessarily to A/<G>.
     return(1);
   }
 
-  list VUG = lpUfGraph(G, 1);
+  list VUG = lpUfnarovskiGraph(G);
   intmat UG = VUG[1]; // the Ufnarovskij graph
   ideal V = VUG[2]; // the vertices of UG (standard words with length = l-1)
 
@@ -449,7 +451,7 @@ a negative answer applies only to A/<LM(G)> and not necessarily to A/<G>.
       } else {
         break;
       }
-    }
+    } kill j;
   } kill i;
 
   return (1);
@@ -725,71 +727,72 @@ ASSUME: Basering is a Letterplace ring
   return (countedCycles);
 }
 
-proc lpUfGraph(ideal G, list #)
-"USAGE: lpUfGraph(G); G a set of monomials in a letterplace ring.
-RETURN: intmat or list
-NOTE: lpUfGraph(G); returns intmat. lpUfGraph(G,1); returns list L with L[1] an intmat and L[2] an ideal.
-      The intmat is the Ufnarovskij Graph and the ideal contains the vertices.
-PURPOSE: Constructs the Ufnarovskij graph induced by G
-      the adjacency matrix of the Ufnarovskij graph induced by G
-ASSUME: - basering is a Letterplace ring
-      - G are the leading monomials of a Groebner basis
-"
-{
-  dbprint("computing maxDeg");
-  int l = maxDeg(G);
-  if (l - 1 == 0) {
-    // TODO: how should the graph look like when l - 1 = 0 ?
-    ERROR("Ufnarovskij graph not implemented for l = 1");
-  }
-  int lV = lpVarBlockSize(basering);
-  // TODO: what if l <= 0?
-  dbprint("computing standard words");
-  ideal SW = lpStandardWords(G, l - 1); // vertices
-  int n = ncols(SW);
-  dbprint("n = " + string(n));
-  intmat UG[n][n]; // Ufnarovskij graph
-  for (int i = 1; i <= n; i++) {
-    for (int j = 1; j <= n; j++) {
-      dbprint("Ufnarovskii graph: " + string((i-1)*n + j) + "/" + string(n*n) + " entries");
-      // [Studzinski page 76]
-      poly v = SW[i];
-      poly w = SW[j];
-      intvec v_overlap;
-      intvec w_overlap;
-      if (l - 1 > 1) {
-        v_overlap = leadexp(v);
-        w_overlap = leadexp(w);
-        v_overlap = v_overlap[(lV+1) .. (l-1)*lV];
-        w_overlap = w_overlap[1 .. (l-2)*lV];
-      }
-      if (v_overlap == w_overlap && !lpLmDivides(G, v * lpVarAt(w, l - 1))) {
-        UG[i,j] = 1;
-      }
-      kill v; kill w; kill v_overlap; kill w_overlap;
-    } kill j;
-  } kill i;
-  if (size(#) > 0) {
-    if (typeof(#[1]) == "int") {
-      if (#[1] != 0) {
-        list ret = UG;
-        ret[2] = SW; // the vertices
-        return (ret);
-      }
-    }
-  }
-  return (UG);
-}
-example
-{
-  "EXAMPLE:"; echo = 2;
-  ring r = 0,(x,y,z),dp;
-  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
-  setring R; // sets basering to Letterplace ring
-  ideal I = x*y, x*z, z*y, z*z;
-  lpUfGraph(I);
-  lpUfGraph(I,1);
-}
+// Ufnarovskii graph is now implemented in the dynamic module (freeAlgebra.cc)
+/* proc lpUfnarovskiGraph(ideal G, list #) */
+/* "USAGE: lpUfnarovskiGraph(G); G a set of monomials in a letterplace ring. */
+/* RETURN: intmat or list */
+/* NOTE: lpUfnarovskiGraph(G); returns intmat. lpUfnarovskiGraph(G,1); returns list L with L[1] an intmat and L[2] an ideal. */
+/*       The intmat is the Ufnarovskij Graph and the ideal contains the vertices. */
+/* PURPOSE: Constructs the Ufnarovskij graph induced by G */
+/*       the adjacency matrix of the Ufnarovskij graph induced by G */
+/* ASSUME: - basering is a Letterplace ring */
+/*       - G are the leading monomials of a Groebner basis */
+/* " */
+/* { */
+/*   dbprint("computing maxDeg"); */
+/*   int l = maxDeg(G); */
+/*   if (l - 1 == 0) { */
+/*     // TODO: how should the graph look like when l - 1 = 0 ? */
+/*     ERROR("Ufnarovskij graph not implemented for l = 1"); */
+/*   } */
+/*   int lV = lpVarBlockSize(basering); */
+/*   // TODO: what if l <= 0? */
+/*   dbprint("computing standard words"); */
+/*   ideal SW = lpStandardWords(G, l - 1); // vertices */
+/*   int n = ncols(SW); */
+/*   dbprint("n = " + string(n)); */
+/*   intmat UG[n][n]; // Ufnarovskij graph */
+/*   for (int i = 1; i <= n; i++) { */
+/*     for (int j = 1; j <= n; j++) { */
+/*       dbprint("Ufnarovskii graph: " + string((i-1)*n + j) + "/" + string(n*n) + " entries"); */
+/*       // [Studzinski page 76] */
+/*       poly v = SW[i]; */
+/*       poly w = SW[j]; */
+/*       intvec v_overlap; */
+/*       intvec w_overlap; */
+/*       if (l - 1 > 1) { */
+/*         v_overlap = leadexp(v); */
+/*         w_overlap = leadexp(w); */
+/*         v_overlap = v_overlap[(lV+1) .. (l-1)*lV]; */
+/*         w_overlap = w_overlap[1 .. (l-2)*lV]; */
+/*       } */
+/*       if (v_overlap == w_overlap && !lpLmDivides(G, v * lpVarAt(w, l - 1))) { */
+/*         UG[i,j] = 1; */
+/*       } */
+/*       kill v; kill w; kill v_overlap; kill w_overlap; */
+/*     } kill j; */
+/*   } kill i; */
+/*   if (size(#) > 0) { */
+/*     if (typeof(#[1]) == "int") { */
+/*       if (#[1] != 0) { */
+/*         list ret = UG; */
+/*         ret[2] = SW; // the vertices */
+/*         return (ret); */
+/*       } */
+/*     } */
+/*   } */
+/*   return (UG); */
+/* } */
+/* example */
+/* { */
+/*   "EXAMPLE:"; echo = 2; */
+/*   ring r = 0,(x,y,z),dp; */
+/*   def R = freeAlgebra(r, 5); // constructs a Letterplace ring */
+/*   setring R; // sets basering to Letterplace ring */
+/*   ideal I = x*y, x*z, z*y, z*z; */
+/*   lpUfnarovskiGraph(I); */
+/*   lpUfnarovskiGraph(I,1); */
+/* } */
 
 static proc maxDeg(ideal G)
 {
@@ -832,10 +835,10 @@ static proc ivStandardWords(list G, int length)
     }
     return (words); // no standard words
   }
-  int lV = lpVarBlockSize(basering); // variable count
+  int nVars = lpVarBlockSize(basering) - lpNcgenCount(basering); // variable count
   list prevWords = ivStandardWords(G, length - 1);
   list words;
-  for (int i = 1; i <= lV; i++) {
+  for (int i = 1; i <= nVars; i++) {
     for (int j = 1; j <= size(prevWords); j++) {
       intvec word = prevWords[j];
       word[length] = i;
@@ -874,99 +877,127 @@ static proc ivdivides(list G, intvec iv) {
   return (0);
 }
 
-// lpGkDim now implemented in dynamic module
-/* proc lpGkDim(ideal G) */
-/* "USAGE: lpGkDim(G); G an ideal in a letterplace ring */
-/* RETURN: int */
-/* PURPOSE: Determines the Gelfand Kirillov dimension of A/<G> */
-/*        -1 means positive infinite */
-/* ASSUME: - basering is a Letterplace ring */
-/*       - G is a Groebner basis */
-/* " */
-/* { */
-/*   G = lead(G); */
-/*   G = simplify(G, 2+4+8); */
+proc lpGkDim(ideal G)
+"USAGE: lpGkDim(G); G an ideal in a letterplace ring
+RETURN: int
+PURPOSE: Determines the Gelfand Kirillov dimension of A/<G>
+       -1 means positive infinite
+ASSUME: - basering is a Letterplace ring
+      - G is a Groebner basis
+NOTE: Alias for dim(G)
+"
+{
+  print("WARNING: `lpGkDim` is deprecated, you can use `dim` instead.");
+  return (dim(G));
+}
+example
+{
+  "EXAMPLE:"; echo = 2;
+  ring r = 0,(x,y,z),dp;
+  ring R = freeAlgebra(r, 5);
+  ideal I = z; // infinite GK dimension (-1)
+  lpGkDim(I);
+  I = x,y,z; I = std(I); // GK dimension 0
+  lpGkDim(I);
+  I = x*y, x*z, z*y, z*z; I = std(I); // GK dimension 2
+  lpGkDim(I);
+  ideal G = y*x - x*y, z*x - x*z, z*y - y*z; G = std(G);
+  G;
+  lpGkDim(G); // GK dimension 3
+}
 
-/*   // check special case 1 */
-/*   int l = 0; */
-/*   for (int i = 1; i <= size(G); i++) { */
-/*     // find the max degree in G */
-/*     int d = deg(G[i]); */
-/*     if (d > l) { */
-/*       l = d; */
-/*     } */
+proc teach_lpGkDim(ideal G)
+"USAGE: teach_lpGkDim(G); G an ideal in a letterplace ring
+RETURN: int
+PURPOSE: Determines the Gelfand Kirillov dimension of A/<G>
+       -1 means positive infinite
+ASSUME: - basering is a Letterplace ring
+      - G is a Groebner basis
+"
+{
+  G = lead(G);
+  G = simplify(G, 2+4+8);
 
-/*     // also if G is the whole ring return minus infinity */
-/*     if (leadmonom(G[i]) == 1) { */
-/*       ERROR("GK-Dim not defined for 0-ring") */
-/*     } */
-/*     kill d; */
-/*   } kill i; */
-/*   // if longest word has length 1, or G is the zero ideal, we handle it as a special case */
-/*   if (l == 1 || size(G) == 0) { */
-/*     int n = lpVarBlockSize(basering); // variable count */
-/*     int k = size(G); */
-/*     if (k == n) { // V = {1} no edges */
-/*       return(0); */
-/*     } */
-/*     if (k == n-1) { // V = {1} with loop */
-/*       return(1); */
-/*     } */
-/*     if (k <= n-2) { // V = {1} with more than one loop */
-/*       return(-1); */
-/*     } */
-/*   } */
+  // check special case 1
+  int l = 0;
+  for (int i = 1; i <= size(G); i++) {
+    // find the max degree in G
+    int d = deg(G[i]);
+    if (d > l) {
+      l = d;
+    }
 
-/*   dbprint("computing Ufnarovskii graph"); */
-/*   intmat UG = lpUfGraph(G); */
-/*   if (printlevel >= voice + 1) { */
-/*     UG; */
-/*   } */
+    // also if G is the whole ring return minus infinity
+    if (leadmonom(G[i]) == 1) {
+      ERROR("GK-Dim not defined for 0-ring")
+    }
+    kill d;
+  } kill i;
+  // if longest word has length 1, or G is the zero ideal, we handle it as a special case
+  if (l == 1 || size(G) == 0) {
+    int n = lpVarBlockSize(basering); // variable count
+    int k = size(G);
+    if (k == n) { // V = {1} no edges
+      return(0);
+    }
+    if (k == n-1) { // V = {1} with loop
+      return(1);
+    }
+    if (k <= n-2) { // V = {1} with more than one loop
+      return(-1);
+    }
+  }
 
-/*   // check special case 2 */
-/*   intmat zero[nrows(UG)][ncols(UG)]; */
-/*   if (UG == zero) { */
-/*     return (0); */
-/*   } */
+  dbprint("computing Ufnarovskii graph");
+  intmat UG = lpUfnarovskiGraph(G)[1];
+  if (printlevel >= voice + 1) {
+    UG;
+  }
 
-/*   // check special case 3 */
-/*   dbprint("topological sorting of Ufnarovskii graph"); */
-/*   UG = topologicalSort(UG); */
-/*   if (printlevel >= voice + 1) { */
-/*     UG; */
-/*   } */
+  // check special case 2
+  intmat zero[nrows(UG)][ncols(UG)];
+  if (UG == zero) {
+    return (0);
+  }
 
-/*   dbprint("check if Ufnarovskii graph is DAG"); */
-/*   if (imIsUpRightTriangle(UG)) { */
-/*     UG = eliminateZerosUpTriangle(UG); */
-/*     if (ncols(UG) == 0 || nrows(UG) == 0) { // when the diagonal was zero */
-/*       return (0) */
-/*     } */
-/*     dbprint("DAG detected, using URTNZD growth alg"); */
-/*     return(UfGraphURTNZDGrowth(UG)); */
-/*   } */
+  // check special case 3
+  dbprint("topological sorting of Ufnarovskii graph");
+  UG = topologicalSort(UG);
+  if (printlevel >= voice + 1) {
+    UG;
+  }
 
-/*   // otherwise count cycles in the Ufnarovskij Graph */
-/*   dbprint("not a DAG, using regular growth alg"); */
-/*   return(UfGraphGrowth(UG)); */
-/* } */
-/* example */
-/* { */
-/*   "EXAMPLE:"; echo = 2; */
-/*   ring r = 0,(x,y,z),dp; */
-/*   def R = freeAlgebra(r, 5); // constructs a Letterplace ring */
-/*   R; */
-/*   setring R; // sets basering to Letterplace ring */
-/*   ideal I = z;//an example of infinite GK dimension */
-/*   lpGkDim(I); */
-/*   I = x,y,z; // gkDim = 0 */
-/*   lpGkDim(I); */
-/*   I = x*y, x*z, z*y, z*z;//gkDim = 2 */
-/*   lpGkDim(I); */
-/*   ideal G = y*x - x*y, z*x - x*z, z*y - y*z; G = std(G); */
-/*   G; */
-/*   lpGkDim(G); // 3, as expected for K[x,y,z] */
-/* } */
+  dbprint("check if Ufnarovskii graph is DAG");
+  if (imIsUpRightTriangle(UG)) {
+    UG = eliminateZerosUpTriangle(UG);
+    if (ncols(UG) == 0 || nrows(UG) == 0) { // when the diagonal was zero
+      return (0)
+    }
+    dbprint("DAG detected, using URTNZD growth alg");
+    return(UfGraphURTNZDGrowth(UG));
+  }
+
+  // otherwise count cycles in the Ufnarovskij Graph
+  dbprint("not a DAG, using regular growth alg");
+  return(UfGraphGrowth(UG));
+}
+example
+{
+  "EXAMPLE:"; echo = 2;
+  ring r = 0,(x,y,z),dp;
+  def R = freeAlgebra(r, 5); // constructs a Letterplace ring
+  R;
+  setring R; // sets basering to Letterplace ring
+  ideal I = z;//an example of infinite GK dimension
+  teach_lpGkDim(I);
+  I = x,y,z; // gkDim = 0
+  teach_lpGkDim(I);
+  I = x*y, x*z, z*y, z*z;//gkDim = 2
+  teach_lpGkDim(I);
+  ideal G = y*x - x*y, z*x - x*z, z*y - y*z; G = std(G);
+  G;
+  teach_lpGkDim(G); // 3, as expected for K[x,y,z]
+}
 
 proc lpGlDimBound(ideal G)
 "USAGE: lpGlDimBound(I); I an ideal
@@ -1001,7 +1032,7 @@ NOTE: if I = LM(I), then the global dimension is equal the Gelfand
   def R = basering;
   if (size(G1) > 0) {
     while (size(G1) > 0) {
-      if (lpVarBlockSize(R) > 1) {
+      if (lpVarBlockSize(R) - lpNcgenCount(R) > 1) {
         def @R = R - string(G1[1]);
         R = @R;
         kill @R;
@@ -1023,7 +1054,8 @@ NOTE: if I = LM(I), then the global dimension is equal the Gelfand
       break;
     } else {
       if (i == size(G)) { // if last iteration
-        int gkDim = lpGkDim(G);
+        G = twostd(G); // otherwise warning that G is no standard basis
+        int gkDim = dim(G);
         if (gkDim >= 0) {
           return (gkDim);
         }
@@ -1387,7 +1419,7 @@ checks, if a word IF is an infix of another word I
 
 /*   if (!(index >= 1 && index <= lV)) { return (basering); } // invalid index */
 
-/*   // remove frome the variable list */
+/*   // remove from the variable list */
 /*   for (int i = (d-1)*lV + index; i >= 1; i = i - lV) { */
 /*     LR[2] = delete(LR[2], i); */
 /*   } kill i; */

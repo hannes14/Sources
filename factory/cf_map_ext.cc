@@ -28,6 +28,10 @@
 #include "NTLconvert.h"
 #endif
 
+#ifdef HAVE_FLINT
+#include "FLINTconvert.h"
+#endif
+
 // cyclotomoic polys:
 #include "cf_cyclo.h"
 
@@ -60,12 +64,38 @@ CanonicalForm getItem (const CFList& list, const int& pos)
   return 0;
 }
 
-#ifdef HAVE_NTL
 /// \f$ F_{p} (\alpha ) \subset F_{p}(\beta ) \f$ and \f$ \alpha \f$ is a
 /// primitive element, returns the image of \f$ \alpha \f$
 static inline
 CanonicalForm mapUp (const Variable& alpha, const Variable& beta)
 {
+  #if defined(HAVE_FLINT) && (__FLINT_RELEASE >= 20503)
+    // convert mipo1
+    nmod_poly_t mipo1;
+    convertFacCF2nmod_poly_t(mipo1,getMipo(beta));
+    fq_nmod_ctx_t ctx;
+    fq_nmod_ctx_init_modulus(ctx,mipo1,"t");
+    nmod_poly_clear(mipo1);
+    // convert mipo2 (alpah)
+    fq_nmod_poly_t mipo2;
+    convertFacCF2Fq_nmod_poly_t(mipo2,getMipo(alpha),ctx);
+    fq_nmod_poly_factor_t fac;
+    fq_nmod_poly_factor_init(fac,ctx);
+    fq_nmod_poly_roots(fac, mipo2, 0, ctx);
+    // root of first (linear) factor: -absolute Term
+    fq_nmod_t r0;
+    fq_nmod_init(r0, ctx);
+    fq_nmod_poly_get_coeff(r0,fac->poly,0,ctx);
+    fq_nmod_neg(r0, r0, ctx);
+    // convert
+    CanonicalForm r1=convertFq_nmod_t2FacCF(r0,beta,ctx);
+    // cleanup
+    fq_nmod_poly_factor_clear(fac,ctx);
+    fq_nmod_clear(r0, ctx);
+    fq_nmod_poly_clear(mipo2,ctx);
+    fq_nmod_ctx_clear(ctx);
+    return r1;
+  #elif defined(HAVE_NTL)
   int p= getCharacteristic ();
   if (fac_NTL_char != p)
   {
@@ -77,9 +107,12 @@ CanonicalForm mapUp (const Variable& alpha, const Variable& beta)
   zz_pEX NTL_alpha_mipo= convertFacCF2NTLzz_pEX (getMipo(alpha), NTL_mipo);
   zz_pE root= FindRoot (NTL_alpha_mipo);
   return convertNTLzzpE2CF (root, beta);
+  #else
+  factoryError("NTL/FLINT missing: mapUp");
+  return CanonicalForm(0); // to avoid warnings
+  #endif
 }
 
-#endif
 
 /// the CanonicalForm G is the output of map_up, returns F considered as an
 /// element over \f$ F_{p}(\alpha ) \f$, WARNING: make sure coefficients of F
@@ -305,7 +338,6 @@ CanonicalForm mapUp (const CanonicalForm& F, const CanonicalForm& G,
   }
 }
 
-#ifdef HAVE_NTL
 CanonicalForm
 primitiveElement (const Variable& alpha, Variable& beta, bool& fail)
 {
@@ -322,20 +354,33 @@ primitiveElement (const Variable& alpha, Variable& beta, bool& fail)
   CanonicalForm mipo= getMipo (alpha);
   int d= degree (mipo);
   int p= getCharacteristic ();
+  #if defined(HAVE_FLINT) && (__FLINT_RELEASE >= 20503)
+  nmod_poly_t FLINT_mipo;
+  nmod_poly_init(FLINT_mipo,p);
+  #elif defined(HAVE_NTL)
   if (fac_NTL_char != p)
   {
     fac_NTL_char= p;
     zz_p::init (p);
   }
   zz_pX NTL_mipo;
+  #else
+  factoryError("NTL/FLINT missing: primitiveElement");
+  return CanonicalForm(0);
+  #endif
   CanonicalForm mipo2;
   primitive= false;
   fail= false;
   bool initialized= false;
   do
   {
+    #if defined(HAVE_FLINT) && (__FLINT_RELEASE >= 20503)
+    nmod_poly_randtest_monic_irreducible(FLINT_mipo, FLINTrandom, d+1);
+    mipo2=convertnmod_poly_t2FacCF(FLINT_mipo,Variable(1));
+    #elif defined(HAVE_NTL)
     BuildIrred (NTL_mipo, d);
     mipo2= convertNTLzzpX2CF (NTL_mipo, Variable (1));
+    #endif
     if (!initialized)
       beta= rootOf (mipo2);
     else
@@ -346,13 +391,41 @@ primitiveElement (const Variable& alpha, Variable& beta, bool& fail)
     if (fail)
       return 0;
   } while (1);
+  #if defined(HAVE_FLINT) && (__FLINT_RELEASE >= 20503)
+  nmod_poly_clear(FLINT_mipo);
+  // convert alpha_mipo
+  nmod_poly_t alpha_mipo;
+  convertFacCF2nmod_poly_t(alpha_mipo,mipo);
+  fq_nmod_ctx_t ctx;
+  fq_nmod_ctx_init_modulus(ctx,alpha_mipo,"t");
+  nmod_poly_clear(alpha_mipo);
+  // convert beta_mipo (mipo2)
+  fq_nmod_poly_t FLINT_beta_mipo;
+  convertFacCF2Fq_nmod_poly_t(FLINT_beta_mipo,mipo2,ctx);
+  fq_nmod_poly_factor_t fac;
+  fq_nmod_poly_factor_init(fac,ctx);
+  fq_nmod_poly_roots(fac, FLINT_beta_mipo, 0, ctx);
+  // root of first (linear) factor: -absolute Term
+  fq_nmod_t r0;
+  fq_nmod_init(r0, ctx);
+  fq_nmod_poly_get_coeff(r0,fac->poly,0,ctx);
+  fq_nmod_neg(r0, r0, ctx);
+  // convert
+  CanonicalForm r1=convertFq_nmod_t2FacCF(r0,alpha,ctx);
+  // cleanup
+  fq_nmod_poly_factor_clear(fac,ctx);
+  fq_nmod_clear(r0, ctx);
+  fq_nmod_poly_clear(FLINT_beta_mipo,ctx);
+  fq_nmod_ctx_clear(ctx);
+  return r1;
+  #elif defined(HAVE_NTL)
   zz_pX alpha_mipo= convertFacCF2NTLzzpX (mipo);
   zz_pE::init (alpha_mipo);
   zz_pEX NTL_beta_mipo= to_zz_pEX (NTL_mipo);
   zz_pE root= FindRoot (NTL_beta_mipo);
   return convertNTLzzpE2CF (root, alpha);
+  #endif
 }
-#endif
 
 CanonicalForm
 mapDown (const CanonicalForm& F, const CanonicalForm& prim_elem, const
@@ -372,7 +445,7 @@ mapUp (const CanonicalForm& F, const Variable& alpha, const Variable& /*beta*/,
   return mapUp (F, prim_elem, alpha, im_prim_elem, source, dest);
 }
 
-#ifdef HAVE_NTL
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
 CanonicalForm
 mapPrimElem (const CanonicalForm& primElem, const Variable& alpha,
              const Variable& beta)
@@ -382,6 +455,33 @@ mapPrimElem (const CanonicalForm& primElem, const Variable& alpha,
   else
   {
     CanonicalForm primElemMipo= findMinPoly (primElem, alpha);
+    #if defined(HAVE_FLINT) && (__FLINT_RELEASE >= 20503)
+    // convert mipo1
+    nmod_poly_t mipo1;
+    convertFacCF2nmod_poly_t(mipo1,getMipo(beta));
+    fq_nmod_ctx_t ctx;
+    fq_nmod_ctx_init_modulus(ctx,mipo1,"t");
+    nmod_poly_clear(mipo1);
+    // convert mipo2 (primElemMipo)
+    fq_nmod_poly_t mipo2;
+    convertFacCF2Fq_nmod_poly_t(mipo2,primElemMipo,ctx);
+    fq_nmod_poly_factor_t fac;
+    fq_nmod_poly_factor_init(fac,ctx);
+    fq_nmod_poly_roots(fac, mipo2, 0, ctx);
+    // root of first (linear) factor: -absolute Term
+    fq_nmod_t r0;
+    fq_nmod_init(r0, ctx);
+    fq_nmod_poly_get_coeff(r0,fac->poly,0,ctx);
+    fq_nmod_neg(r0, r0, ctx);
+    // convert
+    CanonicalForm r1=convertFq_nmod_t2FacCF(r0,beta,ctx);
+    // cleanup
+    fq_nmod_poly_factor_clear(fac,ctx);
+    fq_nmod_clear(r0, ctx);
+    fq_nmod_poly_clear(mipo2,ctx);
+    fq_nmod_ctx_clear(ctx);
+    return r1;
+    #elif defined(HAVE_NTL)
     int p= getCharacteristic ();
     if (fac_NTL_char != p)
     {
@@ -393,8 +493,12 @@ mapPrimElem (const CanonicalForm& primElem, const Variable& alpha,
     zz_pEX NTLPrimElemMipo= convertFacCF2NTLzz_pEX (primElemMipo, NTLMipo);
     zz_pE root= FindRoot (NTLPrimElemMipo);
     return convertNTLzzpE2CF (root, beta);
+    #else
+    factoryError("NTL/FLINT missing: mapPrimElem");
+    #endif
   }
 }
+#endif
 
 CanonicalForm
 map (const CanonicalForm& primElem, const Variable& alpha,
@@ -407,6 +511,54 @@ map (const CanonicalForm& primElem, const Variable& alpha,
     G /= primElem;
     order++;
   }
+  #if defined(HAVE_FLINT) && (__FLINT_RELEASE >= 20503)
+  // convert mipo
+  nmod_poly_t mipo1;
+  convertFacCF2nmod_poly_t(mipo1,getMipo(beta));
+  fq_nmod_ctx_t ctx;
+  fq_nmod_ctx_init_modulus(ctx,mipo1,"t");
+  nmod_poly_clear(mipo1);
+  // convert mipo2 (alpha)
+  fq_nmod_poly_t mipo2;
+  convertFacCF2Fq_nmod_poly_t(mipo2,getMipo(alpha),ctx);
+  fq_nmod_poly_factor_t fac;
+  fq_nmod_poly_factor_init(fac,ctx);
+  fq_nmod_poly_roots(fac, mipo2, 0, ctx);
+  // roots in fac, #=fac->num
+  int ind=-1;
+  fq_nmod_t r0,FLINTbeta;
+  fq_nmod_init(r0, ctx);
+  fq_nmod_init(FLINTbeta, ctx);
+  convertFacCF2Fq_nmod_t(FLINTbeta,beta,ctx);
+  fmpz_t FLINTorder;
+  fmpz_set_si(FLINTorder,order);
+  for(int i=0;i< fac->num;i++)
+  {
+    // get the root (-abs.term of linear factor)
+    fq_nmod_poly_get_coeff(r0,fac->poly+i,0,ctx);
+    fq_nmod_neg(r0,r0,ctx);
+    // r^order
+    fq_nmod_pow(r0,r0,FLINTorder,ctx);
+    // ==beta?
+    if (fq_nmod_equal(r0,FLINTbeta,ctx))
+    {
+       ind=i;
+       break;
+    }
+  }
+  fmpz_clear(FLINTorder);
+  // convert
+  fq_nmod_poly_get_coeff(r0,fac->poly+ind,0,ctx);
+  fq_nmod_neg(r0,r0,ctx);
+  CanonicalForm r1=convertFq_nmod_t2FacCF(r0,beta,ctx);
+  // cleanup
+  fq_nmod_poly_factor_clear(fac,ctx);
+  fq_nmod_clear(r0, ctx);
+  fq_nmod_clear(FLINTbeta,ctx);
+  fq_nmod_poly_clear(mipo2,ctx);
+  fq_nmod_ctx_clear(ctx);
+  return r1;
+  #elif defined(HAVE_NTL)
   int p= getCharacteristic ();
   if (fac_NTL_char != p)
   {
@@ -428,17 +580,84 @@ map (const CanonicalForm& primElem, const Variable& alpha,
     }
   }
   return (convertNTLzzpE2CF (roots[ind], beta));
+  #else
+  factoryError("NTL/FLINT missing: map");
+  return CanonicalForm(0);
+  #endif
 }
 
+#if defined(HAVE_FLINT) && (__FLINT_RELEASE >= 20503)
+/*
+    g is in Fp[x]
+    F is in Fp[t]
+    h is in Fp[t]
+    In the finite field Fp[t]/h(t), find g(x) in Fp[x] such that
+        g(F(t)) = 0 mod h(t)
+    i.e. g is the minpoly of the element F(t) of the finite field.
+*/
+static void minpoly(nmod_poly_t g, const nmod_poly_t F, const nmod_poly_t h)
+{
+    slong i;
+    slong d = nmod_poly_degree(h);
+    mp_limb_t p = h->mod.n;
+    nmod_poly_t Fpow;
+    nmod_berlekamp_massey_t bma;
+
+    nmod_poly_init(Fpow, p);
+    nmod_berlekamp_massey_init(bma, p);
+
+    nmod_poly_one(Fpow);
+    for (i = 0; i < 2*d; i++)
+    {
+        nmod_berlekamp_massey_add_point(bma, nmod_poly_get_coeff_ui(Fpow, 0));
+        nmod_poly_mulmod(Fpow, Fpow, F, h);
+    }
+
+    nmod_berlekamp_massey_reduce(bma);
+
+    /* something went horribly wrong if V does not kill the whole sequence */
+    FLINT_ASSERT(nmod_poly_degree(nmod_berlekamp_massey_R_poly(bma)) <
+                 nmod_poly_degree(nmod_berlekamp_massey_V_poly(bma)));
+
+    nmod_poly_make_monic(g, nmod_berlekamp_massey_V_poly(bma));
+#if WANT_ASSERT
+    {
+        nmod_poly_t z;
+        nmod_poly_init(z, p);
+        nmod_poly_compose_mod(z, g, F, h);
+        FLINT_ASSERT(nmod_poly_is_zero(z));
+        nmod_poly_clear(z);
+    }
+#endif
+    nmod_poly_clear(Fpow);
+    nmod_berlekamp_massey_clear(bma);
+}
+#endif
+
+
+#if defined(HAVE_NTL) || defined(HAVE_FLINT)
 CanonicalForm
 findMinPoly (const CanonicalForm& F, const Variable& alpha)
 {
   ASSERT (F.isUnivariate() && F.mvar()==alpha,"expected element of F_p(alpha)");
 
-  if (fac_NTL_char != getCharacteristic())
+  int p=getCharacteristic();
+  #if defined(HAVE_FLINT) && (__FLINT_RELEASE >= 20503)
+  nmod_poly_t FLINT_F,FLINT_alpha,g;
+  nmod_poly_init(g,p);
+  convertFacCF2nmod_poly_t(FLINT_F,F);
+  convertFacCF2nmod_poly_t(FLINT_alpha,getMipo(alpha));
+  minpoly(g,FLINT_F,FLINT_alpha);
+  nmod_poly_clear(FLINT_alpha);
+  nmod_poly_clear(FLINT_F);
+  CanonicalForm res=convertnmod_poly_t2FacCF(g,Variable(1));
+  nmod_poly_clear(g);
+  return res;
+  #elif defined(HAVE_NTL)
+  if (fac_NTL_char != p)
   {
-    fac_NTL_char= getCharacteristic();
-    zz_p::init (getCharacteristic());
+    fac_NTL_char= p;
+    zz_p::init (p);
   }
   zz_pX NTLF= convertFacCF2NTLzzpX (F);
   int d= degree (getMipo (alpha));
@@ -464,6 +683,8 @@ findMinPoly (const CanonicalForm& F, const Variable& alpha)
   MinPolySeq (NTLMinPoly, pows, d);
 
   return convertNTLzzpX2CF (NTLMinPoly, Variable (1));
+  #else
+  factoryError("NTL/FLINT missing: findMinPoly");
+  #endif
 }
-
 #endif

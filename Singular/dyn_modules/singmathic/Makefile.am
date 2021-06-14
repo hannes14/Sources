@@ -23,17 +23,7 @@ singmathic_la_LDFLAGS  = ${P_PROCS_MODULE_LDFLAGS} ${MATHIC_LIBS} $(SINGULAR_LDF
 
 if SING_WIN
 if !SI_BUILTIN_SINGMATHIC
- singmathic_la_LIBADD = ${top_srcdir}/Singular/libSingular.la
+ singmathic_la_LIBADD = ${top_builddir}/Singular/libSingular.la
 endif
 endif
-
-# AM_COLOR_TESTS=always
-#
-# TESTS_ENVIRONMENT  = SINGULARPATH='${abs_top_builddir}/Singular/LIB:${abs_top_srcdir}/Singular/LIB:${abs_top_builddir}/libpolys/polys/.libs:${abs_top_builddir}/factory/gftables:${abs_builddir}/.libs:${abs_srcdir}'
-# TESTS_ENVIRONMENT += SINGULAR_ROOT_DIR='${abs_top_builddir}'
-# TESTS_ENVIRONMENT += SINGULAR_BIN_DIR='${abs_top_builddir}/Singular'
-#
-# TESTS=test_release.sh
-#
-# EXTRA_DIST = test.sh $(TESTS)
 

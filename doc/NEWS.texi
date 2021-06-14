@@ -21,9 +21,93 @@
 
 @heading News for version @value{VERSION}
 
+New commands:
+@itemize
+@item Letterplace: dim, rightStd for qrings (@nref{LETTERPLACE})
+@item Letterplace: map, fetch, imap (@nref{map}, @nref{fetch}, @nref{imap})
+@end itemize
+
+New libraries:
+
+@itemize
+@item decomp.lib: functional decomposition of polynomials (@nref{decomp_lib})
+@item hodge.lib: algorithms for Hodge ideals (@nref{hodge_lib})
+@item tateProdCplxNegGrad.lib: sheaf cohomology on product of projective spaces (@nref{tateProdCplxNegGrad_lib})
+@end itemize
+
+Changes in the kernel/build system:
+@itemize
+@item @code{liftstd} (with 2 arguments) improved (@nref{liftstd})
+@item building on Cygwin with shared libaries
+@item building the manual via @code{--enable-doc-build}
+@end itemize
+
+@heading News for version 4-2-0
+
+Syntax changes:
+@itemize
+@item renamed poly.lib to polylib.lib (@nref{polylib_lib})
+@end itemize
+
+New libraries:
+
+@itemize
+@item interval.lib: interval arithmetic (@nref{interval_lib})
+@item maxlike.lib: algebraic statistics (@nref{maxlike_lib})
+@item nchilbert.lib: Hilbert series for LetterPlace algebras (@nref{nchilbert_lib})
+@item polyclass.lib: class of polynomials (@nref{polyclass_lib})
+@item recover.lib: Hybrid numerical/symbolical algorithms (@nref{recover_lib})
+@item redcgs.lib: Reduced Comprehensive Groebner Systems (@nref{redcgs_lib})
+@item ringgb.lib: coefficient rings (@nref{ringgb_lib})
+@item sets.lib: Sets (@nref{sets_lib})
+@item stanleyreisner.lib: T1 and T2 for a general Stanley-Reiser ring (@nref{stanleyreisner_lib}
+@item systhreads.lib: multi-threaded objects (@nref{systhreads_lib})
+@end itemize
+
+Changed libraries:
+@itemize
+@item classify_aeq.lib: new procedure @code{classSpaceCurve} (@nref{classify_aeq_lib})
+@item grobcov.lib: new version (@nref{grobcov_lib})
+@item modular.lib: parallel version for verification via @code{system("verifyGB",I)}
+@end itemize
+
+New commands:
+@itemize
+@item @code{system("verifyGB",I)}: test, if I is a Groebner basis (using parallel processes)
+@item Letterplace: modulo,syz,lift,liftstd, rightStd (@nref{LETTERPLACE})
+@end itemize
+
+Changes in the kernel/build system:
+@itemize
+@item update for using FLINT 2.6.x and for FLINT 2.7.0
+@item Singular can be build with NTL or FLINT or both
+(if non is availabel, @code{factroize} and @code{gcd} will not work.)
+@end itemize
+
+@heading News for version 4-1-3
+New libraries:
+@itemize
+@item invar.lib: Invariant theory @nref{invar_lib}
+@item moddiq.lib: ideal quotient and saturation @nref{moddiq_lib}
+@item ncModslimgb.lib: modular Groebner bases for G-algebras @nref{ncModslimgb_lib}
+@end itemize
+
+Changed libraries:
+@itemize
+@item chern.lib:  new version (@nref{chern_lib})
+@item grobcov.lib: new version (@nref{grobcov_lib}), 
+      new functions @nref{ConsLevels}, @nref{Levels}, @nref{Grob1Levels}, 
+      @nref{DifConsLCSets}
+@end itemize
+
 Changes in the kernel/build system:
 @itemize
 @item improved gcd and multiplication via FLINT
+@item improved lift (and related)
+@item port to polymake 3.5.x
+@item rational functions via flint (@nref{flintQ})
+@item free algebra over Z (@nref{LETTERPLACE})
+@item adaptions/functions for @code{Singular.jl}(@uref{https://github.com/oscar-system/Singular.jl})
 @end itemize
 
 @heading News for version 4-1-2
@@ -128,7 +212,7 @@ Syntax changes:
 @item changed behaviour of @code{charstr} (@nref{charstr})
 @item new data type @code{cring} to describe the coeffient rings, to be used
       for the new definitions for (polynomial) rings (@nref{General syntax of a ring declaration})
-@item new command @code{ring_list} to access the parts used to contruct polynomial rings (@nref{ring_list},@nref{ringlist})
+@item new command @code{ring_list} to access the parts used to construct polynomial rings (@nref{ring_list},@nref{ringlist})
 @item extended polynomial ring construction: also from lists produced by @code{ring_list}
 @item new attribute @code{ring_cf} for @code{ring} (@nref{attrib})
 @item printing of rings changed to match @code{cring} names (@nref{charstr})
@@ -241,7 +325,7 @@ New feature: attribute @code{ring_cf} for @code{ring} (@nref{attrib})
 
 @heading News for version 4-0-0
 
-Version 4-0-0 is a milestone relase of Singular.
+Version 4-0-0 is a milestone release of Singular.
 The new release series 4 aims for an entirely modularized architecture
 simplifying connectivity with other systems and paving the way
 for parallel computations.

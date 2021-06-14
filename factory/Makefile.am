@@ -3,6 +3,7 @@ ACLOCAL_AMFLAGS = -I ../m4
 SUBDIRS=include/factory
 
 AM_CPPFLAGS = -I${builddir}/include -I${srcdir}/include -I${srcdir} \
+-DFACTORY_BUILDING_DLL \
 $(OMALLOC_INCLUDES) $(RESOURCES_INCLUDES) \
 $(FLINT_CFLAGS) $(NTL_CPPFLAGS) $(GMP_CPPFLAGS) $(SINGULAR_CFLAGS)
 
@@ -11,7 +12,7 @@ lib_LTLIBRARIES = libfactory.la
 libfactory_la_LIBADD     =$(RESOURCES_LIBS) $(OMALLOC_LIBS) \
 $(FLINT_LIBS) $(NTL_LIBS) $(GMP_LIBS)
 
-libfactory_la_LDFLAGS    = $(SINGULAR_LDFLAGS) -release ${PACKAGE_VERSION}
+libfactory_la_LDFLAGS    = -no-undefined $(SINGULAR_LDFLAGS) -release ${PACKAGE_VERSION}
 
 # factory source files
 SOURCES = \
@@ -51,7 +52,9 @@ SOURCES = \
 		cfSubResGcd.cc \
 		cf_switches.cc \
 		cf_util.cc \
+		cf_binom.cc \
 		cfUnivarGcd.cc \
+		cf_roots.cc \
 		debug.cc \
 		DegreePattern.cc \
 		ExtensionInfo.cc \
@@ -64,6 +67,13 @@ SOURCES = \
 		facFactorize.cc \
 		fac_sqrfree.cc \
 		fac_util.cc \
+		fac_berlekamp.cc \
+		fac_cantzass.cc \
+		fac_univar.cc \
+		fac_multivar.cc \
+		fac_multihensel.cc \
+		fac_iterfor.cc \
+		fac_distrib.cc \
 		facFqBivar.cc \
 		facFqBivarUtil.cc \
 		facFqFactorize.cc \
@@ -83,6 +93,7 @@ SOURCES = \
 		int_intdiv.cc \
 		int_poly.cc \
 		int_rat.cc \
+		int_pp.cc \
 		variable.cc \
 		NTLconvert.cc \
 		singext.cc \
@@ -100,6 +111,7 @@ nodist_libfactory_la_SOURCES = factory.h factoryconf.h
 
 # factory header files
 factory_headers = \
+		si_log2.h \
 		cf_assert.h \
 		canonicalform.h \
 		cf_algorithm.h \
@@ -130,7 +142,9 @@ factory_headers = \
 		cfSubResGcd.h \
 		cf_switches.h \
 		cf_util.h \
+		cf_binom.h \
 		cfUnivarGcd.h \
+		cf_roots.h \
 		debug.h \
 		DegreePattern.h \
 		ExtensionInfo.h \
@@ -143,6 +157,13 @@ factory_headers = \
 		facFactorize.h \
 		fac_sqrfree.h \
 		fac_util.h \
+		fac_berlekamp.h \
+		fac_cantzass.h \
+		fac_univar.h \
+		fac_multivar.h \
+		fac_multihensel.h \
+		fac_iterfor.h \
+		fac_distrib.h \
 		facFqBivar.h \
 		facFqBivarUtil.h \
 		facFqFactorize.h \
@@ -162,6 +183,7 @@ factory_headers = \
 		int_int.h \
 		int_poly.h \
 		int_rat.h \
+		int_pp.h \
 		timing.h \
 		variable.h \
 		NTLconvert.h \
@@ -173,7 +195,7 @@ noinst_HEADERS = $(factory_headers)
 libfactory_includedir = ${includedir}/factory
 
 nodist_libfactory_include_HEADERS = factory.h factoryconf.h
-libfactory_include_HEADERS = globaldefs.h
+libfactory_include_HEADERS = globaldefs.h si_log2.h
 
 
 ####################################################
@@ -254,6 +276,8 @@ DISTCLEANFILES =  config.h readcf.cc
 
 #distclean-local:
 #	-rm -f readcf.cc
+
+factory.h factoryconf.h: config.status
 
 .template.h: $(factory_headers)
 	${srcdir}/bin/makeheader $< $@

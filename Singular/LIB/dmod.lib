@@ -61,7 +61,8 @@ Guide:
 PROCEDURES:
 
 annfs(F[,S,eng]);       compute Ann F^s0 in D and Bernstein polynomial for a poly F
-annfspecial(I, F, m, n);  compute Ann F^n from Ann F^s for a polynomial F and a number n
+annfspecial(F, n);    compute Ann F^n for a given polynomial F and a number n
+annfspecialOld(I, F, m, n);  compute Ann F^n from I=Ann F^s for a polynomial F and a number n
 Sannfs(F[,S,eng]);      compute Ann F^s in D[s] for a polynomial F
 Sannfslog(F[,eng]);     compute Ann^(1) F^s in D[s] for a polynomial F
 bernsteinBM(F[,eng]);   compute global Bernstein polynomial for a polynomial F (algorithm of Briancon-Maisonobe)
@@ -92,6 +93,8 @@ Weyl algebra; Bernstein operator; logarithmic annihilator ideal; parametric anni
 hyperplane arrangement; Oaku-Takayama algorithm; Briancon-Maisonobe algorithm; LOT algorithm
 ";
 
+// VL Dec 2020: moved annfspecial to annfspecialOld [later: reimplement]; updated dmodapp calls of it
+// VL Dec 2020: created annfspecial by using dmodideal.lib
 // reworked by JM+VL on 9.3.2010: Sannfslog
 // added by VL on 2.3.2010: bernsteinLift
 // ****** commented out for better readability by VL on 2.3.2010
@@ -112,7 +115,8 @@ LIB "gkdim.lib";
 LIB "gmssing.lib";
 LIB "control.lib";  // for genericity
 LIB "dmodapp.lib"; // for e.g. engine
-LIB "poly.lib";
+LIB "dmodideal.lib"; // for usage in annfspecial
+LIB "polylib.lib";
 
 proc testdmodlib()
 {
@@ -126,6 +130,7 @@ proc testdmodlib()
   example bernsteinBM;
   example operatorBM;
   example annfspecial;
+  example annfspecialOld;
   example annfsParamBM;
   example annfsBMI;
   example checkRoot;
@@ -441,7 +446,7 @@ EXAMPLE: example Sannfslog; shows examples
   dbprint(ppl,"// -1-1- starting the computation of syz(-F,_Dx(F))");
   dbprint(ppl-1, I);
   matrix M = syz(I);
-  M = transpose(M);  // it is more usefull working with columns
+  M = transpose(M);  // it is more useful working with columns
   dbprint(ppl,"// -1-2- the module syz(-F,_Dx(F)) has been computed");
   dbprint(ppl-1, M);
   // ------------ the ring @R ------------
@@ -458,21 +463,13 @@ EXAMPLE: example Sannfslog; shows examples
   L[2] = NName;
   tmp = 0;
   // block ord (dp(N),dp);
-  s = "iv=";
-  for (i=1; i<=Nnew-1; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]=";";
-  execute(s);
+  iv = 1:(Nnew-1);
   tmp[1] = "dp";  // string
   tmp[2] = iv;   // intvec
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1] = "dp";  // string
-  s[size(s)] = ",";
-  s = s+"1;";
-  execute(s);
+  iv = 1:Nnew;
   kill s;
   kill NName;
   tmp[2]      = iv;
@@ -529,7 +526,7 @@ example
 
 
 // alternative code for SannfsBM, renamed from annfsBM to ALTannfsBM
-// is superfluos - will not be included in the official documentation
+// is superfluous - will not be included in the official documentation
 static proc ALTannfsBM (poly F, list #)
 "USAGE:  ALTannfsBM(f [,eng]);  f a poly, eng an optional int
 RETURN:  ring
@@ -600,13 +597,7 @@ EXAMPLE: example ALTannfsBM; shows examples
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1]  = "dp"; // string
-  s       = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
+  iv=1:Nnew;
   kill s;
   tmp[2]    = iv;
   Lord[2]   = tmp;
@@ -669,13 +660,7 @@ EXAMPLE: example ALTannfsBM; shows examples
   list NName = Name + DName + tmp;
   L[2] = NName;
   // dp ordering;
-  string s = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)] = ";";
-  execute(s);
+  iv=1:Nnew;
   kill s;
   tmp     = 0;
   tmp[1]  = "dp";  //string
@@ -710,6 +695,8 @@ EXAMPLE: example ALTannfsBM; shows examples
   ideal LD = K;
   export LD;
   return(@R2);
+  string  strr1 = "Printing from ALTannfsBM";     // comment by sachin
+  strr1;    // comment by sachin  
 }
 example
 {
@@ -790,13 +777,7 @@ EXAMPLE: example bernsteinBM; shows examples
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1]  = "dp"; // string
-  s       = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
+  iv=1:(Nnew-1);
   kill s;
   tmp[2]    = iv;
   Lord[2]   = tmp;
@@ -850,7 +831,7 @@ EXAMPLE: example bernsteinBM; shows examples
   intvec iv;
   L[1] = RL[1];
   L[4] = RL[4];  //char, minpoly
-  // check whether vars hava admissible names -> done earlier
+  // check whether vars have admissible names -> done earlier
   // now, create the names for new var
   tmp[1] = "s";
   // DName is defined earlier
@@ -858,22 +839,13 @@ EXAMPLE: example bernsteinBM; shows examples
   L[2] = NName;
   tmp = 0;
   // block ord (dp(N),dp);
-  string s = "iv=";
-  for (i=1; i<=Nnew-1; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]=";";
-  execute(s);
+  iv=1:(Nnew-1);
   tmp[1] = "dp";  //string
   tmp[2] = iv;    //intvec
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1] = "dp";  //string
-  s[size(s)] = ",";
-  s = s+"1;";
-  execute(s);
-  kill s;
+  iv=1:Nnew;
   kill NName;
   tmp[2]  = iv;
   Lord[2] = tmp;
@@ -1020,13 +992,7 @@ EXAMPLE: example annfsBM; shows examples
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1]  = "dp"; // string
-  s       = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
+  iv=1:Nnew;
   kill s;
   tmp[2]    = iv;
   Lord[2]   = tmp;
@@ -1080,7 +1046,7 @@ EXAMPLE: example annfsBM; shows examples
   intvec iv;
   L[1] = RL[1];
   L[4] = RL[4];  //char, minpoly
-  // check whether vars hava admissible names -> done earlier
+  // check whether vars have admissible names -> done earlier
   // now, create the names for new var
   tmp[1] = "s";
   // DName is defined earlier
@@ -1088,22 +1054,13 @@ EXAMPLE: example annfsBM; shows examples
   L[2] = NName;
   tmp = 0;
   // block ord (dp(N),dp);
-  string s = "iv=";
-  for (i=1; i<=Nnew-1; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]=";";
-  execute(s);
+  iv=1:(Nnew-1);
   tmp[1] = "dp";  //string
   tmp[2] = iv;    //intvec
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1] = "dp";  //string
-  s[size(s)] = ",";
-  s = s+"1;";
-  execute(s);
-  kill s;
+  iv=1:Nnew;
   kill NName;
   tmp[2]  = iv;
   Lord[2] = tmp;
@@ -1184,14 +1141,7 @@ EXAMPLE: example annfsBM; shows examples
   list NName = Name + DName;
   L[2] = NName;
   // dp ordering;
-  string s = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)] = ";";
-  execute(s);
-  kill s;
+  iv=1:Nnew;
   tmp     = 0;
   tmp[1]  = "dp";  //string
   tmp[2]  = iv;    //intvec
@@ -1343,18 +1293,11 @@ EXAMPLE: example annfs2; shows examples
   }
   L[2] = NName;
   // dp ordering;
-  string s = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)] = ";";
-  execute(s);
+  iv=1:Nnew;
   tmp     = 0;
   tmp[1]  = "dp";  // string
   tmp[2]  = iv;  // intvec
   Lord[1] = tmp;
-  kill s;
   tmp[1]  = "C";
   iv = 0;
   tmp[2]  = iv;
@@ -1538,18 +1481,11 @@ EXAMPLE: example annfsRB; shows examples
   }
   L[2] = NName;
   // dp ordering;
-  string s = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)] = ";";
-  execute(s);
+  iv=1:Nnew;
   tmp     = 0;
   tmp[1]  = "dp";  // string
   tmp[2]  = iv;  // intvec
   Lord[1] = tmp;
-  kill s;
   tmp[1]  = "C";
   iv = 0;
   tmp[2]  = iv;
@@ -1674,13 +1610,7 @@ EXAMPLE: example operatorBM; shows examples
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1]  = "dp"; // string
-  s       = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
+  iv=1:Nnew;
   kill s;
   tmp[2]    = iv;
   Lord[2]   = tmp;
@@ -1734,7 +1664,7 @@ EXAMPLE: example operatorBM; shows examples
   intvec iv;
   L[1] = RL[1];
   L[4] = RL[4];  //char, minpoly
-  // check whether vars hava admissible names -> done earlier
+  // check whether vars have admissible names -> done earlier
   // now, create the names for new var
   tmp[1] = "s";
   // DName is defined earlier
@@ -1742,22 +1672,13 @@ EXAMPLE: example operatorBM; shows examples
   L[2] = NName;
   tmp = 0;
   // block ord (dp(N),dp);
-  string s = "iv=";
-  for (i=1; i<=Nnew-1; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]=";";
-  execute(s);
+  iv=1:(Nnew-1);
   tmp[1] = "dp";  //string
   tmp[2] = iv;    //intvec
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1] = "dp";  //string
-  s[size(s)] = ",";
-  s = s+"1;";
-  execute(s);
-  kill s;
+  iv=1:Nnew;
   kill NName;
   tmp[2]  = iv;
   Lord[2] = tmp;
@@ -1839,14 +1760,7 @@ EXAMPLE: example operatorBM; shows examples
   list NName = Name + DName + tmp;
   L[2] = NName;
   // dp ordering;
-  string s = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)] = ";";
-  execute(s);
-  kill s;
+  iv=1:Nnew;
   tmp     = 0;
   tmp[1]  = "dp";  //string
   tmp[2]  = iv;    //intvec
@@ -2128,13 +2042,7 @@ EXAMPLE: example annfsParamBM; shows examples
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1]  = "dp"; // string
-  s       = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
+  iv=1:Nnew;
   kill s;
   tmp[2]    = iv;
   Lord[2]   = tmp;
@@ -2222,14 +2130,7 @@ EXAMPLE: example annfsParamBM; shows examples
   list NName = Name + DName + tmp;
   L[2] = NName;
   // dp ordering;
-  string s = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)] = ";";
-  execute(s);
-  kill s;
+  iv=1:Nnew;
   tmp     = 0;
   tmp[1]  = "dp";  //string
   tmp[2]  = iv;    //intvec
@@ -2399,24 +2300,12 @@ EXAMPLE: example annfsBMI; shows examples
   kill NName;
   // block ord (lp(P),dp);
   tmp[1] = "lp";  //string
-  s      = "iv=";
-  for (i=1; i<=2*P; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
+  iv=1:(2*P);
   tmp[2] = iv;  //intvec
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1] = "dp";  //string
-  s      = "iv=";
-  for (i=1; i<=Nnew; i++)  //actually i<=2*N
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
+  iv=1:Nnew;
   kill s;
   tmp[2]  = iv;
   Lord[2] = tmp;
@@ -2517,7 +2406,7 @@ EXAMPLE: example annfsBMI; shows examples
   intvec iv;
   L[1] = RL[1];  //char
   L[4] = RL[4];  //char, minpoly
-  // check whether vars hava admissible names -> done earlier
+  // check whether vars have admissible names -> done earlier
   // now, create the names for new var
   for (j=1; j<=P; j++)
   {
@@ -2528,26 +2417,13 @@ EXAMPLE: example annfsBMI; shows examples
   L[2] = NName;
   tmp = 0;
   // block ord (dp(N),dp);
-  string s = "iv=";
-  for (i=1; i<=Nnew-P; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]=";";
-  execute(s);
+  iv=1:(Nnew-P);
   tmp[1] = "dp";  //string
   tmp[2] = iv;    //intvec
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1] = "dp";  //string
-  s[size(s)] = ",";
-  for (j=1; j<=P; j++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]=";";
-  execute(s);
-  kill s;
+  iv=1:P;
   kill NName;
   tmp[2]  = iv;
   Lord[2] = tmp;
@@ -2648,7 +2524,7 @@ EXAMPLE: example annfsBMI; shows examples
   intvec iv;
   L[1] = RL[1];  //char
   L[4] = RL[4];  //char, minpoly
-  // check whether vars hava admissible names -> done earlier
+  // check whether vars have admissible names -> done earlier
   // now, create the names for new var
   for (j=1; j<=P; j++)
   {
@@ -2659,14 +2535,7 @@ EXAMPLE: example annfsBMI; shows examples
   L[2] = NName;
   tmp = 0;
   // dp ordering;
-  string s = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]=";";
-  execute(s);
-  kill s;
+  iv=1:Nnew;
   kill NName;
   tmp[1] = "dp";  //string
   tmp[2] = iv;    //intvec
@@ -2814,13 +2683,7 @@ EXAMPLE: example annfsOT; shows examples
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1]  = "dp"; // string
-  s       = "iv=";
-  for(i=1;i<=Nnew;i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
+  iv=1:Nnew;
   tmp[2]    = iv;
   Lord[2]   = tmp;
   tmp[1]    = "C";
@@ -2891,11 +2754,7 @@ EXAMPLE: example annfsOT; shows examples
   Lord[1] = tmp;
   // continue with a(1,1,1,1)...
   tmp[1]  = "dp"; s  = "iv=";
-  for(i=1; i<= Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";  execute(s);
+  iv=1:Nnew;
   kill NName;
   tmp[2]    = iv;
   Lord[2]   = tmp;
@@ -2954,21 +2813,12 @@ EXAMPLE: example annfsOT; shows examples
   L[2]   = NName;
   tmp    = 0;
   // block ord (a(1,1...),dp);
-  string  s = "iv=";
-  for(i=1; i<=Nnew-1; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
+  iv=1:(Nnew-1);
   tmp[1]  = "a"; // string
   tmp[2]  = iv; //intvec
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1]  = "dp"; // string
-  s[size(s)]=","; s= s+"1;";
-  execute(s);
-  kill s;
   kill NName;
   tmp[2]    = iv;
   Lord[2]   = tmp;
@@ -3050,18 +2900,10 @@ EXAMPLE: example annfsOT; shows examples
   list NName = Name + DName;
   L[2]   = NName;
   // dp ordering;
-  string   s       = "iv=";
-  for(i=1;i<=Nnew;i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
   tmp     = 0;
   tmp[1]  = "dp"; // string
   tmp[2]  = iv; //intvec
   Lord[1] = tmp;
-  kill s;
   tmp[1]    = "C";
   iv        = 0;
   tmp[2]    = iv;
@@ -3192,13 +3034,7 @@ EXAMPLE: example SannfsOT; shows examples
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1]  = "dp"; // string
-  s       = "iv=";
-  for(i=1;i<=Nnew;i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
+  iv=1:Nnew;
   tmp[2]    = iv;
   Lord[2]   = tmp;
   tmp[1]    = "C";
@@ -3269,11 +3105,7 @@ EXAMPLE: example SannfsOT; shows examples
   Lord[1] = tmp;
   // continue with a(1,1,1,1)...
   tmp[1]  = "dp"; s  = "iv=";
-  for(i=1; i<= Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";  execute(s);
+  iv=1:Nnew;
   kill NName;
   tmp[2]    = iv;
   Lord[2]   = tmp;
@@ -3320,7 +3152,7 @@ EXAMPLE: example SannfsOT; shows examples
   intvec iv;
   L[1] = RL[1];
   L[4] = RL[4];  // char, minpoly
-  // check whether vars hava admissible names -> done earlier
+  // check whether vars have admissible names -> done earlier
   // now, create the names for new var
   tmp[1] = "s";
   // DName is defined earlier
@@ -3328,22 +3160,13 @@ EXAMPLE: example SannfsOT; shows examples
   L[2] = NName;
   tmp = 0;
   // block ord (dp(N),dp);
-  string s = "iv=";
-  for (i=1; i<=Nnew-1; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]=";";
-  execute(s);
+  iv=1:(Nnew-1);
   tmp[1] = "dp";  // string
   tmp[2] = iv;   // intvec
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1] = "dp";  // string
-  s[size(s)] = ",";
-  s = s+"1;";
-  execute(s);
-  kill s;
+  iv=1:Nnew;
   kill NName;
   tmp[2]      = iv;
   Lord[2]     = tmp;
@@ -3464,13 +3287,7 @@ EXAMPLE: example SannfsBM; shows examples
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1]  = "dp"; // string
-  s       = "iv=";
-  for(i=1;i<=Nnew;i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
+  iv=1:Nnew;
   kill s;
   tmp[2]    = iv;
   Lord[2]   = tmp;
@@ -3528,7 +3345,7 @@ EXAMPLE: example SannfsBM; shows examples
   list RL=imap(save,RL);
   L[1] = RL[1];
   L[4] = RL[4];  // char, minpoly
-  // check whether vars hava admissible names -> done earlier
+  // check whether vars have admissible names -> done earlier
   // now, create the names for new var
   tmp[1] = "s";
   // DName is defined earlier
@@ -3536,22 +3353,13 @@ EXAMPLE: example SannfsBM; shows examples
   L[2] = NName;
   tmp = 0;
   // block ord (dp(N),dp);
-  string s = "iv=";
-  for (i=1; i<=Nnew-1; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]=";";
-  execute(s);
+  iv=1:(Nnew-1);
   tmp[1] = "dp";  // string
   tmp[2] = iv;   // intvec
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1] = "dp";  // string
-  s[size(s)] = ",";
-  s = s+"1;";
-  execute(s);
-  kill s;
+  iv=1:Nnew;
   kill NName;
   tmp[2]      = iv;
   Lord[2]     = tmp;
@@ -3980,13 +3788,7 @@ EXAMPLE: example SannfsBFCTstd; shows examples
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1]  = "dp"; // string
-  s       = "iv=";
-  for(i=1;i<=Nnew;i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
+  iv=1:Nnew;
   kill s;
   tmp[2]    = iv;
   Lord[2]   = tmp;
@@ -4044,7 +3846,7 @@ EXAMPLE: example SannfsBFCTstd; shows examples
   list RL=imap(save,RL);
   L[1] = RL[1];
   L[4] = RL[4];  // char, minpoly
-  // check whether vars hava admissible names -> done earlier
+  // check whether vars have admissible names -> done earlier
   // now, create the names for new var
   tmp[1] = "s";
   // DName is defined earlier
@@ -4053,13 +3855,7 @@ EXAMPLE: example SannfsBFCTstd; shows examples
   tmp = 0;
   // just dp
   // block ord (dp(N),dp);
-  string s = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]=";";
-  execute(s);
+  iv=1:Nnew;
   tmp[1] = "dp";  // string
   tmp[2] = iv;   // intvec
   Lord[1] = tmp;
@@ -4217,13 +4013,7 @@ EXAMPLE: example SannfsLOT; shows examples
   Lord[2] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1]  = "dp"; // string
-  s       = "iv=";
-  for(i=1;i<=Nnew;i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
+  iv=1:Nnew;
   tmp[2]    = iv;
   Lord[3]   = tmp;
   tmp[1]    = "C";
@@ -4287,7 +4077,7 @@ EXAMPLE: example SannfsLOT; shows examples
   intvec iv;
   L[1] = RL[1];
   L[4] = RL[4];  // char, minpoly
-  // check whether vars hava admissible names -> done earlier
+  // check whether vars have admissible names -> done earlier
   // now, create the names for new var
   tmp[1] = "s";
   // DName is defined earlier
@@ -4296,21 +4086,13 @@ EXAMPLE: example SannfsLOT; shows examples
   tmp = 0;
   // block ord (dp(N),dp);
   // string s is already defined
-  s = "iv=";
-  for (i=1; i<=Nnew-1; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]=";";
-  execute(s);
+  iv=1:(Nnew-1);
   tmp[1] = "dp";  // string
   tmp[2] = iv;   // intvec
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1] = "dp";  // string
-  s[size(s)] = ",";
-  s = s+"1;";
-  execute(s);
+  iv=1:Nnew;
   kill s;
   kill NName;
   tmp[2]      = iv;
@@ -4442,13 +4224,7 @@ EXAMPLE: example SannfsLOT; shows examples
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1]  = "dp"; // string
-  s       = "iv=";
-  for(i=1;i<=Nnew;i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]= ";";
-  execute(s);
+  iv=1:Nnew;
   tmp[2]    = iv;
   Lord[2]   = tmp;
   tmp[1]    = "C";
@@ -4512,7 +4288,7 @@ EXAMPLE: example SannfsLOT; shows examples
   intvec iv;
   L[1] = RL[1];
   L[4] = RL[4];  // char, minpoly
-  // check whether vars hava admissible names -> done earlier
+  // check whether vars have admissible names -> done earlier
   // now, create the names for new var
   tmp[1] = "s";
   // DName is defined earlier
@@ -4521,22 +4297,14 @@ EXAMPLE: example SannfsLOT; shows examples
   tmp = 0;
   // block ord (dp(N),dp);
   // string s is already defined
-  s = "iv=";
-  for (i=1; i<=Nnew-1; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]=";";
-  execute(s);
+  iv=1:(Nnew-1);
   tmp[1] = "dp";  // string
   tmp[2] = iv;   // intvec
   Lord[1] = tmp;
   // continue with dp 1,1,1,1...
   tmp[1] = "dp";  // string
-  s[size(s)] = ",";
-  s = s+"1;";
-  execute(s);
-  kill s;
+  iv=1:Nnew; 
+  kill s; 
   kill NName;
   tmp[2]      = iv;
   Lord[2]     = tmp;
@@ -4726,18 +4494,11 @@ EXAMPLE: example annfs0; shows examples
   }
   L[2] = NName;
   // dp ordering;
-  string s = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)] = ";";
-  execute(s);
+  iv=1:Nnew;
   tmp     = 0;
   tmp[1]  = "dp";  // string
   tmp[2]  = iv;  // intvec
   Lord[1] = tmp;
-  kill s;
   tmp[1]  = "C";
   iv = 0;
   tmp[2]  = iv;
@@ -4837,8 +4598,47 @@ example
   rs;
 }
 
-proc annfspecial(ideal I, poly F, int mir, number n)
-"USAGE:  annfspecial(I,F,mir,n);  I an ideal, F a poly, int mir, number n
+proc annfspecial(poly F, number n)
+"USAGE:  annfspecial(F,n);  F a poly, number n
+RETURN:  ring
+PURPOSE: compute the annihilator ideal of F^n in the Weyl Algebra
+@*           for the given rational number n
+ASSUME: basering is commutative, the number n is rational.
+NOTE: Activate the output ring by @code{setring} command. 
+In the ring the ideal called @code{annfalpha} is exported.
+@* We compute the real annihilator for any rational value of n (both
+@*    generic and exceptional). The implementation fixes a bug in 
+@*    the Algorithm 5.3.15 from Saito-Sturmfels-Takayama.
+DISPLAY: If printlevel=1, progress debug messages will be printed,
+@*       if printlevel>=2, all the debug messages will be printed.
+EXAMPLE: example annfspecial; shows examples
+"
+{
+   // using dmodideal.lib 
+  ideal f = F;
+  ideal alpha = n;
+  def @A = annfalphaI(f,alpha);
+  return(@A);
+}
+example
+{
+  "EXAMPLE:"; echo = 2;
+  ring r = 0,(x,y),dp;
+  poly F = x3-y2;  
+  bernsteinBM(F); // the roots of Bernstein-Sato poly: -7/6, -1, -5/6 
+  // *** first example: generic root
+  def A = annfspecial(F,-5/6); 
+  setring A; print(annfalpha); kill A; setring r;
+  // *** second example:  exceptional root since its distance to -1 is integer 2
+  def A = annfspecial(F,1);
+  setring A;  print(annfalpha); kill A; setring r;
+  // *** third example: exceptional root since its distance to -5/6 is integer 1
+  def A = annfspecial(F,1/6);
+  setring A;  print(annfalpha); kill A;
+}
+
+proc annfspecialOld(ideal I, poly F, int mir, number n)
+"USAGE:  annfspecialOld(I,F,mir,n);  I an ideal, F a poly, int mir, number n
 RETURN:  ideal
 PURPOSE: compute the annihilator ideal of F^n in the Weyl Algebra
 @*           for the given rational number n
@@ -4848,10 +4648,11 @@ ASSUME:  The basering is D[s] and contains 's' explicitly as a variable,
 @*   and the number n is rational.
 NOTE: We compute the real annihilator for any rational value of n (both
 @*       generic and exceptional). The implementation goes along the lines of
-@*       the Algorithm 5.3.15 from Saito-Sturmfels-Takayama.
+@*       the Algorithm 5.3.15 from Saito-Sturmfels-Takayama, which has a bug.
+@*       This procedure is correct for integer values of n.
 DISPLAY: If printlevel=1, progress debug messages will be printed,
 @*       if printlevel>=2, all the debug messages will be printed.
-EXAMPLE: example annfspecial; shows examples
+EXAMPLE: example annfspecialOld; shows examples
 "
 {
 
@@ -4917,9 +4718,9 @@ example
   def  A = SannfsBM(F);
   setring A;
   poly F = x3-y2;
-  annfspecial(LD,F,-1,3/4); // generic root
-  annfspecial(LD,F,-1,-2);  // integer but still generic root
-  annfspecial(LD,F,-1,1);   // exceptional root
+  annfspecialOld(LD,F,-1,3/4); // generic root
+  annfspecialOld(LD,F,-1,-2);  // integer but still generic root
+  annfspecialOld(LD,F,-1,1);   // exceptional integer root
 }
 
 /*
@@ -5268,7 +5069,7 @@ EXAMPLE: example checkRoot; shows examples
   }
   printlevel=printlevel+1;
   def save = basering;
-  def @A = SannfsBM(F);
+  def @A = SannfsBM(F,eng);
   setring @A;
   poly F = imap(save,F);
   number a = imap(save,a);
@@ -5366,13 +5167,7 @@ EXAMPLE: example checkRoot1; shows examples
   kill Name,NName;
   // block ord (dp);
   tmp[1] = "dp"; // string
-  s = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]=";";
-  execute(s);
+  iv=1:Nnew;
   kill s;
   tmp[2]  = iv;
   Lord[1] = tmp;
@@ -5501,13 +5296,7 @@ EXAMPLE: example checkRoot2; shows examples
   kill Name;
   // block ord (dp);
   tmp[1] = "dp"; // string
-  s = "iv=";
-  for (i=1; i<=N; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)]=";";
-  execute(s);
+  iv=1:N;
   kill s;
   tmp[2]  = iv;
   Lord[1] = tmp;
@@ -5798,18 +5587,11 @@ EXAMPLE: example bernsteinLift; shows examples
   Lord[1] = tmp;
   tmp=0;
   // dp ordering;
-  string s = "iv=";
-  for (i=1; i<=Nnew; i++)
-  {
-    s = s+"1,";
-  }
-  s[size(s)] = ";";
-  execute(s);
+  iv=1:Nnew;
   tmp     = 0;
   tmp[1]  = "dp";  // string
   tmp[2]  = iv;  // intvec
   Lord[2] = tmp;
-  kill s;
   tmp     = 0;
   L[3]    = Lord;
   // we are done with the list

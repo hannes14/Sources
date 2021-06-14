@@ -32,29 +32,7 @@ BOOLEAN nrnDBTest      (number a, const char *f, const int l, const coeffs r);
 
 EXTERN_VAR omBin gmp_nrz_bin;
 
-static void nrnCoeffWrite  (const coeffs r, BOOLEAN /*details*/)
-{
-  size_t l = (size_t)mpz_sizeinbase(r->modBase, 10) + 2;
-  char* s = (char*) omAlloc(l);
-  s= mpz_get_str (s, 10, r->modBase);
-
-  #ifdef TEST_ZN_AS_ZP
-  if (l<10)
-  {
-    if (nCoeff_is_Zn(r)) Print("ZZ/%s", s);
-    else if (nCoeff_is_Ring_PtoM(r)) Print("ZZ/(%s^%lu)", s, r->modExponent);
-  }
-  else
-  #endif
-  {
-    if (nCoeff_is_Zn(r)) Print("ZZ/bigint(%s)", s);
-    else if (nCoeff_is_Ring_PtoM(r)) Print("ZZ/(bigint(%s)^%lu)", s, r->modExponent);
-  }
-
-  omFreeSize((ADDRESS)s, l);
-}
-
-coeffs nrnInitCfByName(char *s,n_coeffType n)
+coeffs nrnInitCfByName(char *s,n_coeffType)
 {
   const char start[]="ZZ/bigint(";
   const int start_len=strlen(start);
@@ -73,7 +51,9 @@ coeffs nrnInitCfByName(char *s,n_coeffType n)
     if (((*s)==')') && (*(s+1)=='^'))
     {
       s=s+2;
-      s=nEati(s,&(info.exp),0);
+      int i;
+      s=nEati(s,&i,0);
+      info.exp=(unsigned long)i;
       return nInitChar(n_Znm,(void*) &info);
     }
     else
@@ -88,14 +68,19 @@ static char* nrnCoeffName(const coeffs r)
   if(nrnCoeffName_buff!=NULL) omFree(nrnCoeffName_buff);
   size_t l = (size_t)mpz_sizeinbase(r->modBase, 10) + 2;
   char* s = (char*) omAlloc(l);
-  l+=22;
+  l+=24;
   nrnCoeffName_buff=(char*)omAlloc(l);
   s= mpz_get_str (s, 10, r->modBase);
   int ll;
   if (nCoeff_is_Zn(r))
-    ll=snprintf(nrnCoeffName_buff,l,"ZZ/bigint(%s)",s);
+  {
+    if (strlen(s)<10)
+      ll=snprintf(nrnCoeffName_buff,l,"ZZ/(%s)",s);
+    else
+      ll=snprintf(nrnCoeffName_buff,l,"ZZ/bigint(%s)",s);
+  }
   else if (nCoeff_is_Ring_PtoM(r))
-    ll=snprintf(nrnCoeffName_buff,l,"ZZ/bigint(%s)^%lu",s,r->modExponent);
+    ll=snprintf(nrnCoeffName_buff,l,"ZZ/(bigint(%s)^%lu)",s,r->modExponent);
   assume(ll<(int)l); // otherwise nrnCoeffName_buff too small
   omFreeSize((ADDRESS)s, l-22);
   return nrnCoeffName_buff;
@@ -107,18 +92,6 @@ static BOOLEAN nrnCoeffIsEqual(const coeffs r, n_coeffType n, void * parameter)
   ZnmInfo *info=(ZnmInfo*)parameter;
   return (n==r->type) && (r->modExponent==info->exp)
   && (mpz_cmp(r->modBase,info->base)==0);
-}
-
-static char* nrnCoeffString(const coeffs r)
-{
-  size_t l = (size_t)mpz_sizeinbase(r->modBase, 10) +2;
-  char* b = (char*) omAlloc(l);
-  b= mpz_get_str (b, 10, r->modBase);
-  char* s = (char*) omAlloc(15+l);
-  if (nCoeff_is_Zn(r)) sprintf(s,"ZZ/%s",b);
-  else /*if (nCoeff_is_Ring_PtoM(r))*/ sprintf(s,"ZZ/(bigint(%s)^%lu)",b,r->modExponent);
-  omFreeSize(b,l);
-  return s;
 }
 
 static void nrnKillChar(coeffs r)
@@ -276,7 +249,14 @@ static number nrnInvers(number c, const coeffs r)
 {
   mpz_ptr erg = (mpz_ptr)omAllocBin(gmp_nrz_bin);
   mpz_init(erg);
-  mpz_invert(erg, (mpz_ptr)c, r->modNumber);
+  if (nrnIsZero(c,r))
+  {
+    WerrorS(nDivBy0);
+  }
+  else
+  {
+    mpz_invert(erg, (mpz_ptr)c, r->modNumber);
+  }
   return (number) erg;
 }
 
@@ -575,7 +555,12 @@ static int nrnDivComp(number a, number b, const coeffs r)
 
 static number nrnDiv(number a, number b, const coeffs r)
 {
-  if (r->is_field)
+  if (nrnIsZero(b,r))
+  {
+    WerrorS(nDivBy0);
+    return nrnInit(0,r);
+  }
+  else if (r->is_field)
   {
     number inv=nrnInvers(b,r);
     number erg=nrnMult(a,inv,r);
@@ -641,14 +626,6 @@ static number nrnMod(number a, number b, const coeffs r)
   mpz_clear(g);
   omFreeBin(g, gmp_nrz_bin);
   return (number)rr;
-}
-
-static number nrnIntDiv(number a, number b, const coeffs r)
-{
-  mpz_ptr erg = (mpz_ptr)omAllocBin(gmp_nrz_bin);
-  mpz_init(erg);
-  mpz_tdiv_q(erg, (mpz_ptr)a, (mpz_ptr)b);
-  return (number)erg;
 }
 
 /* CF: note that Z/nZ has (at least) two distinct euclidean structures
@@ -739,8 +716,7 @@ number nrnMapGMP(number from, const coeffs /*src*/, const coeffs dst)
 static number nrnMapQ(number from, const coeffs src, const coeffs dst)
 {
   mpz_ptr erg = (mpz_ptr)omAllocBin(gmp_nrz_bin);
-  mpz_init(erg);
-  nlGMP(from, erg, src); // FIXME? TODO? // extern void   nlGMP(number &i, number n, const coeffs r); // to be replaced with n_MPZ(erg, from, src); // ?
+  nlMPZ(erg, from, src);
   mpz_mod(erg, erg, dst->modNumber);
   return (number)erg;
 }
@@ -892,6 +868,19 @@ nMapFunc nrnSetMap(const coeffs src, const coeffs dst)
   return NULL;      // default
 }
 
+static number nrnInitMPZ(mpz_t m, const coeffs r)
+{
+  mpz_ptr erg = (mpz_ptr)omAllocBin(gmp_nrz_bin);
+  mpz_init_set(erg,m);
+  mpz_mod(erg, erg, r->modNumber);
+  return (number) erg;
+}
+
+static void nrnMPZ(mpz_t m, number &n, const coeffs)
+{
+  mpz_init_set(m, (mpz_ptr)n);
+}
+
 /*
  * set the exponent (allocate and init tables) (TODO)
  */
@@ -1013,9 +1002,6 @@ BOOLEAN nrnInitChar (coeffs r, void* p)
   r->is_domain=FALSE;
   r->rep=n_rep_gmp;
 
-
-  r->cfCoeffString = nrnCoeffString;
-
   r->cfInit        = nrnInit;
   r->cfDelete      = nrnDelete;
   r->cfCopy        = nrnCopy;
@@ -1051,10 +1037,11 @@ BOOLEAN nrnInitChar (coeffs r, void* p)
   r->cfXExtGcd     = nrnXExtGcd;
   r->cfQuotRem     = nrnQuotRem;
   r->cfCoeffName   = nrnCoeffName;
-  r->cfCoeffWrite  = nrnCoeffWrite;
   r->nCoeffIsEqual = nrnCoeffIsEqual;
   r->cfKillChar    = nrnKillChar;
   r->cfQuot1       = nrnQuot1;
+  r->cfInitMPZ     = nrnInitMPZ;
+  r->cfMPZ         = nrnMPZ;
 #if SI_INTEGER_VARIANT==2
   r->cfWriteFd     = nrzWriteFd;
   r->cfReadFd      = nrzReadFd;

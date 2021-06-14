@@ -14,10 +14,12 @@
 #include "int_cf.h"
 #include "cf_algorithm.h"
 #include "imm.h"
+#include "int_pp.h"
 #include "gfops.h"
 #include "facMul.h"
 #include "facAlgFuncUtil.h"
 #include "FLINTconvert.h"
+#include "cf_binom.h"
 
 #ifndef NOSTREAMIO
 CanonicalForm readCF( ISTREAM& );
@@ -203,25 +205,56 @@ CanonicalForm::intval() const
         return value->intval();
 }
 
+
 CanonicalForm
 CanonicalForm::mapinto () const
 {
     //ASSERT( is_imm( value ) ||  ! value->inExtension(), "cannot map into different Extension" );
+    int ch=getCharacteristic();
     if ( is_imm( value ) )
-        if ( getCharacteristic() == 0 )
+        if ( ch == 0 )
             if ( is_imm( value ) == FFMARK )
                 return CanonicalForm( int2imm( ff_symmetric( imm2int( value ) ) ) );
             else  if ( is_imm( value ) == GFMARK )
                 return CanonicalForm( int2imm( ff_symmetric( gf_gf2ff( imm2int( value ) ) ) ) );
             else
                 return *this;
+        else  if ( CFFactory::gettype() == PrimePowerDomain )
+            return CanonicalForm( CFFactory::basic( imm2int( value ) ) );
         else  if ( getGFDegree() == 1 )
             return CanonicalForm( int2imm_p( ff_norm( imm2int( value ) ) ) );
         else
             return CanonicalForm( int2imm_gf( gf_int2gf( imm2int( value ) ) ) );
     else  if ( value->inBaseDomain() )
-        if ( getCharacteristic() == 0 )
-             return *this;
+        if ( ch == 0 )
+            #ifndef HAVE_NTL
+            if ( value->levelcoeff() == PrimePowerDomain )
+            {
+              mpz_t d;
+              getmpi( value,d);
+              if ( mpz_cmp( InternalPrimePower::primepowhalf, d ) < 0 )
+                mpz_sub( d, d, InternalPrimePower::primepow );
+              return CFFactory::basic( d );
+            }
+            else
+            #endif
+                return *this;
+        #ifndef HAVE_NTL
+        else  if ( CFFactory::gettype() == PrimePowerDomain )
+        {
+            ASSERT( value->levelcoeff() == PrimePowerDomain || value->levelcoeff() == IntegerDomain, "no proper map defined" );
+            if ( value->levelcoeff() == PrimePowerDomain )
+                return *this;
+            else
+            {
+              mpz_t d;
+              getmpi(value,d);
+              if ( mpz_cmp( InternalPrimePower::primepowhalf, d ) < 0 )
+                mpz_sub( d, d, InternalPrimePower::primepow );
+              return CFFactory::basic( d );
+            }
+        }
+        #endif
         else
         {
             int val;
@@ -247,7 +280,6 @@ CanonicalForm::mapinto () const
         return result;
     }
 }
-
 /** CanonicalForm CanonicalForm::lc (), Lc (), LC (), LC ( v ) const
  *
  * lc(), Lc(), LC() - leading coefficient functions.
@@ -426,7 +458,7 @@ CanonicalForm::degree( const Variable & v ) const
       case GFMARK:  return imm_iszero_gf( value ) ? -1 : 0;
       case 0: if ( value->inBaseDomain() )
               return value->degree();
-	      break;
+              break;
     }
 #endif
 
@@ -606,7 +638,9 @@ CanonicalForm &
 CanonicalForm::operator += ( const CanonicalForm & cf )
 {
     int what = is_imm( value );
-    if ( what ) {
+    int lv,cf_lv;
+    if ( what )
+    {
         ASSERT ( ! is_imm( cf.value ) || (what==is_imm( cf.value )), "illegal base coefficients" );
         if ( (what = is_imm( cf.value )) == FFMARK )
             value = imm_add_p( value, cf.value );
@@ -621,21 +655,24 @@ CanonicalForm::operator += ( const CanonicalForm & cf )
     }
     else  if ( is_imm( cf.value ) )
         value = value->addcoeff( cf.value );
-    else  if ( value->level() == cf.value->level() ) {
+    else  if ( (lv=value->level()) == (cf_lv=cf.value->level()) )
+    {
         if ( value->levelcoeff() == cf.value->levelcoeff() )
             value = value->addsame( cf.value );
         else  if ( value->levelcoeff() > cf.value->levelcoeff() )
             value = value->addcoeff( cf.value );
-        else {
+        else
+	{
             InternalCF * dummy = cf.value->copyObject();
             dummy = dummy->addcoeff( value );
             if ( value->deleteObject() ) delete value;
             value = dummy;
         }
     }
-    else  if ( level() > cf.level() )
+    else  if ( lv > cf_lv /*level() > cf.level()*/ )
         value = value->addcoeff( cf.value );
-    else {
+    else
+    {
         InternalCF * dummy = cf.value->copyObject();
         dummy = dummy->addcoeff( value );
         if ( value->deleteObject() ) delete value;
@@ -708,8 +745,9 @@ CanonicalForm::operator *= ( const CanonicalForm & cf )
     else  if ( value->level() == cf.value->level() ) {
 #if (HAVE_NTL && HAVE_FLINT && __FLINT_RELEASE >= 20400)
 #if (__FLINT_RELEASE >= 20503)
+        int ch=getCharacteristic();
         int l_this,l_cf,m=1;
-        if ((getCharacteristic()>0)
+        if ((ch>0)
         && (CFFactory::gettype() != GaloisFieldDomain)
         &&(!hasAlgVar(*this))
         &&(!hasAlgVar(cf))
@@ -720,8 +758,8 @@ CanonicalForm::operator *= ( const CanonicalForm & cf )
           *this=mulFlintMP_Zp(*this,l_this,cf,l_cf,m);
         }
         else
-	/*-----------------------------------------------------*/
-        if ((getCharacteristic()==0)
+        /*-----------------------------------------------------*/
+        if ((ch==0)
         &&(!hasAlgVar(*this))
         &&(!hasAlgVar(cf))
         &&((l_cf=size_maxexp(cf,m))>10)
@@ -1383,13 +1421,7 @@ CanonicalForm::ilog2 () const
         ASSERT( is_imm( value ) == INTMARK, "ilog2() not implemented" );
         long a = imm2int( value );
         ASSERT( a > 0, "arg to ilog2() less or equal zero" );
-        int n = -1;
-        while ( a > 0 )
-        {
-          n++;
-          a /=2;
-        }
-        return n;
+        return SI_LOG2_LONG(a);
     }
     else
         return value->ilog2();
@@ -1940,3 +1972,4 @@ isOn( int sw )
 {
     return cf_glob_switches.isOn( sw );
 }
+

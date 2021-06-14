@@ -62,7 +62,6 @@
 // void ndDelete(number* d, const coeffs r);
 number ndGcd(number a, number b, const coeffs);
 // number ndCopy(number a, const coeffs r);
-number ndCopyMap(number a, const coeffs src, const coeffs dst);
 // int ndSize(number a, const coeffs r);
 // number ndGetDenom(number &n, const coeffs r);
 // number ndGetNumerator(number &a,const coeffs r);
@@ -88,7 +87,7 @@ BOOLEAN n_IsZeroDivisor( number a, const coeffs r);
 const char* const nDivBy0 = "div by 0";
 
 // dummy routines
-// void   ndNormalize(number& d, const coeffs); // nNormalize...
+void   ndNormalize(number&, const coeffs); // nNormalize...
 
 /// initialize an object of type coeff, return FALSE in case of success
 typedef BOOLEAN (*cfInitCharProc)(coeffs, void *);

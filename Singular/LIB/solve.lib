@@ -58,7 +58,6 @@ EXAMPLE: example laguerre_solve; shows an example
   if (char(basering)!=0){ERROR("characteristic of basering not 0");}
   if ((charstr(basering)[1]=="0") and (npars(basering)!=0))
     {ERROR("basering has parameters");}
-  int OLD_COMPLEX=0;
   int iv=checkv(f);  // check for variable appearing in f
   if(iv==0){ERROR("Wrong polynomial!");}
   poly v=var(iv);    // f univariate in v
@@ -89,22 +88,13 @@ EXAMPLE: example laguerre_solve; shows an example
   ss="";oo=ss;
   if(npars(basering)==1)
   {
-    if(OLD_COMPLEX)
+    tt=charstr(basering);
+    if(size(tt)>7)
     {
-      tt="1,"+string(par(1));
-      if(tt==charstr(basering))
-      {ss=tt;ringprec=system("getPrecDigits");}
-    }
-    else
-    {
-      tt=charstr(basering);
-      if(size(tt)>7)
+      if(string(tt[1..7])=="complex")
       {
-        if(string(tt[1..7])=="complex")
-        {
-          ss=tt;
-          ringprec=system("getPrecDigits");
-        }
+        ss=tt;
+        ringprec=system("getPrecDigits");
       }
     }
   }
@@ -117,14 +107,14 @@ EXAMPLE: example laguerre_solve; shows an example
     return(roots);
   }
 
-  if(prot!=0)// more informations
+  if(prot!=0)// more information
   {
     pout="//control: complex ring with precision "+string(numberprec);
     if(size(ss)==0){pout=pout+nl+
         "//         basering not complex, hence solutiontype string";
     if(solutionprec<numberprec){pout=pout+nl+
         "//         with precision "+string(solutionprec);}}
-    if(splitcontrol<0){pout=pout+nl+ "//       no spliting";}
+    if(splitcontrol<0){pout=pout+nl+ "//       no splitting";}
     if(splitcontrol==0){pout=pout+nl+"//       output without multiple roots";}
     if(rootcheck){pout=pout+nl+
         "//         check roots with precision "+string(solutionprec);}
@@ -134,9 +124,7 @@ EXAMPLE: example laguerre_solve; shows an example
   def rn = basering;// set the complex ground field
   if (ringprec<numberprec)
   {
-    tt="ring lagc=(complex,"+string(numberprec)+","+string(numberprec)+
-       "),"+string(var(iv))+",lp;";
-    execute(tt);
+    ring lagc = create_ring("(complex,"+string(numberprec)+","+string(numberprec)+")", string(var(iv)), "lp");
     poly p=imap(rn,p);
     poly v=var(1);
   }
@@ -172,8 +160,7 @@ EXAMPLE: example laguerre_solve; shows an example
       }
       else
       {
-        oo="ring exa=0,"+string(var(1))+",lp;";
-        execute(oo);
+        ring exa = create_ring(0, string(var(1)), "lp");
         ideal SQQQQ=splitsqrfree(imap(rn,p),var(1));
         setring lagc;
         SPLIT=imap(exa,SQQQQ);
@@ -236,9 +223,7 @@ EXAMPLE: example laguerre_solve; shows an example
 
   if((solutionprec<numberprec)&&(size(ss)==0))// shorter output
   {
-    oo="ring lout=(complex,"+string(solutionprec)+",1),"
-    +string(var(1))+",lp;";
-    execute(oo);
+    ring lout = create_ring("(complex,"+string(solutionprec)+",1)", string(var(1)), "lp");
     list roots=imap(lagc,roots);
     roots=transroots(roots);
     if(iz>0){roots=addzero(roots,ss,iz,splitcontrol);}
@@ -462,7 +447,7 @@ static proc checkroots(poly p,poly v,list r,int ima,number pr)
     attrib(li,"isSB",1);
     n=leadcoef(reduce(p,li));n=n/m;
     if(n!=0)
-    {if(nerr(n,pr)!=0){ERROR("Unsufficient accuracy!");}}
+    {if(nerr(n,pr)!=0){ERROR("Insufficient accuracy!");}}
   }
 }
 /*
@@ -618,7 +603,7 @@ EXAMPLE: example solve; shows an example
     }
   }
   if (outprec>prec){prec = outprec;}
-  // if interaktive version is chosen -- choice of basering (Top::`outR`)
+  // if interactive version is chosen -- choice of basering (Top::`outR`)
   // and name for list of solutions (outL):
   if (oldr==1)
   {
@@ -1641,7 +1626,7 @@ static proc psubst( int d, int dd, int n, list resl,
         }
         else
         {
-            dbprint( printlevel-voice+1,"// 30 ps == 0, thats not cool...");
+            dbprint( printlevel-voice+1,"// 30 ps == 0, that's not cool...");
             lsr=list(number(0));
         }
 
@@ -1812,8 +1797,14 @@ EXAMPLE: example fglm_solve; shows an example
     {
         prec=#[1];
     }
-
-    def R = lex_solve(stdfglm(fi),prec);
+    def save=basering;
+    list L=ringlist(save);
+    L[3]=list(list("lp",1:nvars(save)),list("C",1));
+    def Rlex=ring(L);
+    setring Rlex;
+    ideal fi=fetch(save,fi);
+    fi=stdfglm(fi);
+    def R = lex_solve(fi,prec);
     dbprint( printlevel-voice+3,"
 // 'fglm_solve' created a ring, in which a list rlist of numbers (the
 // complex solutions) is stored.
@@ -1825,7 +1816,7 @@ EXAMPLE: example fglm_solve; shows an example
 example
 {
     "EXAMPLE:";echo=2;
-    ring r = 0,(x,y),lp;
+    ring r = 0,(x,y),dp;
     // compute the intersection points of two curves
     ideal s =  x2 + y2 - 10, x2 + xy + 2y2 - 16;
     def R = fglm_solve(s,10);
@@ -1857,9 +1848,8 @@ EXAMPLE: example lex_solve; shows an example
     def oring= basering;
 
     // change the ground field to complex numbers
-    string nrings= "ring RC =(complex,"+string(prec)
-        +"),("+varstr(basering)+"),lp;";
-    execute(nrings);
+    list l1 = ringlist(basering)[2];
+    ring RC = create_ring("(complex,"+string(prec)+")", l1, "lp");
 
     // map fi from old to new ring
     ideal fi= imap(oring,fi);
@@ -1933,7 +1923,14 @@ EXAMPLE: example triangLf_solve; shows an example
         prec=#[1];
     }
 
-    def R=triang_solve(triangLfak(stdfglm(fi)),prec);
+    def save=basering;
+    list L=ringlist(save);
+    L[3]=list(list("lp",1:nvars(save)),list("C",1));
+    def Rlex=ring(L);
+    setring Rlex;
+    ideal fi=fetch(save,fi);
+    fi=stdfglm(fi);
+    def R=triang_solve(triangLfak(fi),prec);
     dbprint( printlevel-voice+3,"
 // 'triangLf_solve' created a ring, in which a list rlist of numbers (the
 // complex solutions) is stored.
@@ -1975,7 +1972,14 @@ EXAMPLE: example triangM_solve; shows an example
         prec=#[1];
     }
 
-    def R = triang_solve(triangM(stdfglm(fi)),prec);
+    def save=basering;
+    list L=ringlist(save);
+    L[3]=list(list("lp",1:nvars(save)),list("C",1));
+    def Rlex=ring(L);
+    setring Rlex;
+    ideal fi=fetch(save,fi);
+    fi=stdfglm(fi);
+    def R = triang_solve(triangM(fi),prec);
     dbprint( printlevel-voice+3,"
 // 'triangM_solve' created a ring, in which a list rlist of numbers (the
 // complex solutions) is stored.
@@ -2016,7 +2020,14 @@ EXAMPLE: example triangL_solve; shows an example
         prec=#[1];
     }
 
-    def R=triang_solve(triangL(stdfglm(fi)),prec);
+    def save=basering;
+    list L=ringlist(save);
+    L[3]=list(list("lp",1:nvars(save)),list("C",1));
+    def Rlex=ring(L);
+    setring Rlex;
+    ideal fi=fetch(save,fi);
+    fi=stdfglm(fi);
+    def R=triang_solve(triangL(fi),prec);
     dbprint( printlevel-voice+3,"
 // 'triangL_solve' created a ring, in which a list rlist of numbers (the
 // complex solutions) is stored.
@@ -2058,9 +2069,8 @@ EXAMPLE: example triang_solve; shows an example
     list LL;
 
     // change the ground field to complex numbers
-    string nrings= "ring RC =(complex,"+string(prec)
-        +",I),("+varstr(basering)+"),lp;";
-    execute(nrings);
+    list l2 = ringlist(basering)[2];
+    ring RC = create_ring("(complex,"+string(prec)+",I)", l2, "lp");
 
     // list with entry 0 (number)
     number nn=0;

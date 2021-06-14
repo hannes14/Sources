@@ -33,6 +33,10 @@
 #define setmaxT ((4096-12)/sizeof(TObject))
 #define setmaxTinc ((4096)/sizeof(TObject))
 
+#define RED_CANONICALIZE 200
+#define REDNF_CANONICALIZE 60
+#define REDTAIL_CANONICALIZE 100
+
 // if you want std computations as in Singular version < 2:
 // This disables RedThrough, tailReductions against T (bba),
 // sets posInT = posInT15 (bba, strat->honey), and enables redFirst with LDeg
@@ -167,6 +171,7 @@ public:
   // manipulations
   KINLINE void pNorm();
   KINLINE void pCleardenom();
+  KINLINE void pContent();
 
 #ifdef KDEBUG
   void wrp();
@@ -490,7 +495,9 @@ int posInL110 (const LSet set, const int length,
 KINLINE poly redtailBba (poly p,int end_pos,kStrategy strat,BOOLEAN normalize=FALSE);
 KINLINE poly redtailBbaBound (poly p,int end_pos,kStrategy strat,int bound,BOOLEAN normalize=FALSE);
 #ifdef HAVE_RINGS
+KINLINE poly redtailBba_Ring (poly p,int end_pos,kStrategy strat);
 KINLINE poly redtailBba_Z (poly p,int end_pos,kStrategy strat);
+poly redtailBba_Ring (LObject* L, int end_pos, kStrategy strat );
 poly redtailBba_Z (LObject* L, int end_pos, kStrategy strat );
 void redtailBbaAlsoLC_Z (LObject* L, int end_pos, kStrategy strat );
 #endif
@@ -507,6 +514,7 @@ poly redNF (poly h,int & max_ind,int nonorm,kStrategy strat);
 int redNF0 (LObject *P,kStrategy strat);
 poly redNFTail (poly h,const int sl,kStrategy strat);
 int redHoney (LObject* h, kStrategy strat);
+int redLiftstd (LObject* h, kStrategy strat);
 #ifdef HAVE_RINGS
 int redRing (LObject* h,kStrategy strat);
 int redRing_Z (LObject* h,kStrategy strat);
@@ -515,12 +523,6 @@ void enterExtendedSpoly(poly h,kStrategy strat);
 void enterExtendedSpolySig(poly h,poly hSig,kStrategy strat);
 void superenterpairs (poly h,int k,int ecart,int pos,kStrategy strat, int atR = -1);
 void superenterpairsSig (poly h,poly hSig,int hFrom,int k,int ecart,int pos,kStrategy strat, int atR = -1);
-poly kCreateZeroPoly(long exp[], long cabsind, poly* t_p, ring leadRing, ring tailRing);
-long ind2(long arg);
-
-long ind_fact_2(long arg);
-long twoPow(long arg);
-ideal createG0();
 #endif
 int redLazy (LObject* h,kStrategy strat);
 int redHomog (LObject* h,kStrategy strat);
@@ -594,6 +596,9 @@ BOOLEAN findMinLMPair(poly sig, unsigned long not_sevSig, kStrategy strat, int s
 
 /// returns index of p in TSet, or -1 if not found
 int kFindInT(poly p, TSet T, int tlength);
+#ifdef HAVE_SHIFTBBA
+int kFindInTShift(poly p, TSet T, int tlength);
+#endif
 
 /// return -1 if no divisor is found
 ///        number of first divisor in T, otherwise
@@ -701,6 +706,7 @@ int ksReducePoly(LObject* PR,
                  TObject* PW,
                  poly spNoether = NULL,
                  number *coef = NULL,
+                 poly *mon =NULL,
                  kStrategy strat = NULL);
 
 /* like ksReducePoly, but if the reducer has only 1 term we still
@@ -856,7 +862,7 @@ void enterOnePairShift (poly q, poly p, int ecart, int isFromQ, kStrategy strat,
 
 void enterpairsShift (poly h,int k,int ecart,int pos,kStrategy strat, int atR);
 
-void initBbaShift(kStrategy strat);
+void superenterpairsShift (poly h,int k,int ecart,int pos,kStrategy strat, int atR);
 
 poly redtailBbaShift (LObject* L, int pos, kStrategy strat, BOOLEAN withT, BOOLEAN normalize);
 
@@ -881,4 +887,6 @@ static inline void kDeleteLcm(LObject *P)
    P->lcm=NULL;
  }
 }
+
+void initenterpairs (poly h,int k,int ecart,int isFromQ,kStrategy strat, int atR = -1);
 #endif

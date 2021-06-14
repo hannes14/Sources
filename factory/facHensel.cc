@@ -35,16 +35,21 @@
 #ifdef HAVE_NTL
 #include <NTL/lzz_pEX.h>
 #include "NTLconvert.h"
+#endif
 
 #ifdef HAVE_FLINT
 #include "FLINTconvert.h"
 #endif
+
+void out_cf(const char *s1,const CanonicalForm &f,const char *s2);
 
 TIMING_DEFINE_PRINT (diotime)
 TIMING_DEFINE_PRINT (product1)
 TIMING_DEFINE_PRINT (product2)
 TIMING_DEFINE_PRINT (hensel23)
 TIMING_DEFINE_PRINT (hensel)
+
+#if defined (HAVE_NTL) || defined(HAVE_FLINT)
 
 #if (!(HAVE_FLINT && __FLINT_RELEASE >= 20400))
 static
@@ -155,6 +160,9 @@ void tryDiophantine (CFList& result, const CanonicalForm& F,
   bufFactors.insert (factors.getFirst () (0,2));
   CanonicalForm inv, leadingCoeff= Lc (F);
   CFListIterator i= bufFactors;
+
+  result = CFList();    // empty the list before writing into it?!
+
   if (bufFactors.getFirst().inCoeffDomain())
   {
     if (i.hasItem())
@@ -468,6 +476,7 @@ void sortList (CFList& list, const Variable& x)
 CFList
 diophantine (const CanonicalForm& F, const CFList& factors);
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // diophantine
 CFList
 diophantineHensel (const CanonicalForm & F, const CFList& factors,
                    const modpk& b)
@@ -557,6 +566,7 @@ diophantineHensel (const CanonicalForm & F, const CFList& factors,
 
   return result;
 }
+#endif
 
 /// solve \f$ 1=\sum_{i=1}^n{\delta_{i} \prod_{j\neq i}{f_j}} \f$ mod \f$p^k\f$
 /// over \f$ Q(\alpha) \f$ by p-adic lifting
@@ -769,9 +779,11 @@ diophantineHenselQa (const CanonicalForm & F, const CanonicalForm& G,
 }
 
 
+
 /// solve \f$ 1=\sum_{i=1}^n{\delta_{i} \prod_{j\neq i}{f_j}} \f$ mod \f$p^k\f$
 /// over \f$ Q(\alpha) \f$ by first computing mod \f$p\f$ and if no zero divisor
 /// occurred compute it mod \f$p^k\f$
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // XGCD, zzp_eX
 CFList
 diophantineQa (const CanonicalForm& F, const CanonicalForm& G,
                const CFList& factors, modpk& b, const Variable& alpha)
@@ -779,6 +791,15 @@ diophantineQa (const CanonicalForm& F, const CanonicalForm& G,
   bool fail= false;
   CFList recResult;
   CanonicalForm modMipo, mipo;
+#if HAVE_NTL
+  // no variables for ntl
+#else
+  fmpz_t bigpk;
+  fq_ctx_t fqctx;
+  fq_poly_t FLINTS, FLINTT, FLINTbuf3, FLINTbuf1, FLINTbuf2;
+  fq_t fcheck;
+#endif
+
   //here SW_RATIONAL is off
   On (SW_RATIONAL);
   mipo= getMipo (alpha);
@@ -800,8 +821,9 @@ diophantineQa (const CanonicalForm& F, const CanonicalForm& G,
     tryDiophantine (recResult, mapinto (F), mapinto (factors), modMipo, fail);
     if (fail)
     {
+next_prime:
       int i= 0;
-      while (cf_getBigPrime (i) < p)
+      while (cf_getBigPrime (i) <= p)
         i++;
       findGoodPrime (F, i);
       findGoodPrime (G, i);
@@ -853,6 +875,8 @@ diophantineQa (const CanonicalForm& F, const CanonicalForm& G,
   }
   else
     buf2= divNTL (F, i.getItem(), b);
+
+#ifdef HAVE_NTL
   ZZ_p::init (convertFacCF2NTLZZ (b.getpk()));
   ZZ_pX NTLmipo= to_ZZ_pX (convertFacCF2NTLZZX (getMipo (gamma)));
   ZZ_pE::init (NTLmipo);
@@ -862,6 +886,53 @@ diophantineQa (const CanonicalForm& F, const CanonicalForm& G,
   XGCD (NTLbuf3, NTLS, NTLT, NTLbuf1, NTLbuf2);
   result.append (b (convertNTLZZ_pEX2CF (NTLS, x, gamma)));
   result.append (b (convertNTLZZ_pEX2CF (NTLT, x, gamma)));
+#else // HAVE_FLINT
+
+  fmpz_init(bigpk); // does convert expect an initalized object?
+  convertCF2initFmpz(bigpk, b.getpk());
+  fmpz_mod_poly_t FLINTmipo;
+  convertFacCF2Fmpz_mod_poly_t(FLINTmipo, getMipo(gamma), bigpk);
+#if __FLINT_RELEASE >= 20700
+  fmpz_mod_ctx_t bigpk_ctx;
+  fmpz_mod_ctx_init(bigpk_ctx, bigpk);
+  fq_ctx_init_modulus(fqctx, FLINTmipo, bigpk_ctx, "Z");
+  fmpz_mod_ctx_clear(bigpk_ctx);
+  fmpz_mod_poly_clear(FLINTmipo, bigpk_ctx);
+#else
+  fq_ctx_init_modulus(fqctx, FLINTmipo, "Z");
+  fmpz_mod_poly_clear(FLINTmipo);
+#endif
+
+  fq_init(fcheck, fqctx);
+  fq_poly_init(FLINTS, fqctx);
+  fq_poly_init(FLINTT, fqctx);
+  fq_poly_init(FLINTbuf3, fqctx);
+  //fq_poly_init(FLINTbuf1, fqctx); //convert expects uninitialized!
+  //fq_poly_init(FLINTbuf2, fqctx); //convert expects uninitialized!
+  convertFacCF2Fq_poly_t(FLINTbuf1, buf1, fqctx);
+  convertFacCF2Fq_poly_t(FLINTbuf2, buf2, fqctx);
+
+  fq_poly_xgcd_euclidean_f(fcheck, FLINTbuf3, FLINTS, FLINTT,
+                                                  FLINTbuf1, FLINTbuf2, fqctx);
+  if (!fq_is_one(fcheck, fqctx))
+  {
+    fmpz_clear(bigpk);
+    fq_clear(fcheck, fqctx);
+    fq_poly_clear(FLINTS, fqctx);
+    fq_poly_clear(FLINTT, fqctx);
+    fq_poly_clear(FLINTbuf3, fqctx);
+    fq_poly_clear(FLINTbuf1, fqctx);
+    fq_poly_clear(FLINTbuf2, fqctx);
+    fq_ctx_clear(fqctx);
+    setReduce (alpha, false);
+    fail = true;
+    goto next_prime;
+  }
+
+  result.append(b(convertFq_poly_t2FacCF(FLINTS, x, alpha, fqctx)));
+  result.append(b(convertFq_poly_t2FacCF(FLINTT, x, alpha, fqctx)));
+#endif
+
   if (i.hasItem())
     i++;
   for (; i.hasItem(); i++)
@@ -870,19 +941,68 @@ diophantineQa (const CanonicalForm& F, const CanonicalForm& G,
       buf1= divNTL (Freplaced, i.getItem(), b);
     else
       buf1= divNTL (F, i.getItem(), b);
+
+#ifdef HAVE_NTL
     XGCD (NTLbuf3, NTLS, NTLT, NTLbuf3, convertFacCF2NTLZZ_pEX (buf1, NTLmipo));
-    CFListIterator k= bufFactors;
     S= convertNTLZZ_pEX2CF (NTLS, x, gamma);
+#else
+    fq_poly_clear(FLINTbuf1, fqctx); //convert expects uninitialized!
+    convertFacCF2Fq_poly_t(FLINTbuf1, buf1, fqctx);
+
+    // xgcd aliasing bug in <= 2.7.1
+    fq_poly_xgcd_euclidean_f(fcheck, FLINTbuf2, FLINTS, FLINTT,
+                                                  FLINTbuf3, FLINTbuf1, fqctx);
+    fq_poly_swap(FLINTbuf3, FLINTbuf2, fqctx);
+
+    if (!fq_is_one(fcheck, fqctx))
+    {
+      fmpz_clear(bigpk);
+      fq_clear(fcheck, fqctx);
+      fq_poly_clear(FLINTS, fqctx);
+      fq_poly_clear(FLINTT, fqctx);
+      fq_poly_clear(FLINTbuf3, fqctx);
+      fq_poly_clear(FLINTbuf1, fqctx);
+      fq_poly_clear(FLINTbuf2, fqctx);
+      fq_ctx_clear(fqctx);
+      setReduce (alpha, false);
+      fail = true;
+      goto next_prime;
+    }
+
+    S= convertFq_poly_t2FacCF(FLINTS, x, alpha, fqctx);
+#endif
+
+    CFListIterator k= bufFactors;
     for (CFListIterator j= result; j.hasItem(); j++, k++)
     {
       j.getItem()= mulNTL (j.getItem(), S, b);
       j.getItem()= modNTL (j.getItem(), k.getItem(), b);
     }
+#if HAVE_NTL
     result.append (b (convertNTLZZ_pEX2CF (NTLT, x, gamma)));
+#else
+    result.append (b (convertFq_poly_t2FacCF(FLINTT, x, alpha, fqctx)));
+#endif
   }
+
+#if HAVE_NTL
+  // no cleanup for ntl
+#else
+  fmpz_clear(bigpk);
+  fq_clear(fcheck, fqctx);
+  fq_poly_clear(FLINTS, fqctx);
+  fq_poly_clear(FLINTT, fqctx);
+  fq_poly_clear(FLINTbuf3, fqctx);
+  fq_poly_clear(FLINTbuf1, fqctx);
+  fq_poly_clear(FLINTbuf2, fqctx);
+  fq_ctx_clear(fqctx);
+#endif
+
   return result;
 }
+#endif
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // diophantineQa
 CFList
 diophantine (const CanonicalForm& F, const CanonicalForm& G,
              const CFList& factors, modpk& b)
@@ -933,13 +1053,16 @@ diophantine (const CanonicalForm& F, const CanonicalForm& G,
   }
   return result;
 }
+#endif
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // diophantineQa
 CFList
 diophantine (const CanonicalForm& F, const CFList& factors)
 {
   modpk b= modpk();
   return diophantine (F, 1, factors, b);
 }
+#endif
 
 void
 henselStep12 (const CanonicalForm& F, const CFList& factors,
@@ -1144,6 +1267,7 @@ henselStep12 (const CanonicalForm& F, const CFList& factors,
   }
 }
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // diopantineQa
 void
 henselLift12 (const CanonicalForm& F, CFList& factors, int l, CFArray& Pi,
               CFList& diophant, CFMatrix& M, modpk& b, bool sort)
@@ -1201,7 +1325,9 @@ henselLift12 (const CanonicalForm& F, CFList& factors, int l, CFArray& Pi,
     k.getItem()= bufFactors[i];
   factors.removeFirst();
 }
+#endif
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) //henselLift12
 void
 henselLift12 (const CanonicalForm& F, CFList& factors, int l, CFArray& Pi,
               CFList& diophant, CFMatrix& M, bool sort)
@@ -1209,6 +1335,7 @@ henselLift12 (const CanonicalForm& F, CFList& factors, int l, CFArray& Pi,
   modpk dummy= modpk();
   henselLift12 (F, factors, l, Pi, diophant, M, dummy, sort);
 }
+#endif
 
 void
 henselLiftResume12 (const CanonicalForm& F, CFList& factors, int start, int
@@ -1235,6 +1362,7 @@ henselLiftResume12 (const CanonicalForm& F, CFList& factors, int start, int
   return;
 }
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // diophantine
 CFList
 biDiophantine (const CanonicalForm& F, const CFList& factors, int d)
 {
@@ -1334,6 +1462,7 @@ biDiophantine (const CanonicalForm& F, const CFList& factors, int d)
     return result;
   }
 }
+#endif
 
 CFList
 multiRecDiophantine (const CanonicalForm& F, const CFList& factors,
@@ -1649,6 +1778,7 @@ henselStep (const CanonicalForm& F, const CFList& factors, CFArray& bufFactors,
   return;
 }
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // biDiophantine
 CFList
 henselLift23 (const CFList& eval, const CFList& factors, int* l, CFList&
               diophant, CFArray& Pi, CFMatrix& M)
@@ -1689,6 +1819,7 @@ henselLift23 (const CFList& eval, const CFList& factors, int* l, CFList&
     result.append (bufFactors[k]);
   return result;
 }
+#endif
 
 void
 henselLiftResume (const CanonicalForm& F, CFList& factors, int start, int end,
@@ -1756,6 +1887,7 @@ henselLift (const CFList& F, const CFList& factors, const CFList& MOD, CFList&
   return result;
 }
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // henselLift23
 CFList
 henselLift (const CFList& eval, const CFList& factors, int* l, int lLength,
             bool sort)
@@ -1790,6 +1922,7 @@ henselLift (const CFList& eval, const CFList& factors, int* l, int lLength,
   }
   return result;
 }
+#endif
 
 // nonmonic
 
@@ -2014,6 +2147,7 @@ nonMonicHenselStep12 (const CanonicalForm& F, const CFList& factors,
   return;
 }
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // diophantine
 void
 nonMonicHenselLift12 (const CanonicalForm& F, CFList& factors, int l,
                       CFArray& Pi, CFList& diophant, CFMatrix& M,
@@ -2090,7 +2224,7 @@ nonMonicHenselLift12 (const CanonicalForm& F, CFList& factors, int l,
     factors.append (bufFactors[i]);
   return;
 }
-
+#endif
 
 /// solve \f$ E=\sum_{i= 1}^r{\sigma_{i}\prod_{j=1, j\neq i}^{r}{f_{j}}} \f$
 /// mod M, @a products contains \f$ \prod_{j=1, j\neq i}^{r}{f_{j}} \f$
@@ -2172,6 +2306,7 @@ diophantine (const CFList& recResult, const CFList& factors,
   return result;
 }
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // diophantine
 void
 nonMonicHenselStep (const CanonicalForm& F, const CFList& factors,
                     CFArray& bufFactors, const CFList& diophant, CFMatrix& M,
@@ -2410,6 +2545,7 @@ nonMonicHenselStep (const CanonicalForm& F, const CFList& factors,
   TIMING_END_AND_PRINT (product2, "time for product in hensel step: ");
   return;
 }
+#endif
 
 // wrt. Variable (1)
 CanonicalForm replaceLC (const CanonicalForm& F, const CanonicalForm& c)
@@ -2425,6 +2561,7 @@ CanonicalForm replaceLC (const CanonicalForm& F, const CanonicalForm& c)
   }
 }
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // nonMonicHenselStep
 CFList
 nonMonicHenselLift232(const CFList& eval, const CFList& factors, int* l, CFList&
                       diophant, CFArray& Pi, CFMatrix& M, const CFList& LCs1,
@@ -2486,8 +2623,9 @@ nonMonicHenselLift232(const CFList& eval, const CFList& factors, int* l, CFList&
     result.append (bufFactors[k]);
   return result;
 }
+#endif
 
-
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // nonMonicHenselStep
 CFList
 nonMonicHenselLift2 (const CFList& F, const CFList& factors, const CFList& MOD,
                     CFList& diophant, CFArray& Pi, CFMatrix& M, int lOld,
@@ -2550,7 +2688,9 @@ nonMonicHenselLift2 (const CFList& F, const CFList& factors, const CFList& MOD,
     result.append (bufFactors[k]);
   return result;
 }
+#endif
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // nonMonicHenselStep
 CFList
 nonMonicHenselLift2 (const CFList& eval, const CFList& factors, int* l, int
                     lLength, bool sort, const CFList& LCs1, const CFList& LCs2,
@@ -2602,7 +2742,9 @@ nonMonicHenselLift2 (const CFList& eval, const CFList& factors, int* l, int
   }
   return result;
 }
+#endif
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // diophantine
 CFList
 nonMonicHenselLift23 (const CanonicalForm& F, const CFList& factors, const
                       CFList& LCs, CFList& diophant, CFArray& Pi, int liftBound,
@@ -2704,7 +2846,9 @@ nonMonicHenselLift23 (const CanonicalForm& F, const CFList& factors, const
     result.append (bufFactors[i]);
   return result;
 }
+#endif
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // nonMonicHenselStep
 CFList
 nonMonicHenselLift (const CFList& F, const CFList& factors, const CFList& LCs,
                     CFList& diophant, CFArray& Pi, CFMatrix& M, int lOld,
@@ -2787,7 +2931,9 @@ nonMonicHenselLift (const CFList& F, const CFList& factors, const CFList& LCs,
     result.append (bufFactors[k]);
   return result;
 }
+#endif
 
+#if defined(HAVE_NTL) || defined(HAVE_FLINT) // nonMonicHenselLift23
 CFList
 nonMonicHenselLift (const CFList& eval, const CFList& factors,
                     CFList* const& LCs, CFList& diophant, CFArray& Pi,
@@ -2838,7 +2984,5 @@ nonMonicHenselLift (const CFList& eval, const CFList& factors,
 
   return result;
 }
-
 #endif
-/* HAVE_NTL */
-
+#endif

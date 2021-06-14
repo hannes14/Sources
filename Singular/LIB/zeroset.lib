@@ -45,7 +45,7 @@ LIB "primdec.lib";
 
 // note : return a ring : ring need not be exported !!!
 
-// Artihmetic in Q(a)[x] without built-in procedures
+// Arithmetic in Q(a)[x] without built-in procedures
 // assume basering = Q[x,a] and minpoly is represented by mpoly(a).
 // the algorithms are taken from "Polynomial Algorithms in Computer Algebra",
 // F. Winkler, Springer Verlag Wien, 1996.
@@ -66,9 +66,9 @@ LIB "primdec.lib";
 // extension field is represented as Q[x...,a] together with the ideal
 // 'mpoly' (attribute "isSB"). The arithmetic in the extension field is
 // implemented in the procedures in the procedures 'MultPolys' (multiplication)
-// and 'InvertNumber' (inversion). After addition and substraction one should
+// and 'InvertNumber' (inversion). After addition and subtraction one should
 // apply 'SimplifyPoly' to the result to reduce the result w.r.t. 'mpoly'.
-// This is done by reducing each coefficient seperately, which is more
+// This is done by reducing each coefficient separately, which is more
 // efficient for polynomials with many terms.
 
 
@@ -420,8 +420,7 @@ NOTE:    outdated, use / instead
 
   int n = nvars(basering);
   def RINB = basering;
-  string ringSTR = "ring RINR = 0, " + string(var(n)) + ", dp;";
-  execute(ringSTR);        // new ring = Q[a]
+  ring RINR = create_ring(0, string(var(n)), "dp");       // new ring = Q[a]
 
   list gcdList;
   poly f, g, inv;
@@ -636,8 +635,7 @@ EXAMPLE: example MEGCD; shows an example
 
   if(npars(basering) == 0) { @parName = "0";}
   else { @parName = "(0, " + parstr(basering) + ")"; }
-  @str = "ring @RGCD = " + @parName + ", " + string(var(varIndex)) + ", dp;";
-  execute(@str);
+  ring @RGCD = create_ring(@parName, string(var(varIndex)), "dp");
   if(@mp != "0") { execute ("minpoly = " + @mp + ";"); }
   execute("poly @f = " + @sf + ";");
   execute("poly @g = " + @sg + ";");
@@ -716,8 +714,7 @@ EXAMPLE: example SqfrNorm; shows an example
   N1 = diff(N, var(1));
   g = f;
 
-  ringSTR = "ring SNRM1 = 0, " + string(var(1)) + ", dp;";  // univariate ring
-  execute(ringSTR);
+  ring SNRM1 = create_ring(0, string(var(1)), "dp");     // univariate ring
   poly N, N1, h;        // N, N1 do not contain 'a', use built-in gcd
   h = gcd(imap(SNRMB, N), imap(SNRMB, N1));
   setring(SNRMB);
@@ -819,9 +816,9 @@ EXAMPLE: example zeroSetMain; shows an example
 "
 {
   // main work is done in zeroSetMainWork, here the zero-set of each ideal from the
-  // primary decompostion is coputed by menas of zeroSetMainWork, and then the
+  // primary decomposition is coputed by means of zeroSetMainWork, and then the
   // minpoly and the parameter representing the algebraic extension are
-  // transformed according to 'newA', i.e., only bookeeping is done.
+  // transformed according to 'newA', i.e., only bookkeeping is done.
 
   def altring=basering;
   int i, j, n, noMP, dbPrt;
@@ -1099,8 +1096,7 @@ NOTE:    might change 'mpoly' !!
 
       // create univariate ring
 
-      ringSTR = "ring RIS1 = 0, (" + string(var(vars[1])) + ", " + string(var(n+1)) + "), lp;";
-      execute(ringSTR);
+      ring RIS1 = create_ring(0, "(" + string(var(vars[1])) + ", " + string(var(n+1)) + ")", "lp");
       ideal mpoly = std(imap(NLZR, mpoly));
       list roots;
       poly f = imap(NLZR, f);
@@ -1404,9 +1400,7 @@ NOTE:    Creates the ring needed for all prodecures with name 'proc-name'Main
     parName = parstr(basering);
     minPoly = string(minpoly);
   }
-  ringSTR = "ring TR = 0, (" + varstr(basering) + "," + parName + "), lp;";
-
-  execute(ringSTR);
+  ring TR = create_ring(0, "(" + varstr(basering) + "," + parName + ")", "lp");
   execute("ideal mpoly = std(" + minPoly + ");");
   export(mpoly);
   setring altring;
@@ -1443,8 +1437,7 @@ ASSUME:  basering = Q[x_1,...,x_n, a], 'mpoly' must be defined
   }
   varString = varString + string(var(n-1));
 
-  ringSTR = "ring TR = " + parName + ", (" + varString + "), lp;";
-  execute(ringSTR);
+  ring TR = create_ring(parName, "(" + varString + ")", "lp");
   if(MP) { minpoly = number(imap(BR, mpoly)[1]); }
   setring BR;
   return(TR);

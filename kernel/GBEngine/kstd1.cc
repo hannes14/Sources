@@ -140,7 +140,7 @@ static int doRed (LObject* h, TObject* with,BOOLEAN intoT,kStrategy strat, bool 
     L.Copy();
     h->GetP();
     h->length=h->pLength=pLength(h->p);
-    ret = ksReducePoly(&L, with, strat->kNoetherTail(), NULL, strat);
+    ret = ksReducePoly(&L, with, strat->kNoetherTail(), NULL, NULL, strat);
     if (ret)
     {
       if (ret < 0) return ret;
@@ -156,7 +156,7 @@ static int doRed (LObject* h, TObject* with,BOOLEAN intoT,kStrategy strat, bool 
     *h = L;
   }
   else
-    ret = ksReducePoly(h, with, strat->kNoetherTail(), NULL, strat);
+    ret = ksReducePoly(h, with, strat->kNoetherTail(), NULL, NULL, strat);
 #ifdef KDEBUG
   if (TEST_OPT_DEBUG)
   {
@@ -191,6 +191,7 @@ int redEcart (LObject* h,kStrategy strat)
     if (ei > h->ecart && ii < strat->tl)
     {
       li = strat->T[j].length;
+      if (li<=0) li=strat->T[j].GetpLength();
       // the polynomial to reduce with (up to the moment) is;
       // pi with ecart ei and length li
       // look for one with smaller ecart
@@ -201,6 +202,7 @@ int redEcart (LObject* h,kStrategy strat)
         i++;
 #if 1
         if (i > strat->tl) break;
+        if (strat->T[i].length<=0) strat->T[i].GetpLength();
         if ((strat->T[i].ecart < ei || (strat->T[i].ecart == ei &&
                                         strat->T[i].length < li))
             &&
@@ -262,8 +264,46 @@ int redEcart (LObject* h,kStrategy strat)
       h->Clear();
       return 0;
     }
+    if (TEST_OPT_IDLIFT)
+    {
+      if (h->p!=NULL)
+      {
+        if(p_GetComp(h->p,currRing)>strat->syzComp)
+        {
+          h->Delete();
+          return 0;
+        }
+      }
+      else if (h->t_p!=NULL)
+      {
+        if(p_GetComp(h->t_p,strat->tailRing)>strat->syzComp)
+        {
+          h->Delete();
+          return 0;
+        }
+      }
+    }
+    #if 0
+    else if ((strat->syzComp > 0)&&(!TEST_OPT_REDTAIL_SYZ))
+    {
+      if (h->p!=NULL)
+      {
+        if(p_GetComp(h->p,currRing)>strat->syzComp)
+        {
+          return 1;
+        }
+      }
+      else if (h->t_p!=NULL)
+      {
+        if(p_GetComp(h->t_p,strat->tailRing)>strat->syzComp)
+        {
+          return 1;
+        }
+      }
+    }
+    #endif
 
-    // NO!
+    // done ? NO!
     h->SetShortExpVector();
     h->SetpFDeg();
     if (strat->honey)
@@ -745,11 +785,13 @@ int redRiloc_Z (LObject* h,kStrategy strat)
 */
 int redFirst (LObject* h,kStrategy strat)
 {
+  if (strat->tl<0) return 1;
   if (h->IsNull()) return 0;
 
   int at;
   long reddeg,d;
   int pass = 0;
+  int cnt = RED_CANONICALIZE;
   int j = 0;
 
   if (! strat->homog)
@@ -778,7 +820,7 @@ int redFirst (LObject* h,kStrategy strat)
       strat->T[j].wrp();
     }
 #endif
-    ksReducePoly(h, &(strat->T[j]), strat->kNoetherTail(), NULL, strat);
+    ksReducePoly(h, &(strat->T[j]), strat->kNoetherTail(), NULL, NULL, strat);
 #ifdef KDEBUG
     if (TEST_OPT_DEBUG)
     {
@@ -794,6 +836,44 @@ int redFirst (LObject* h,kStrategy strat)
       h->Clear();
       return 0;
     }
+    if (TEST_OPT_IDLIFT)
+    {
+      if (h->p!=NULL)
+      {
+        if(p_GetComp(h->p,currRing)>strat->syzComp)
+        {
+          h->Delete();
+          return 0;
+        }
+      }
+      else if (h->t_p!=NULL)
+      {
+        if(p_GetComp(h->t_p,strat->tailRing)>strat->syzComp)
+        {
+          h->Delete();
+          return 0;
+        }
+      }
+    }
+    #if 0
+    else if ((strat->syzComp > 0)&&(!TEST_OPT_REDTAIL_SYZ))
+    {
+      if (h->p!=NULL)
+      {
+        if(p_GetComp(h->p,currRing)>strat->syzComp)
+        {
+          return 1;
+        }
+      }
+      else if (h->t_p!=NULL)
+      {
+        if(p_GetComp(h->t_p,strat->tailRing)>strat->syzComp)
+        {
+          return 1;
+        }
+      }
+    }
+    #endif
     h->SetShortExpVector();
 
 #if 0
@@ -827,6 +907,7 @@ int redFirst (LObject* h,kStrategy strat)
       else
         d = h->SetDegStuffReturnLDeg(strat->LDegLast);
       /*- try to reduce the s-polynomial -*/
+      cnt--;
       pass++;
       /*
        *test whether the polynomial should go to the lazyset L
@@ -852,6 +933,12 @@ int redFirst (LObject* h,kStrategy strat)
           h->Clear();
           return -1;
         }
+      }
+      if (UNLIKELY(cnt==0))
+      {
+        h->CanonicalizeP();
+        cnt=RED_CANONICALIZE;
+        //if (TEST_OPT_PROT) { PrintS("!");mflush(); }
       }
       if ((TEST_OPT_PROT) && (strat->Ll < 0) && (d >= reddeg))
       {
@@ -1601,6 +1688,8 @@ void initBba(kStrategy strat)
     else
       strat->red = redRing;
   }
+  if (TEST_OPT_IDLIFT)
+    strat->red=redLiftstd;
   if (currRing->pLexOrder && strat->honey)
     strat->initEcart = initEcartNormal;
   else
@@ -1958,7 +2047,7 @@ ideal mora (ideal F, ideal Q,intvec *w,intvec *hilb,kStrategy strat)
 
 #ifdef KDEBUG
       // make sure kTest_TS does not complain about strat->P
-      memset(&strat->P,0,sizeof(strat->P));
+      strat->P.Clear();
 #endif
     }
     if (strat->kHEdgeFound)
@@ -3542,7 +3631,7 @@ ideal kInterRedBba (ideal F, ideal Q, int &need_retry)
           for(;ii<=strat->sl;ii++)
           {
             LObject h;
-            memset(&h,0,sizeof(h));
+            h.Clear();
             h.tailRing=strat->tailRing;
             h.p=strat->S[ii]; strat->S[ii]=NULL;
             strat->initEcart(&h);
@@ -3595,7 +3684,7 @@ ideal kInterRedBba (ideal F, ideal Q, int &need_retry)
     {
       messageSets(strat);
     }
-    memset(&(strat->P), 0, sizeof(strat->P));
+    strat->P.Clear();
 #endif
     //kTest_TS(strat);: i_r out of sync in kInterRedBba, but not used!
   }

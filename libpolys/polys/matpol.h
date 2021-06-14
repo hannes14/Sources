@@ -26,9 +26,9 @@ class ip_smatrix
   #define MATROWS(i) ((i)->nrows)
   #define MATCOLS(i) ((i)->ncols)
   /// 1-based access to matrix
-  #define MATELEM(mat,i,j) ((mat)->m)[MATCOLS((mat)) * ((i)-1) + (j)-1]
+  #define MATELEM(mat,i,j) ((mat)->m)[(long)MATCOLS((mat)) * (long)((i)-1) + (long)(j)-1]
   /// 0-based access to matrix
-  #define MATELEM0(mat,i,j) ((mat)->m)[MATCOLS((mat)) * (i) + (j)]
+  #define MATELEM0(mat,i,j) ((mat)->m)[(long)MATCOLS((mat)) * (long)(i) + (long)(j)]
 };
 
 enum DetVariant
@@ -43,6 +43,7 @@ enum DetVariant
 typedef ip_smatrix *       matrix;
 
 matrix mpNew(int r, int c);
+#define mp_New(r,c,R) mpNew(r,c)
 
 void   mp_Delete(matrix* a, const ring r);
 matrix mp_Copy(const matrix a, const ring rSrc, const ring rDst);

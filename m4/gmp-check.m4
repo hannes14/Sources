@@ -1,132 +1,48 @@
-# Check for GMP
-# Modified by Pascal Giorgi, 2003-12-03
+AC_DEFUN([SING_CHECK_GMP], [
+AC_REQUIRE([SING_DEFAULT_CHECKING_PATH])
+# Check whether --with-gmp was given.
+AC_ARG_WITH([gmp],[AS_HELP_STRING([--with-gmp=path],
+                    [provide a non-standard location of gmp])], [
+    dnl Given
+if test "$with_gmp" = yes ; then
+        GMP_HOME_PATH="DEFAULTS ${DEFAULT_CHECKING_PATH}"
+elif test "$with_gmp" != no ; then
+        GMP_HOME_PATH="$with_gmp"
+else
+     AC_MSG_ERROR([Use of GNU MP is required, cannot use --without-gmp])
+fi
+], [
+    dnl Not given
+    GMP_HOME_PATH="DEFAULTS ${DEFAULT_CHECKING_PATH}"
+])
 
-dnl LB_CHECK_GMP ([MINIMUM-VERSION [, ACTION-IF-FOUND [, ACTION-IF-NOT-FOUND]]])
-dnl
-dnl Test for the GNU Multiprecision library and define GMP_CPPFLAGS and GMP_LIBS
-
-AC_DEFUN([LB_CHECK_GMP],
-[
-DEFAULT_CHECKING_PATH="/usr /usr/local /sw /opt/local"
-
-AC_ARG_WITH(gmp,
-[  --with-gmp= <path>|yes Use GMP library. This library is mandatory for Singular
-	                 compilation. If argument is yes or <empty> that means
-   	       		 the library is reachable with the standard search path
-			 "/usr" or "/usr/local" (set as default). Otherwise you
-			 give the <path> to the directory which contain the
-			 library.
-],
-		[if test "$withval" = yes ; then
-			GMP_HOME_PATH="${DEFAULT_CHECKING_PATH}"
-	         elif test "$withval" != no ; then
-			GMP_HOME_PATH="$withval ${DEFAULT_CHECKING_PATH}"
-	        fi],
-		[GMP_HOME_PATH="${DEFAULT_CHECKING_PATH}"])
-
-min_gmp_version=ifelse([$1], ,1.0,$1)
-
-dnl Check for existence
 BACKUP_CFLAGS=${CFLAGS}
 BACKUP_LIBS=${LIBS}
 
-AC_MSG_CHECKING(for GMP >= $min_gmp_version)
-
-AC_LANG_PUSH([C])
-
+gmp_found=no
 for GMP_HOME in ${GMP_HOME_PATH}
-  do
-#	if test -r "$GMP_HOME/include/gmp.h"; then
-
-		if test "x$GMP_HOME" != "x/usr"; then
-			GMP_CPPFLAGS="-I${GMP_HOME}/include"
-			GMP_LIBS="-L${GMP_HOME}/lib -Wl,-rpath -Wl,${GMP_HOME}/lib -lgmp"
-		else
-			GMP_CPPFLAGS=""
-			GMP_LIBS="-lgmp"
-		fi
-
-		CFLAGS="${BACKUP_CFLAGS} ${GMP_CPPFLAGS}"
-		LIBS="${BACKUP_LIBS} ${GMP_LIBS}"
-
-    # According to C. Fieker this would link but would not RUN
-    # (AC_TRY_RUN) due to missing SHARED libgmp.so :(
-    # TODO: set LD_LIBRARY_PATH???
-		AC_TRY_LINK(
-		[#include <gmp.h>],
-		[mpz_t a; mpz_init (a);],
-		[
-        		AC_TRY_RUN(
- 			[#include <gmp.h>
-			 int main () {  if (__GNU_MP_VERSION < 3) return -1; else return 0; }
-		  	],[
-				AC_MSG_RESULT(found)
-				AC_SUBST(GMP_CPPFLAGS)
-		  		AC_SUBST(GMP_LIBS)
-				AC_DEFINE(HAVE_GMP,1,[Define if GMP is installed])
-				# See if we are running GMP 4.0
-	   			AC_MSG_CHECKING(whether GMP is 4.0 or greater)
-		   		AC_TRY_RUN(
-		   		[#include <gmp.h>
-	    			int main () { if (__GNU_MP_VERSION < 4) return -1; else return 0; }
-	   			],[
-					gmp_found="yes"
-					AC_MSG_RESULT(yes)
-					GMP_VERSION=""
-					AC_SUBST(GMP_VERSION)
-				],[
-					AC_MSG_RESULT(no)
-					AC_DEFINE(GMP_VERSION_3,1,[Define if GMP is version 3.xxx])
-					GMP_VERSION="-DGMP_VERSION_3"
-					AC_SUBST(GMP_VERSION)
-				],[
-					dnl This should never happen
-					AC_MSG_RESULT(no)
-				])
-				ifelse([$2], , :, [$2])
-				break
-			],[
-				gmp_problem="$gmp_problem $GMP_HOME"
-				unset GMP_CPPFLAGS
-				unset GMP_LIBS
-			],[
-				AC_MSG_RESULT(unknown)
-				echo "WARNING: You appear to be cross compiling, so there is no way to determine"
-				echo "whether your GMP version is new enough. I am assuming it is."
-				AC_SUBST(GMP_CPPFLAGS)
-				AC_SUBST(GMP_LIBS)
-				AC_SUBST(GMP_HOME)
-				HAVE_GMP=yes
-				AC_DEFINE(HAVE_GMP,1,[Define if GMP is installed])
-				ifelse([$2], , :, [$2])
-				break
-			])
-		],[
-		gmp_found="no"
-		unset GMP_CPPFLAGS
-		unset GMP_LIBS
-		])
-
-#	else
-#		gmp_found="no"
-#	fi
+do
+    if test "$GMP_HOME" != "DEFAULTS"; then
+      GMP_CPPFLAGS="-I${GMP_HOME}/include"
+      GMP_LIBS="-L${GMP_HOME}/lib -Wl,-rpath,${GMP_HOME}/lib -lgmp"
+    else
+      GMP_CPPFLAGS=""
+      GMP_LIBS="-lgmp"
+    fi
+    CFLAGS="${GMP_CPPFLAGS} ${BACKUP_CFLAGS}"
+    LIBS=" ${GMP_LIBS} ${BACKUP_LIBS}"
+    AC_TRY_LINK([#include <gmp.h>
+                ],
+                [mpz_t a; mpz_init (a);], [
+      gmp_found=yes
+      break
+    ])
 done
-AC_LANG_POP([C])
-
-CFLAGS=${BACKUP_CFLAGS}
-LIBS=${BACKUP_LIBS}
-#unset LD_LIBRARY_PATH
-
-
-if test "x$gmp_found" != "xyes"; then
-	if test -n "$gmp_problem"; then
-		AC_MSG_RESULT(problem)
-		echo "Sorry, your GMP version is too old. Disabling."
-	elif test "x$gmp_found" != "xno"; then
-		AC_MSG_RESULT(not found)
-	fi
-	ifelse($3, , :, $3)
+if test "$gmp_found" != yes; then
+    AC_MSG_ERROR([GNU MP not found])
 fi
 
-AM_CONDITIONAL(SING_HAVE_GMP, test "x$HAVE_GMP" = "xyes")
+AC_SUBST(GMP_CPPFLAGS)
+AC_SUBST(GMP_LIBS)
+
 ])

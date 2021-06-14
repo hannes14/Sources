@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////
-version = "version chern.lib 0.706 Jun_2018 ";      // $Id$
+version = "version chern.lib 4.1.3.0 Apr_2020 ";  // $Id$
 category = "Chern classes";
 info="
 LIBRARY:  chern.lib    Symbolic Computations with Chern classes,
@@ -71,8 +71,8 @@ PROCEDURES:
   Bern(n);                  the second Bernoulli numbers
   tdCf(n);                  the coefficients of the Todd class of a line bundle
   tdTerms(n, f);            the terms of the Todd class of a line bundle
-                            coresponding to the Chern root t
-  tdFactor(n, t);           the Todd class of a line bundle coresponding
+                            corresponding to the Chern root t
+  tdFactor(n, t);           the Todd class of a line bundle corresponding
                             to the Chern root t
   cProj(n);                 the total Chern class of (the tangent bundle on)
                             the projective space P_n
@@ -189,10 +189,19 @@ NOTE:     constants are not considered symmetric
   c=append_by_zeroes(nV, c); // append c by zeroes if it is too short
   def br@=basering; // remember the base ring
   // add additional variables to the base ring
-  execute("ring r@= ("+ charstr(basering) +"),("+varstr(basering)+",c@(1..nV),A@(1..nV)), dp;" );
-  execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
-  ideal V=F(V);
-  poly f=F(f);
+  int ii;
+  list l2 = ringlist(basering)[2];
+  for (ii = 1; ii <= nV; ii++)
+  {
+   l2[size(l2)+1] = "c@("+string(ii)+")";
+  }
+    for (ii = 1; ii <= nV; ii++)
+  {
+   l2[size(l2)+1] = "A@("+string(ii)+")";
+  }
+  ring r@ = create_ring(ringlist(basering)[1], l2, "dp", "no_minpoly"); 
+  ideal V=fetch(br@,V);
+  poly f=fetch(br@,f);
   int i;
   for(i=1; i<=nV; i++)
   {
@@ -264,7 +273,7 @@ NOTE:
   int i, j;
   int sign;
   poly f;
-  for(i=1; i<=N; i++) // use the resursive formula
+  for(i=1; i<=N; i++) // use the recursive formula
   {
     f=0;
     sign=1;
@@ -316,7 +325,7 @@ NOTE:
   list rez=list(1); // the result will be computed here
   int i, j;
   poly f;
-  for(i=1; i<=N; i++) // use the resursive formula
+  for(i=1; i<=N; i++) // use the recursive formula
   {
     f=0;
     for(j=1;j<=i; j++) // compute the next Segre class
@@ -503,7 +512,7 @@ PURPOSE:  computes the expressions for the sums of powers [up to degree N]
           in terms of the elementary symmetric polynomials (entries of l),
 EXAMPLE:  example powSumSym; shows an example
 NOTE:     returns the terms of the Chern character
-          multiplied by the correspoding factorials
+          multiplied by the corresponding factorials
 "
 {
   int n;
@@ -524,7 +533,7 @@ NOTE:     returns the terms of the Chern character
     }
     else // if the optional parameter is not an integer, then
     {
-      n=size(c); // ingore it and set n to be the length of c
+      n=size(c); // ignore it and set n to be the length of c
     }
   }
   list rez; // the result will be computed here
@@ -687,7 +696,13 @@ NOTE:     uses the elimination and is extremely inefficient,
   {
     def br@=basering; // remember the base ring
     // add additional variables c@, a@(1..n) to the base ring
-    execute("ring r@= (" + charstr(basering) + "),(c@,"+varstr(basering)+", a@(1..n)), lp;" );
+    list l3 = "c@";
+    l3 = l3+ ringlist(basering)[2];
+    for (int ii = 1; ii <= n; ii++)
+    {
+     l3[size(l3)+1] = "a@("+string(ii)+")";
+    }
+    ring r@ = create_ring(ringlist(basering)[1], l3, "lp", "no_minpoly");
     execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
     list c=F(c); // embed c in the bigger ring
     poly rez;
@@ -917,7 +932,7 @@ NOTE:
   }
   else // otherwise define the rank of the product vector bundle by
   {
-    n=size(c)*size(C); // looking at the lenghts of c and C
+    n=size(c)*size(C); // looking at the lengths of c and C
   }
   if( size(#) != 0 ) // if there is an optional parameter
   {
@@ -1017,7 +1032,18 @@ NOTE:     makes sense only for (lists of) polynomials;
   int n=r*R; // the rank of the product of two vector bundles
   def br@=basering; // remember the base ring
   // add additional variables a@(1..r), b@(1..R), x@ to the base ring
-  execute("ring r@=("+ charstr(basering) +"),(x@,"+varstr(basering)+",a@(1..r),b@(1..R)), lp;");
+  int ii;
+  list l4 = "x@";
+  l4 = l4+ ringlist(basering)[2];
+  for (ii = 1; ii <= r; ii++)
+  {
+   l4[size(l4)+1] = "a@("+string(ii)+")";
+  }
+  for (ii = 1; ii <= R; ii++)
+  {
+   l4[size(l4)+1] = "b@("+string(ii)+")";
+  }
+  ring r@ = create_ring(ringlist(basering)[1], l4, "lp", "no_minpoly");
   execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
   list c=F(c); // embed c in the bigger ring
   list C=F(C); // embed C in the bigger ring
@@ -1100,7 +1126,18 @@ NOTE:     Implementation of the formula of Lascoux, the Schur polynomials are co
   //----------------------------------------------------------
   def br@=basering; // remember the base ring
   // add  additional variables to the base ring
-  execute("ring r@=("+charstr(basering)+"), ("+varstr(basering)+", t@, c@(1..r), C@(1..R)), dp;");
+  int ii;
+  list l5 = ringlist(basering)[2];  
+  l5[size(l5)+1] = "t@";
+  for (ii = 1; ii <= r; ii++)
+  {
+   l5[size(l5)+1] = "c@("+string(ii)+")";
+  }
+  for (ii = 1; ii <= R; ii++)
+  {
+   l5[size(l5)+1] = "C@("+string(ii)+")";
+  }
+  ring r@ = create_ring(ringlist(basering)[1], l5, "dp", "no_minpoly");
   execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
   list c, C;
   int i;
@@ -1234,7 +1271,18 @@ NOTE:     Implementation of the formula of Manivel
   //----------------------------------------------------------
   def br@=basering; // remember the base ring
   // add  additional variables to the base ring
-  execute("ring r@=("+charstr(basering)+"), ("+varstr(basering)+", t@, c@(1..r), C@(1..R)), dp;");
+  int ii;
+  list l6 = ringlist(basering)[2];  
+  l6[size(l6)+1] = "t@";
+  for (ii = 1; ii <= r; ii++)
+  {
+   l6[size(l6)+1] = "c@("+string(ii)+")";
+  }
+  for (ii = 1; ii <= R; ii++)
+  {
+   l6[size(l6)+1] = "C@("+string(ii)+")";
+  }
+  ring r@ = create_ring(ringlist(basering)[1], l6, "dp", "no_minpoly");
   execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
   list c, C;
   int i;
@@ -1541,10 +1589,10 @@ NOTE:     for the second symmetric power chSymm2L(...) could be faster
   // than the rank of the vector bundle,
   // the higher classes are assumed to be zero and the list is appended by zeroes up to length r
   c=append_by_zeroes(r, c);
-  // if the lenght of the list of the Chern classes is greater than the rank
+  // if the length of the list of the Chern classes is greater than the rank
     c=c[1..r]; // throw away the redundant data
   //-----------------------------------
-  // from now on the lenght of c is r>0
+  // from now on the length of c is r>0
   //-----------------------------------
   if(k<0)
   {
@@ -1570,7 +1618,14 @@ NOTE:     for the second symmetric power chSymm2L(...) could be faster
   //-------------------------------
   def br@=basering; // remember the base ring
   // add additional variables to the base ring
-  execute("ring r@=(" + charstr(basering) +  "),(x@,"+varstr(basering)+", a@(1..r)), lp;" );
+  int ii;
+  list l7 = "x@";
+  l7 = l7+ ringlist(basering)[2];
+  for (ii = 1; ii <= r; ii++)
+  {
+   l7[size(l7)+1] = "a@("+string(ii)+")";
+  }
+  ring r@ = create_ring(ringlist(basering)[1], l7, "lp", "no_minpoly");
   execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
   list c=F(c); // embed c into the bigger ring
   list rez; // the Chern classes of the symmetric power are going to be written here
@@ -1613,7 +1668,7 @@ NOTE:     for the second symmetric power chSymm2L(...) could be faster
     int NN = min( size(#), N);
     for(j=1; j <= NN; j++) // process the optional parameters
     {
-      // process the optional parameters only untill they are not bigger than N;
+      // process the optional parameters only until they are not bigger than N;
       // notice they are positive anyway after integer_list(...)
       if( #[j]<=N  )
       {
@@ -1696,7 +1751,13 @@ NOTE:     Implementation of the formula of Lascoux, the Schur polynomials are co
   c=c[1..r];
   def br@=basering; // remember the base ring
   // add  additional variables to the base ring
-  execute("ring r@=(" + charstr(basering) +  "), ("+varstr(basering)+", t@, c@(1..r)), dp;" );
+  list l8 = ringlist(basering)[2];  
+  l8[size(l8)+1] = "t@";
+  for (int ii = 1; ii <= r; ii++)
+  {
+   l8[size(l8)+1] = "c@("+string(ii)+")";
+  }
+  ring r@ = create_ring(ringlist(basering)[1], l8, "dp", "no_minpoly");
   execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
   list c;
   for(i=1;i<=r;i++)
@@ -1862,7 +1923,13 @@ NOTE:     for the second exterior power chWedge2L(...) could be faster
   //-----------------------------
   def br@=basering; // remember the base ring
   // add additional variables a@(1..r), x@ to the base ring
-  execute("ring r@= (" + charstr(basering) + "), (x@,"+varstr(basering)+", a@(1..r)), lp;" );
+  list l9 = "x@";
+  l9 = l9+ ringlist(basering)[2];
+  for (int ii = 1; ii <= r; ii++)
+  {
+   l9[size(l9)+1] = "a@("+string(ii)+")";
+  }
+  ring r@ = create_ring(ringlist(basering)[1], l9, "lp", "no_minpoly");
   execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
   list c = F(c); // embed c into the bigger ring
   list rez; // the result should be computed here
@@ -1907,7 +1974,7 @@ NOTE:     for the second exterior power chWedge2L(...) could be faster
     int NN = min( size(#), N);
     for(j=1; j <= NN; j++) // process the optional parameters
     {
-      // process the optional parameters only untill they are not bigger than N;
+      // process the optional parameters only until they are not bigger than N;
       // notice they are positive anyway after integer_list(...)
       if( #[j]<=N  )
       {
@@ -1990,7 +2057,13 @@ NOTE:     Implementation of the formula of Lascoux, the Schur polynomials are co
   c=c[1..r];
   def br@=basering; // remember the base ring
   // add  additional variables to the base ring
-  execute("ring r@=(" + charstr(basering) +  "), ("+varstr(basering)+", t@, c@(1..r)), dp;" );
+  list l10 = ringlist(basering)[2];  
+  l10[size(l10)+1] = "t@";
+  for (int ii = 1; ii <= r; ii++)
+  {
+   l10[size(l10)+1] = "c@("+string(ii)+")";
+  }
+  ring r@ = create_ring(ringlist(basering)[1], l10, "dp", "no_minpoly");
   execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
   list c;
   for(i=1;i<=r;i++)
@@ -2112,7 +2185,13 @@ NOTE:     returns an empty list if l is empty
   {
     def br@=basering; // remember the base ring
     // add  additional variables to the base ring
-    execute("ring r@=(" + charstr(basering) +  "), ("+varstr(basering)+", a@, c@(1..n)), dp;" );
+    list l11 = ringlist(basering)[2];  
+    l11[size(l11)+1] = "a@";
+    for (int ii = 1; ii <= n; ii++)
+    {
+     l11[size(l11)+1] = "c@("+string(ii)+")";
+    }
+    ring r@ = create_ring(ringlist(basering)[1], l11, "dp", "no_minpoly");
     execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
     list c=F(c); // embed c into the bigger ring
     list prev;
@@ -2194,7 +2273,13 @@ NOTE:     returns an empty list if l is empty,
   {
     def br@=basering; // remember the base ring
     // add additional variables a@(1..n), x@ to the base ring
-    execute("ring r@=(" + charstr(basering) + "), (x@,"+varstr(basering)+", a@(1..n)), lp;" );
+    list l12 = "x@";
+    l12 = l12+ ringlist(basering)[2];
+    for (int ii = 1; ii <= n; ii++)
+    {
+     l12[size(l12)+1] = "a@("+string(ii)+")";
+    }
+    ring r@ = create_ring(ringlist(basering)[1], l12, "lp", "no_minpoly");
     execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
     list c=F(c); // embed c into the bigger ring
     int j;
@@ -2338,7 +2423,7 @@ proc tdFactor(int n, poly t)
 "USAGE:   tdFactor(n, a);  n integer, a polynomial
 RETURN:   polynomial
 PURPOSE:  computes up to degree n the Todd class
-          of the line bundle coresponding to the Chern root t
+          of the line bundle corresponding to the Chern root t
 EXAMPLE:  example tdFactor; shows an example
 NOTE:     returns 0 if n is negative
 "
@@ -2494,7 +2579,7 @@ proc eulerChProj(int n, def r, list c)
 "USAGE:   eulerChProj(n, r, c);  n  integer, r polynomial (or integer), c list of polynomials
 RETURN:   polynomial
 PURPOSE:  computes the Euler characteristic of a vector bundle on P_n
-          in terms of its rank and Chern classses
+          in terms of its rank and Chern classes
 EXAMPLE:  example eulerChProj; shows an example
 NOTE:
 "
@@ -2900,7 +2985,7 @@ example
 proc PartC(list I, int m)
 "USAGE:   PartC( I, m);  I list of integers, m integer
 RETURN:   list of integers
-PURPOSE:  commputes the complement of a partition with respect to m
+PURPOSE:  computes the complement of a partition with respect to m
 EXAMPLE:  example PartC; shows an example
 NOTE:     returns the zero partition if the maximal element of the partition is smaller than m
 "
@@ -2944,11 +3029,11 @@ NOTE:
   {
     // give a warning
     print("You are trying to compute partitions over an empty partition!");
-    return( list() ); // and return the emty list
+    return( list() ); // and return the empty list
   }
   if( J[m] > n ) // if the biggest summand of the partition is bigger than n
   {
-    return( list( ) ); // return the emty list
+    return( list( ) ); // return the empty list
   }
   if( J[m] == 0 ) // if J consists of zeroes
   {
@@ -2975,7 +3060,7 @@ NOTE:
   {
     P=rez[i]; // for each partition P of this type
     last = max( P[size(P)], J[m] );
-    for(j = last;j<= n;j++) // run through the integers exceding the last summands of P and J
+    for(j = last;j<= n;j++) // run through the integers exceeding the last summands of P and J
     {
       // append them to P at the end and add the resulting partition to the result
       rez1=rez1 + list(P+list(j));
@@ -3060,11 +3145,11 @@ NOTE:
   }
   // modify the generators of the ideal so that all of them are of the same degree
   I=equal_deg(I);
-  int d=deg(I[1]); // this degree is stored in this variable
+  int degGen=deg(I[1]); // this degree d is stored in this variable
   int i;
   list rez; // define the variable for the result
   int n=nvars(basering)-1; // the dimension of the projective space
-  if(d==-1) // if the ideal is zero
+  if(degGen==-1) // if the ideal is zero
   {
     for(i=0;i<=n;i++)
     {
@@ -3075,9 +3160,14 @@ NOTE:
   int sz=ncols(I); // the number of new generators is stored here
   def br@=basering; // remember the base ring
   // add additional variables t@(1), ... , t@(sz) and u@ to the base ring
-  execute("ring r@=("+ charstr(basering) +"),("+varstr(basering)+",t@(1..sz),u@), dp;");
-  execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
-  ideal I=F(I); // the ideal generated by I in the new ring
+  list l13 = ringlist(basering)[2];
+  for (int ii = 1; ii <= sz; ii++)
+  {
+   l13[size(l13)+1] = "t@("+string(ii)+")";
+  }
+  l13[size(l13)+1] = "u@";
+  ring r@ = create_ring(ringlist(basering)[1], l13, "dp", "no_minpoly");
+  ideal I=fetch(br@,I); // the ideal generated by I in the new ring
   ideal J(0..n); // define n+1 ideals J(0), ... , J(n)
   // compute the ideal of the Rees algebra of the ideal I:
   for(i=1; i<=sz; i++) // consider the ideal generated by t@(i)-u@*I[i]
@@ -3099,9 +3189,9 @@ NOTE:
     // eliminate all t@(i) from J(i)
     // compute the degree of the scheme defined by this ideal
     // and use it to compute the class corresponding to c(O(d))^n * G\otimes O(d)
-    cl=cl+mult(std(eliminate(J(i), prd)))*u@^i*(1+d*u@)^(n-i);
+    cl=cl+mult(std(eliminate(J(i), prd)))*u@^i*(1+degGen*u@)^(n-i);
     // the (n+1)-st power of the inverse of the Chern class of O(d)
-    mlt=mlt+binomial(n+i, i)*(-d*u@)^i;
+    mlt=mlt+binomial(n+i, i)*(-degGen*u@)^i;
   }
   poly resPoly;
   // compute the Segre class by the Aluffi's formula from Proposition 3.1 as polynomial in u@
@@ -3153,11 +3243,11 @@ NOTE:
   }
   // modify the generators of the ideal so that all of them are of the same degree
   I=equal_deg(I);
-  int d=deg(I[1]); // this degree is stored in this variable
+  int degGen=deg(I[1]); // this degree d is stored in this variable
   int i;
   list rez; // define the variable for the result
   int n=nvars(basering)-1; // the dimension of the projective space
-  if(d==-1) // if the ideal is zero
+  if(degGen==-1) // if the ideal is zero
   {
     rez=rez+list(int(1));
     for(i=1;i<=n;i++)
@@ -3169,9 +3259,14 @@ NOTE:
   int sz=ncols(I); // the number of new generators is stored here
   def br@=basering; // remember the base ring
   // add additional variables t@(1), ... , t@(sz) and u@ to the base ring
-  execute("ring r@=("+ charstr(basering) +"),("+varstr(basering)+",t@(1..sz),u@), dp;");
-  execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
-  ideal I=F(I); // the ideal generated by I in the new ring
+  list l14 = ringlist(basering)[2];
+  for (int ii = 1; ii <= sz; ii++)
+  {
+   l14[size(l14)+1] = "t@("+string(ii)+")";
+  }
+  l14[size(l14)+1] = "u@";
+  ring r@ = create_ring(ringlist(basering)[1], l14, "dp", "no_minpoly");
+  ideal I=fetch(br@,I); // the ideal generated by I in the new ring
   ideal J(0..n); // define n+1 ideals J(0), ... , J(n)
   // compute the ideal of the Rees algebra of the ideal I:
   for(i=1; i<=sz; i++) // consider the ideal generated by t@(i)-u@*I[i]
@@ -3193,9 +3288,9 @@ NOTE:
     // eliminate all t@(i) from J(i)
     // compute the degree of the scheme defined by this ideal
     // the class corresponding to c(O(d))^n * G\otimes O(d)
-    cl=cl+ mult(std( eliminate( J(i),  prd) ))*u@^i*(1+d*u@)^(n-i);
+    cl=cl+ mult(std( eliminate( J(i),  prd) ))*u@^i*(1+degGen*u@)^(n-i);
     // the (n+1)-st power of the inverse of the Chern class of O(d)
-    mlt=mlt+binomial(n+i, i)*(-d*u@)^i;
+    mlt=mlt+binomial(n+i, i)*(-degGen*u@)^i;
   }
   poly resPoly;
   // compute the Fulton class using the Aluffi's formula for the Segre class and
@@ -3305,17 +3400,16 @@ NOTE:
   int n=nvars(basering);
   def br@=basering; // remember the base ring
   ring r@ = create_ring(ringlist(basering)[1], "("+varstr(basering)+",homvar@)", "dp", "no_minpoly");
-  execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
-  ideal I=F(I);
+  ideal I=fetch(br@,I);
   ideal J=homog(I, homvar@);
   ideal JJ=J, homvar@;
-  return( CSMA(J)[n]-CSMA(JJ)[n] );
+  return( CSMA(J)[n+1]-CSMA(JJ)[n+1] );
 }
 example
 {
   "EXAMPLE:";echo =2;
   ring r = 0, (x, y), dp;
-  // compute the Euler characteristic of the affine ellipric curve y^2=x^3+x+1;
+  // compute the Euler characteristic of the affine elliptic curve y^2=x^3+x+1;
   ideal I=y2-x3-x-1;
   EulerAff(I);
 }
@@ -3335,7 +3429,7 @@ NOTE:     uses CSMA(...)
     print("The ideal must be homogeneous, zero is returned.");
     return( int(0) );
   }
-  int n=nvars(basering)-1;
+  int n=nvars(basering);
   return( CSMA(I)[n] );
 }
 example
@@ -3384,7 +3478,7 @@ example
   "EXAMPLE:";echo =2;
   ring r = 0, (x, y, z), dp;
   list l=(x, y, z);
-  //append the list by two zeroes and get a list of lenght 5
+  //append the list by two zeroes and get a list of length 5
   print( append_by_zeroes(5, l) );
 }
 //-----------------------------------------------------------------------
@@ -3424,7 +3518,7 @@ static proc integer_list(list l)
 "USAGE:   integer_list(l);  l list
 RETURN:   list
 PURPOSE:  gets the first positive ingerer entries of l, computes their maximum;
-          used for adjusting the lists of optional parameters that are suposed to be integers
+          used for adjusting the lists of optional parameters that are supposed to be integers
 EXAMPLE:  example integer_list; shows an example
 NOTE:     used in chWedge(...) and chSymm(...)
 "
@@ -3680,7 +3774,7 @@ example
   "EXAMPLE:";echo =2;
   ring r = 0, (x, y, z), dp;
   list l=(1, 2, 3);
-  //append the list by two zeroes and get a list of lenght 5
+  //append the list by two zeroes and get a list of length 5
   print( apn0_int(5, l) );
 }
 //---------------------------------------------------------------------------------------
@@ -3844,7 +3938,7 @@ example
   // and is generated by elements of different degrees
   print(I);
   ideal J=equal_deg(I);
-  // now the ideal is generated by elemets of degree 2
+  // now the ideal is generated by elements of degree 2
   // and defines the same subscheme in the projective plane
   J;
   // notice that both ideals have the same saturation
@@ -3867,11 +3961,11 @@ NOTE:
   ideal I=jacob(f);
   I=simplify(I, 8+2); // ignore repetitions and zero generators
   I=sort(I)[1]; // sort the generators, it speeds up the computations
-  int d=deg(I[1]); // the degree of the generators of the Jacobian ideal
+  int degGen=deg(I[1]); // the degree of the generators of the Jacobian ideal
   int i;
   int n=nvars(basering)-1; // the dimension of the projective space
   bigintmat REZ[1][n+1];
-  if(d==-1) // if the Jacobian ideal is zero
+  if(degGen==-1) // if the Jacobian ideal is zero
   {
     for(i=0;i<=n;i++)
     {
@@ -3882,9 +3976,14 @@ NOTE:
   //TODO need to check the zero ideal and I==1;
   int sz=ncols(I);
   def br@=basering; // remember the base ring
-  execute("ring r@=("+ charstr(basering) +"),("+varstr(basering)+",t@(1..sz),u@), dp;");
-  execute( "map F= br@,"+varstr(br@)+";" ); // define the corresponding inclusion of rings
-  ideal I=F(I);
+  list l15 = ringlist(basering)[2];
+  for (int ii = 1; ii <= sz; ii++)
+  {
+   l15[size(l15)+1] = "t@("+string(ii)+")";
+  }
+  l15[size(l15)+1] = "u@";
+  ring r@ = create_ring(ringlist(basering)[1], l15, "dp", "no_minpoly");
+  ideal I=fetch(br@,I);
   ideal J(0..n);
   for(i=1; i<=sz; i++)
   {

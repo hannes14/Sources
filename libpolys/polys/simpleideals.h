@@ -21,10 +21,6 @@ struct sip_sideal
   int nrows;
   int ncols;
   #define IDELEMS(i) ((i)->ncols)
-  #define MATCOLS(i) ((i)->ncols)
-  #define MATROWS(i) ((i)->nrows)
-  #define MATELEM(mat,i,j) ((mat)->m)[MATCOLS((mat)) * ((i)-1) + (j)-1]
-
 };
 /* the settings of rank, nrows, ncols, m ,   entries:
  * for IDEAL_CMD:     1    1    n    size n   poly              (n>=0)
@@ -59,6 +55,7 @@ EXTERN_VAR omBin sip_sideal_bin;
 
 /// creates an ideal / module
 ideal idInit (int size, int rank=1);
+#define id_Init(s,r,R) idInit(s,r)
 
 /*- deletes an ideal -*/
 void id_Delete (ideal* h, ring r);
@@ -68,6 +65,8 @@ void idSkipZeroes (ideal ide);
 
 /// number of non-zero polys in F
 int     idElem(const ideal F);
+#define id_Elem(F,R) idElem(F)
+
 /// normialize all polys in id
 void    id_Normalize(ideal id, const ring r);
 

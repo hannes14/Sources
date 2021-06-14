@@ -7,18 +7,18 @@ AUTHOR :  Silke Spang
 
 OVERVIEW:
    Algorithms about the computation of the real
-   radical of an arbitary ideal over the rational numbers
+   radical of an arbitrary ideal over the rational numbers
    and transcendetal extensions thereof
 
 PROCEDURES:
  realpoly(f);     Computes the real part of the univariate polynomial f
  realzero(j);     Computes the real radical of the zerodimensional ideal j
- realrad(j);      Computes the real radical of an arbitary ideal over
+ realrad(j);      Computes the real radical of an arbitrary ideal over
                   transcendental extension of the rational numbers
 ";
 
 LIB "inout.lib";
-LIB "poly.lib";
+LIB "polylib.lib";
 LIB "matrix.lib";
 LIB "general.lib";
 LIB "rootsur.lib";
@@ -34,7 +34,7 @@ LIB "elim.lib";
 //// the main procedure //////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 proc realrad(ideal id)
-"USAGE: realrad(id), id an ideal of arbitary dimension
+"USAGE: realrad(id), id an ideal of arbitrary dimension
 RETURN: the real radical of id
 EXAMPE: example realrad; shows an example"
 {
@@ -42,8 +42,7 @@ EXAMPE: example realrad; shows an example"
   def r=basering;
   int n=nvars(basering);
   // for faster Groebner basis and dimension compuations
-  string neuring ="ring schnell=("+charstr(r)+"),("+varstr(r)+"),dp;";
-  execute(neuring);
+  ring schnell = create_ring(ringlist(r)[1], "("+varstr(r)+")", "dp", "no_minpoly");
   def ri=basering;
 
   list reddim;//reduct dimension to 0
@@ -94,8 +93,7 @@ EXAMPE: example realrad; shows an example"
       vari=vari+","+string(lvar[j]);
     }
     vari=vari[2..size(vari)];
-    neuring="ring neu=("+charstr(r)+pari+"),("+vari+"),dp;";
-    execute(neuring);
+    ring neu = create_ring("("+charstr(r)+pari+")", "("+vari+")", "dp");
     ideal id=imap(r,id);
     ideal buffer=zeroreduct(id);
     buffer=realzero(buffer);
@@ -113,7 +111,6 @@ EXAMPE: example realrad; shows an example"
   setring r;
   id=imap(ri,id);
   return(id);
-
 }
 example
 { "EXAMPLE:"; echo = 2;
@@ -128,7 +125,7 @@ example
 
 
 /*static*/ proc zeroreduct(ideal i)
-"USAGE:zeroreduct(i), i an arbitary ideal
+"USAGE:zeroreduct(i), i an arbitrary ideal
 RETURN: an ideal j of dimension <=0 s.th. i is contained in
         j and j is contained in i_{Iso} which is the zariski closure
         of all real isolated points of i
@@ -141,8 +138,9 @@ RETURN: an ideal j of dimension <=0 s.th. i is contained in
 
  //chance ring to get faster groebner bases computation for dimensions
 
- string rneu="ring neu=("+charstr(r)+"),("+varstr(r)+"),dp;";
- execute(rneu);
+ list rneu=ringlist(r);
+ rneu[3]=list(list("dp",1:nvars(r)),list("c",0));
+ ring neu=ring(rneu);
  ideal i=imap(r,i);
 
  i=groebner(i);
@@ -313,7 +311,7 @@ EXAMPLE:   example radzero; shows no example"
    //get real zeros
 
    //this will act via a coordinate chance into general position
-   //denote that this random chance doesn't work allways
+   //denote that this random chance doesn't work always
    //the ideas for the transformation into general position are
    //used from the primdec.lib
    transprep=buffer[l];
@@ -359,15 +357,12 @@ EXAMPLE:   example radzero; shows no example"
    }
    else
    {
-     ri="ring rhelp=("+charstr(r)+ "),(" +varstr(r)+ ",@t),dp;";
-     execute(ri);
+     ring rhelp = create_ring(ringlist(r)[1], "(" +varstr(r)+ ",@t)", "dp", "no_minpoly");
      ideal trans=homog(imap(r,trans),@t);
 
      ideal trans1=std(trans);
      @hilb=hilb(trans1,1);
-     ri= "ring rhelp1=("
-                   +charstr(r)+ "),(" +varstr(rhelp)+ "),lp;";
-     execute(ri);
+     ring rhelp1 = create_ring(ringlist(r)[1], "(" +varstr(rhelp)+ ")", "lp", "no_minpoly");
      ideal trans=homog(imap(r,trans),@t);
      kill rhelp;
      trans=std(trans,@hilb);
@@ -448,8 +443,7 @@ EXAMPLE:   example realpoly; shows an example"
  int tester;
  if (size(parstr(r))!=0)
  {
-   string changering="ring rneu=0,("+parstr(r)+","+varstr(r)+"),lp";
-   execute(changering);
+   ring rneu = create_ring(0, "("+parstr(r)+","+varstr(r)+")", "lp");
    poly f=imap(r,f);
    tester=1;
  }
@@ -495,7 +489,7 @@ example
 //// for semi-definiteness/////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 proc decision(poly f)
-" USAGE: decission(f); a multivariate polynomial f in Q[x_1,..,x_n] and lc f=0
+"USAGE: decision(f); a multivariate polynomial f in Q[x_1,..,x_n] and lc f=0
  RETURN: assume that the basering has a lexicographical ordering,
          1 if f is positive semidefinite  0 if f is indefinite
 EXAMPLE: decision shows an example
@@ -556,8 +550,7 @@ EXAMPLE: decision shows an example
    lessvar=string(varlist);
 
    parvar=string(var(n));
-   ri="ring r_neu="+charstr(r)+",(@t,"+parvar+","+lessvar+"),dp;";
-   execute(ri);
+   ring r_neu = create_ring(ringlist(r)[1], "(@t,"+parvar+","+lessvar+")", "dp", "no_minpoly");
    poly f=imap(r,f);
    list varlist=imap(r,varlist);
    ideal jac=jacob(@t+f);
@@ -622,8 +615,7 @@ EXAMPLE: decision shows an example
      }
      rbuffer=basering;
      //perm=@t,x_n,x_1,..,x_ik,x\(x_i1,..,x_ik)
-     ri="ring rh=0,("+perm+"),dp;";
-     execute(ri);
+     ring rh = create_ring(0, "("+perm+")", "dp");
      ideal jacs=imap(rbuffer,jacs);
      poly p=imap(rbuffer,p);
      matrix m=char_series(jacs);
@@ -639,9 +631,7 @@ EXAMPLE: decision shows an example
      {
        l[zz,n-zz]=1;
      }
-     ri="ring rcoef="+"(0,@t,"+parvar+"),
-     ("+lessvar+"),M(l);";
-     execute(ri);
+     ring rcoef = create_ring("(0,@t,"+parvar+")", "("+lessvar+")", "M("+string((l))+")");
      kill l;
      poly e=imap(rh,e);
      e=leadcoef(e);
@@ -660,8 +650,7 @@ EXAMPLE: decision shows an example
    ///////////found polynomial p /////////////////////////////////////////////
    ///////////////////////////////////////////////////////////////////////////
    //Compute an isolating set for p
-   ri="ring iso="+charstr(r)+","+parvar+",lp;";
-   execute(ri);
+   ring iso = create_ring(ringlist(r)[1], parvar, "lp", "no_minpoly");
    poly p=imap(r,p);
    isol=isolset(p);
    setring r;
@@ -669,9 +658,8 @@ EXAMPLE: decision shows an example
    tester=1;
    for (@z=1;@z<=size(isol);@z++)
    {
-     ri="ring rless="+charstr(r)+",("+lessvar+"),lp;";
      g=subst(f,var(n),isol[@z]);
-     execute(ri);
+     ring rless = create_ring(ringlist(r)[1], "("+lessvar+")", "lp", "no_minpoly");
      poly g=imap(r,g);
      tester=tester*decision(g);
      setring r;
@@ -884,7 +872,7 @@ EXAMPLE:   example is_real; shows an example"
    if
    (a*b!=1)
    //polynomials are contineous so the image is an interval
-   //referres to analysis
+   //referes to analysis
    {
       return(1);
    }
@@ -909,7 +897,7 @@ static proc prepare_max(ideal m)
 "USAGE: prepare_max(m); m a maximal ideal in Q(y_1,...,y_m)[x_1,...,x_n]
 RETURN: a list erg=(id,j); where id is the real radical of m if j=1 (i.e. m
         satisfies the shape lemma in one variable x_i) else id=m and j=0;
-EXAMPLE: is_in_shape shows an exmaple;
+EXAMPLE: is_in_shape shows an example;
 "
 
 {
@@ -933,8 +921,7 @@ EXAMPLE: is_in_shape shows an exmaple;
       vari=vari+","+string(perm[i][j]);
     }
     vari=vari[2..size(vari)];
-    wechsler="ring r_neu=("+charstr(r)+"),("+vari+"),lp;";
-    execute(wechsler);
+    ring r_neu = create_ring(ringlist(r)[1], "("+vari+")", "lp", "no_minpoly");
     ideal id=imap(r,m);
     id=groebner(id);
     k=search_first(id,2,2);
@@ -986,8 +973,8 @@ EXAMPLE: is_in_shape shows an exmaple;
 
 static proc length(poly f)
 "USAGE:    length(f); poly f;
-RETURN:    sum of the absolute Value of all coeffients of an irreducible
-           poly nomial f
+RETURN:    sum of the absolute Value of all coefficients of an irreducible
+           polynomial f
 EXAMPLE:   example length; shows an example"
 
 {
@@ -1158,7 +1145,7 @@ EXAMPLE:simplify_gen gives no example"
 }
 static proc contnonloc(ideal id,string pari, string vari)
 "INPUT : a radical ideal id in in F[pari+vari] which is radical in
-         F(pari)[vari), pari and vari strings of variables
+         F(pari)[vari], pari and vari strings of variables
 OUTPUT : the contraction ideal of id, i.e. idF(pari)[vari]\cap F[pari+vari]
 EXAMPLE: contnonloc shows an example
 "
@@ -1168,8 +1155,7 @@ EXAMPLE: contnonloc shows an example
   int i,l,tester;
   ideal primcomp;
   def r=basering;
-  string neu="ring r_neu=("+charstr(r)+pari+"),("+vari+"),dp;";
-  execute(neu);
+  ring r_neu = create_ring("("+charstr(r)+pari+")", "("+vari+")", "dp");
   def r1=basering;
   ideal buffer;
   setring r;
@@ -1192,7 +1178,7 @@ EXAMPLE: contnonloc shows an example
     }
     setring r;
 
-    //id only consits of non units in F(pari)
+    //id only consists of non units in F(pari)
     if (tester==1)
     {
      contractpr=insert(contractpr,primcomp);

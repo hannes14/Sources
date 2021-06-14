@@ -13,10 +13,10 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include "omConfig.h"
-#include "omDerivedConfig.h"
-#include "omStructs.h"
-#include "omAllocPrivate.h"
+#include "omalloc/omConfig.h"
+#include "omalloc/omDerivedConfig.h"
+#include "omalloc/omStructs.h"
+#include "omalloc/omAllocPrivate.h"
 
 /* Specify the minimal number of blocks which should go into a bin */
 #if SIZEOF_SYSTEM_PAGE > 4096
@@ -173,19 +173,6 @@ int main(int argc, char* argv[])
   {
     max_bin_index++;
     if (om_BinSize[max_bin_index] == OM_MAX_BLOCK_SIZE) break;
-  }
-  if (argc > 1)
-  {
-    /* output what goes into omTables.h */
-  printf(
-"#ifndef OM_TABLES_H\n"
-"#define OM_TABLES_H\n"
-"#define OM_MAX_BLOCK_SIZE %d\n"
-"#define OM_MAX_BIN_INDEX %d\n"
-"#define OM_SIZEOF_UNIQUE_MAX_BLOCK_THRESHOLD %d\n"
-"#endif /* OM_TABLES_H */\n"
-,  OM_MAX_BLOCK_SIZE, max_bin_index, GetMaxBlockThreshold());
-  return 0;
   }
 
   printf(

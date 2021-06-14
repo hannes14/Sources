@@ -40,7 +40,16 @@ extern "C"
 #include <flint/fq_nmod.h>
 #include <flint/fq_nmod_poly.h>
 #include <flint/fq_nmod_mat.h>
+#if ( __FLINT_RELEASE >= 20503)
+#include <flint/fmpq_mpoly.h>
 #endif
+#if ( __FLINT_RELEASE >= 20700)
+#include <flint/fq_nmod_mpoly_factor.h>
+#endif
+#endif
+
+EXTERN_VAR flint_rand_t FLINTrandom;
+
 #ifdef __cplusplus
 }
 #endif
@@ -49,7 +58,14 @@ extern "C"
 
 /// conversion of a factory integer to fmpz_t
 void
-convertCF2Fmpz (fmpz_t result,         ///< [in,out] an fmpz_t
+convertCF2Fmpz (fmpz_t result,         ///< [out] an fmpz_t
+                const CanonicalForm& f ///< [in] a CanonicalForm wrapping an
+                                       ///< integer
+               );
+
+/// conversion of a factory integer to fmpz_t(init.)
+void
+convertCF2initFmpz (fmpz_t result,     ///< [in,out] an fmpz_t
                 const CanonicalForm& f ///< [in] a CanonicalForm wrapping an
                                        ///< integer
                );
@@ -95,6 +111,9 @@ convertCF2Fmpq (fmpq_t result,         ///< [in,out] an fmpq_t
                                        ///< rational
                );
 
+/// conversion of a FLINT rational to CanonicalForm
+CanonicalForm convertFmpq2CF (const fmpq_t q);
+
 /// conversion of a factory univariate polynomials over Q to fmpq_poly_t
 void
 convertFacCF2Fmpq_poly_t (fmpq_poly_t result,    ///< [in,out] an fmpq_poly_t
@@ -118,6 +137,27 @@ convertFLINTnmod_poly_factor2FacCFFList (
                    const Variable& x       ///< [in] variable the result should
                                            ///< have
                                         );
+
+/// conversion of a FLINT factorization over Z to a CFFList
+CFFList
+convertFLINTfmpz_poly_factor2FacCFFList (
+                   const fmpz_poly_factor_t fac, ///< [in] a fmpz_poly_factor_t
+                   const Variable& x       ///< [in] variable the result should
+                                           ///< have
+                                        );
+
+
+#if ( __FLINT_RELEASE >= 20700)
+/// conversion of a FLINT factorization over Zp(a) to a CFFList
+CFFList
+convertFLINTFq_nmod_mpoly_factor2FacCFFList (
+                   fq_nmod_mpoly_factor_t fac,    ///< [in] a fq_nmod_mpoly_factor_t
+                   const fq_nmod_mpoly_ctx_t& ctx,///< [in] context
+                   const int N,                   ///< [in] #vars
+                   const fq_nmod_ctx_t& fq_ctx,   ///< [in] fq context
+                   const Variable alpha           ///< [in] alpha
+                                        );
+#endif
 
 /// conversion of a factory univariate poly over Z to a FLINT poly over
 /// Z/p (for non word size p)
@@ -145,7 +185,8 @@ convertFmpz_mod_poly_t2FacCF (
 /// alpha
 CanonicalForm
 convertFq_nmod_t2FacCF (const fq_nmod_t poly, ///< [in] fq_nmod_t
-                        const Variable& alpha ///< [in] algebraic variable
+                        const Variable& alpha, ///< [in] algebraic variable
+                        const fq_nmod_ctx_t ctx ///<[in] context
                        );
 
 /// conversion of a FLINT element of F_q with non-word size p to a CanonicalForm
@@ -162,6 +203,18 @@ convertFacCF2Fq_nmod_t (fq_nmod_t result,       ///< [in,out] fq_nmod_t
                         const CanonicalForm& f, ///< [in] element of Fq
                         const fq_nmod_ctx_t ctx ///< [in] Fq context
                        );
+
+#if ( __FLINT_RELEASE >= 20700)
+/// conversion of a factory polynomial over of F_q to a FLINT fq_nmod_mpoly_t, does not do any
+/// memory allocation for poly
+void
+convertFacCF2Fq_nmod_mpoly_t (fq_nmod_mpoly_t result, ///< [in,out] fq_nmod_mpoly__t
+                        const CanonicalForm& f,       ///< [in] poly over Fq
+                        const fq_nmod_mpoly_ctx_t ctx,///< [in] context
+                        const int N,                  ///< [in] #vars
+                        const fq_nmod_ctx_t fq_ctx    ///< [in] fq context
+                       );
+#endif
 
 /// conversion of a factory element of F_q (for non-word size p) to a FLINT fq_t
 void
@@ -254,6 +307,21 @@ CanonicalForm mulFlintMP_Zp(const CanonicalForm& F,int lF, const CanonicalForm& 
 CanonicalForm mulFlintMP_QQ(const CanonicalForm& F,int lF, const CanonicalForm& Gi, int lG, int m);
 CanonicalForm gcdFlintMP_Zp(const CanonicalForm& F, const CanonicalForm& G);
 CanonicalForm gcdFlintMP_QQ(const CanonicalForm& F, const CanonicalForm& G);
-#endif
-#endif
+void convFactoryPFlintMP ( const CanonicalForm & f, nmod_mpoly_t res, nmod_mpoly_ctx_t ctx, int N );
+void convFactoryPFlintMP ( const CanonicalForm & f, fmpq_mpoly_t res, fmpq_mpoly_ctx_t ctx, int N );
+void convFactoryPFlintMP ( const CanonicalForm & f, fmpz_mpoly_t res, fmpz_mpoly_ctx_t ctx, int N );
+CanonicalForm convFlintMPFactoryP(nmod_mpoly_t f, nmod_mpoly_ctx_t ctx, int N);
+CanonicalForm convFlintMPFactoryP(fmpq_mpoly_t f, fmpq_mpoly_ctx_t ctx, int N);
+CanonicalForm convFlintMPFactoryP(fmpz_mpoly_t f, fmpz_mpoly_ctx_t ctx, int N);
+#endif // FLINT 2.5.3
+#if __FLINT_RELEASE >= 20700
+CanonicalForm
+convertFq_nmod_mpoly_t2FacCF (const fq_nmod_mpoly_t poly,    ///< [in] 
+                              const fq_nmod_mpoly_ctx_t& ctx,///< [in] context
+                              const int N,                   ///< [in] #vars
+                              const fq_nmod_ctx_t& fq_ctx,   ///< [in] fq context
+                              const Variable alpha           ///< [in] alpha
+                         );
+#endif // FLINT2.7.0
+#endif // FLINT
 #endif

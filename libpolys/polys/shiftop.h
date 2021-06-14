@@ -41,7 +41,7 @@ void WriteLPExpV(int *expV, ring ri);
 char* LPExpVString(int *expV, ring ri);
 
 void k_SplitFrame(poly &m1, poly &m2, int at, const ring r);
-#define kSplitFrame(m1, m2, at) k_SplitFrame(m1, m2, at, currRing);
+#define kSplitFrame(m1, m2, at) k_SplitFrame(m1, m2, at, currRing)
 
 int id_IsInV(ideal I, const ring r);
 int p_IsInV(poly p, const ring r);
@@ -53,10 +53,22 @@ int p_mIsInV(poly p, const ring r);
 BOOLEAN p_LPDivisibleBy(poly a, poly b, const ring r);
 BOOLEAN p_LPLmDivisibleBy(poly a, poly b, const ring r);
 BOOLEAN _p_LPLmDivisibleByNoComp(poly a, poly b, const ring r);
+BOOLEAN p_LPDivisibleBy(ideal I, poly p, ring r);
+#define pLPDivisibleBy(a, b) p_LPLmDivisibleBy(a, b, currRing)
+#define pLPLmDivisibleBy(a, b) p_LPLmDivisibleBy(a, b, currRing)
 
+BOOLEAN _p_mLPNCGenValid(poly p, const ring r);
 BOOLEAN _p_mLPNCGenValid(int *mExpV, const ring r);
 
 poly p_LPVarAt(poly p, int pos, const ring r);
+
+#define pGetNCGen(p) p_GetNCGen(p, currRing)
+int p_GetNCGen(poly p, const ring r);
+
+#define pLPSubst(p, n, e) p_LPSubst(p, n, e, r)
+#define pmLPSubst(m, n, e) p_LPSubst(m, n, e, r)
+poly p_LPSubst(poly p, int n, poly e, const ring r);
+poly p_mLPSubst(poly m, int n, poly e, const ring r);
 
 /// create the letterplace ring corresponding to r up to degree d
 ring freeAlgebra(ring r, int d, int LPncGenCount = 0);

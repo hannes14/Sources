@@ -10,6 +10,7 @@
 
 #include "coeffs/si_gmp.h"
 #include "coeffs/coeffs.h"
+#include "factory/si_log2.h"
 
 number   nlGetDenom(number &n, const coeffs r); /*for SAGE,, better: n_GetDenom */
 number   nlGetNumerator(number &n, const coeffs r); /*for SAGE, better: n_GetNumerator*/
@@ -82,7 +83,7 @@ static  FORCE_INLINE int nlQlogSize (number n, const coeffs r)
     long i = SR_TO_INT (n);
     unsigned long v;
     v = ABS(i);
-    return SI_LOG2(v) + 1;
+    return SI_LOG2_LONG(v) + 1;
   }
   //assume denominator is 0
   number nn=(number) n;
@@ -117,11 +118,9 @@ number   nlInit2 (int i, int j, const coeffs r);
 /// NOTE: make sure to use correct Q in debug mode
 number   nlInit2gmp (mpz_t i, mpz_t j, const coeffs r);
 
-// FIXME: TODO:  why only if HAVE_RINGS? bug?
-#  ifdef HAVE_RINGS
-void   nlGMP(number &i, mpz_t n, const coeffs r); // to be replaced with n_MPZ(number n, number &i,const coeffs r)???
-number nlMapGMP(number from, const coeffs src, const coeffs dst);
-#  endif
+#if 0 // substituted by nlMPZ
+void   nlGMP(number &i, mpz_t n, const coeffs r);
+#endif
 // for ring similiar to Q/Z (char 0 required):
 number   nlChineseRemainderSym(number *x, number *q,int rl, BOOLEAN sym, CFArray &inv_cache,const coeffs CF);
 
